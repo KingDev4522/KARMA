@@ -8,6 +8,8 @@ import { useToast } from "@/components/toast";
 import { Icon } from "@/components/illustrations";
 import { ATTR_META, LevelUpModal, announceAchievements, questAttrKey } from "@/components/quests";
 import { Celebration, celebrationFrom, type CelebrationData } from "@/components/celebration";
+import { Scenery, sceneryIndexFor } from "@/components/scenery";
+import { bgmEnabled, setBgmEnabled, ensureBgm } from "@/lib/bgm";
 
 export interface FocusQuest {
   id?: string;
@@ -302,6 +304,20 @@ export function FocusProvider({ children }: { children: ReactNode }) {
 
   const mm = String(Math.floor(left / 60)).padStart(2, "0");
   const ss = String(left % 60).padStart(2, "0");
+  // One scenery per minute of the session (6 vignettes, cycling).
+  const sceneIdx = sceneryIndexFor(total - left);
+  const [muted, setMuted] = useState(false);
+
+  useEffect(() => {
+    if (quest) setMuted(!bgmEnabled());
+  }, [quest]);
+
+  const toggleMute = () => {
+    const next = !bgmEnabled();
+    setBgmEnabled(next);
+    if (next) void ensureBgm();
+    setMuted(!next);
+  };
 
   return (
     <FocusCtx.Provider value={{ openFocus, focusSeq: seq }}>
@@ -328,9 +344,23 @@ export function FocusProvider({ children }: { children: ReactNode }) {
         />
       )}
       <div className={`focus-session${quest ? " is-open" : ""}`} role="dialog" aria-modal={!!quest} aria-label="Focus session">
+        {quest && (
+          <div className="focus-scenery" aria-hidden="true">
+            <Scenery key={sceneIdx} index={sceneIdx} className="sc-scene-enter" />
+          </div>
+        )}
         <button className="btn btn--ghost focus-exit" onClick={exit}>
           <Icon id="i-close" style={{ width: 15, height: 15 }} />
           Leave focus
+        </button>
+        <button
+          className="icon-btn focus-mute"
+          onClick={toggleMute}
+          title={muted ? "Unmute ambient music" : "Mute ambient music"}
+          aria-label={muted ? "Unmute ambient music" : "Mute ambient music"}
+          aria-pressed={!muted}
+        >
+          <Icon id={muted ? "i-volx" : "i-vol"} style={{ width: 15, height: 15 }} />
         </button>
         <div className="focus-stage">
           <div className="focus-label">Focus session</div>

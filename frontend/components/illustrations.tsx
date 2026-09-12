@@ -18,7 +18,7 @@ export type IconId =
   | "i-close" | "i-arrow-r" | "i-sun" | "i-moon" | "i-spark" | "i-clock"
   | "i-strength" | "i-vitality" | "i-intellect" | "i-focusattr"
   | "i-discipline" | "i-craft" | "i-connection" | "i-exploration"
-  | "i-level" | "i-trophy";
+  | "i-level" | "i-trophy" | "i-vol" | "i-volx";
 
 export function Icon({ id, style }: { id: IconId; style?: CSSProperties }) {
   return (
@@ -456,6 +456,8 @@ export function IconSprite() {
         <symbol id="i-connection" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19c.8-3 2.9-4.6 5.5-4.6s4.7 1.6 5.5 4.6" /><circle cx="17" cy="9.5" r="2.2" /><path d="M16.2 14.6c2.1.3 3.6 1.6 4.3 3.9" /></g></symbol>
         <symbol id="i-exploration" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><circle cx="12" cy="12" r="8" /><path d="M15 9l-1.8 4.5L8.8 15.2l1.8-4.5z" /></g></symbol>
         <symbol id="i-level" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9z" /></g></symbol>
+        <symbol id="i-vol" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" /><path d="M15 9a4.2 4.2 0 0 1 0 6M17.6 6.8a7.4 7.4 0 0 1 0 10.4" /></g></symbol>
+        <symbol id="i-volx" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" /><path d="M15.5 9.5l5 5M20.5 9.5l-5 5" /></g></symbol>
         <symbol id="i-trophy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M8 4h8v6a4 4 0 0 1-8 0z" /><path d="M8 5.5H4.5A3.5 3.5 0 0 0 8 9M16 5.5h3.5A3.5 3.5 0 0 1 16 9" /><path d="M12 14v3M8.5 20h7M10 17h4" /></g></symbol>
       </defs>
     </svg>

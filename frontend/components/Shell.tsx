@@ -8,6 +8,7 @@ import { useTheme } from "@/lib/theme";
 import { client } from "@/lib/api";
 import { Icon, IconSprite, BrandLogo, CoinImg, AvatarImg, type IconId } from "@/components/illustrations";
 import { useIdentity } from "@/lib/identity-context";
+import { Splash, splashSeen } from "@/components/splash";
 import type { Notice } from "@/lib/types";
 
 const NAV: { id: string; href: string; label: string; icon: IconId }[] = [
@@ -77,7 +78,27 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   }, [identity.coins]);  const [sideOpen, setSideOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const [muted, setMuted] = useState(false);
+  const [gate, setGate] = useState(false);
+
+  // Realm gate: once per tab session, after sign-in, the splash warms the
+  // realm and waits for the player's tap.
+  useEffect(() => {
+    if (!authLoading && userId && !splashSeen()) setGate(true);
+  }, [authLoading, userId]);
+
+  useEffect(() => {
+    void import("@/lib/bgm").then((b) => setMuted(!b.bgmEnabled())).catch(() => undefined);
+  }, []);
+
+  const toggleMute = () => {
+    void import("@/lib/bgm").then((b) => {
+      const next = !b.bgmEnabled();
+      b.setBgmEnabled(next);
+      if (next) void b.ensureBgm();
+      setMuted(!next);
+    }).catch(() => undefined);
+  };  const searchRef = useRef<HTMLInputElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const sideRef = useRef<HTMLElement>(null);
@@ -236,6 +257,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   return (
     <div className="app-shell">
       <IconSprite />
+      {gate && <Splash authHeaders={authHeaders} heroName={identity.heroName} />}
 
       {/* ============ SIDEBAR ============ */}
       <aside
@@ -329,6 +351,15 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
             </div>
             <button className="icon-btn" onClick={toggle} title="Toggle theme" aria-label="Toggle theme">
               <Icon id={theme === "dark" ? "i-sun" : "i-moon"} />
+            </button>
+            <button
+              className="icon-btn"
+              onClick={toggleMute}
+              title={muted ? "Unmute ambient music" : "Mute ambient music"}
+              aria-label={muted ? "Unmute ambient music" : "Mute ambient music"}
+              aria-pressed={!muted}
+            >
+              <Icon id={muted ? "i-volx" : "i-vol"} />
             </button>
             <div className="notif-wrap" ref={notifRef}>
               <button className="icon-btn" onClick={() => { setNotifOpen((o) => !o); setProfileOpen(false); }} aria-label={`Notifications, ${notices.filter((n) => n.key !== "all-clear").length} unread`} aria-expanded={notifOpen}>
