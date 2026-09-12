@@ -1,8 +1,8 @@
 {
-  "name": "life-rpg-frontend",
+  "name": "KARMA-frontend",
   "version": "1.0.0",
   "private": true,
-  "description": "LIFE RPG frontend — premium fantasy-modern progression UI. Per LRP-FE-001, MASTER PRD, PRD v2, BLUEPRINT v2.",
+  "description": "KARMA frontend — premium fantasy-modern progression UI. Per LRP-FE-001, MASTER PRD, PRD v2, BLUEPRINT v2.",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

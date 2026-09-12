@@ -195,7 +195,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
             L
           </span>
           <span className="brand-name">
-            LIFE<em>RPG</em>
+            KARMA
           </span>
         </div>
         <div className="sidebar__label">Workspace</div>

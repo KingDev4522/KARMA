@@ -7,7 +7,7 @@ import { FocusProvider } from "@/components/focus";
 import { Shell } from "@/components/Shell";
 
 export const metadata: Metadata = {
-  title: "LIFE RPG — Quiet progress, kept score",
+  title: "KARMA — Quiet progress, kept score",
   description: "A minimal productivity practice with a discreet RPG progression system. Quests, focus, campaigns, and identity.",
   icons: {
     icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23181818'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='17' font-weight='700' fill='%23fff' text-anchor='middle'%3EL%3C/text%3E%3Ccircle cx='23.5' cy='8.5' r='2.5' fill='%23BC4028'/%3E%3C/svg%3E",

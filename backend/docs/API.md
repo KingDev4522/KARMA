@@ -1,4 +1,4 @@
-# LIFE RPG Backend — API
+# KARMA Backend — API
 
 Modular monolith (`backend/src`). Auth: Supabase JWT (`Authorization: Bearer`), never trust client `userId`.
 Errors: `{ error: { code, message, details, retryable } }` — `retryable=true` → show [Try Again] (LRP-FE-001 §18).

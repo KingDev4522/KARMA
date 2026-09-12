@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Typed API client for the LIFE RPG backend. Every function maps 1:1 to a
+ * Typed API client for the KARMA backend. Every function maps 1:1 to a
  * backend route (see backend/docs/API.md). All errors surface as ApiErrorShape
  * with `retryable` so the UI can offer [Try Again] (LRP-FE-001 §18).
  */

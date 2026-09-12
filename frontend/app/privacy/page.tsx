@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — LIFE RPG",
-  description: "How LIFE RPG handles your account, gameplay data, and privacy rights.",
+  title: "Privacy Policy — KARMA",
+  description: "How KARMA handles your account, gameplay data, and privacy rights.",
 };
 
 /** Public privacy policy (linked from sign-in; required for Google production publish). */
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
     <div className="page is-active">
       <div className="auth-wrap" style={{ maxWidth: 720 }}>
         <div className="panel" style={{ padding: "28px 26px" }}>
-          <p className="eyebrow">LIFE RPG · Privacy Policy</p>
+          <p className="eyebrow">KARMA · Privacy Policy</p>
           <h1 style={{ fontSize: 26, margin: "6px 0 4px" }}>Privacy Policy</h1>
           <p style={{ fontSize: 12.5, color: "var(--text-3)" }}>Effective 12 September 2026</p>
 
@@ -20,7 +20,7 @@ export default function PrivacyPage() {
             <section>
               <h2 style={{ fontSize: 16, marginBottom: 6 }}>What this app is</h2>
               <p>
-                LIFE RPG turns your real-life goals into quests and tracks visible progress (experience points,
+                KARMA turns your real-life goals into quests and tracks visible progress (experience points,
                 attributes, streaks, and collectibles). An account is required so your progress persists across devices.
               </p>
             </section>
@@ -80,7 +80,7 @@ export default function PrivacyPage() {
 
             <section>
               <h2 style={{ fontSize: 16, marginBottom: 6 }}>Children</h2>
-              <p>LIFE RPG is a general productivity game and is not directed at children under 13.</p>
+              <p>KARMA is a general productivity game and is not directed at children under 13.</p>
             </section>
 
             <section>
