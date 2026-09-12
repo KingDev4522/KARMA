@@ -80,10 +80,21 @@ export interface CompletionResponse {
   currentStreak: number;
   bestStreak: number;
   momentum: number;
-  unlockedAchievements: { key: string; name: string; rewardCoins: number }[];
+  unlockedAchievements: { key: string; name: string; rewardCoins: number; rewardItems?: { key: string; name: string; assetPath: string }[] }[];
   campaignProgress: { campaignId: string; progressPct: number } | null;
   capped: boolean;
   choreography: { step: string; label: string }[];
+  companion: { mood: string; message: string };
+}
+
+export interface AbandonResponse {
+  questId: string;
+  status: "skipped";
+  penaltyXp: number;
+  requestedPenalty: number;
+  newLifetimeXp: number;
+  level: number;
+  rankDisplay: string;
   companion: { mood: string; message: string };
 }
 

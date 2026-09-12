@@ -23,6 +23,7 @@ const CONTRACT: [string, string][] = [
   ["/api/v1/quests/suggest-mapping", "suggestMapping"],
   ["/api/v1/quests/${id}`", "patchQuest"],
   ["/complete`", "completeQuest"],
+  ["/abandon`", "abandonQuest"],
   ["/generate-instances`", "genInstances"],
   ["/instances`", "listInstances"],
   ["/meta/activity-types`", "activityTypes"],

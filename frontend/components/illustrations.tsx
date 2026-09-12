@@ -72,7 +72,7 @@ export function Companion({ width = "100%" }: { width?: string | number }) {
 }
 
 /* ============================================================
-   Real-asset identity images (assessts/ → public/).
+   Real-asset identity images (assets/ → public/).
    HeroImage / CompanionImage render the true JPEG/PNG art and fall
    back to the SVG linework only if the raster is missing, so old
    profiles and slow networks never render blank.
@@ -139,7 +139,7 @@ export function CompanionImage({
   );
 }
 
-/** Real coin currency mark (assessts/coin.png). Falls back to the SVG coin. */
+/** Real coin currency mark (assets/coin.png). Falls back to the SVG coin. */
 export function CoinImg({ size = 16 }: { size?: number }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <Icon id="i-coin" style={{ width: size, height: size }} />;
@@ -158,7 +158,7 @@ export function CoinImg({ size = 16 }: { size?: number }) {
   );
 }
 
-/** App brand mark (assessts/logo.png). Falls back to the letter mark. */
+/** App brand mark (assets/logo.png). Falls back to the letter mark. */
 export function BrandLogo({ size = 30 }: { size?: number }) {
   const [failed, setFailed] = useState(false);
   if (failed) {

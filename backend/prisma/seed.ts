@@ -37,7 +37,7 @@ const ITEMS: { itemType: never; key: string; name: string; description: string; 
   { itemType: "companion" as never, key: "companion_otter", name: "Otter Companion", description: "Playful river otter. Premium companion.", assetPath: "/companions/otter.jpeg", price: 300, rarity: "epic", metadata: { companionAssetId: "otter" } },
   { itemType: "companion" as never, key: "companion_panda", name: "Panda Companion", description: "Gentle bamboo panda. Premium companion.", assetPath: "/companions/panda.jpeg", price: 300, rarity: "epic", metadata: { companionAssetId: "panda" } },
   { itemType: "companion" as never, key: "companion_penguin", name: "Penguin Companion", description: "Dapper ice penguin. Premium companion.", assetPath: "/companions/penguin.jpeg", price: 250, rarity: "rare", metadata: { companionAssetId: "penguin" } },
-  // Real frames (assessts/title frame → public/frames). Frames 1–4 are the free
+  // Real frames (assets/title frame → public/frames). Frames 1–4 are the free
   // starter set granted to every hero; 5–20 are earned in the Store.
   ...([1, 2, 3, 4] as const).map((n) => (
     { itemType: "frame" as never, key: `frame_no_${n}`, name: `Frame ${n}`, description: "Starter frame — yours from day one.", assetPath: `/frames/frame-${n}.jpeg`, price: 0, rarity: "common" }
@@ -45,7 +45,7 @@ const ITEMS: { itemType: never; key: string; name: string; description: string; 
   ...([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] as const).map((n) => (
     { itemType: "frame" as never, key: `frame_no_${n}`, name: `Frame ${n}`, description: "Hand-drawn temple frame for your portrait.", assetPath: `/frames/frame-${n}.jpeg`, price: n <= 10 ? 100 : n <= 16 ? 200 : 300, rarity: n <= 10 ? "rare" : n <= 16 ? "epic" : "legendary" }
   )),
-  // Real title boxes (assessts/tilte box → public/frames). Boxes 1–4 are free;
+  // Real title boxes (assets/tilte box → public/frames). Boxes 1–4 are free;
   // 5–11 are earned. Your hero name is rendered inside the equipped box.
   ...([1, 2, 3, 4] as const).map((n) => (
     { itemType: "title" as never, key: `title_box_${n}`, name: `Title Box ${n}`, description: "Starter title plate — your name, framed.", assetPath: `/frames/titlebox-${n}.jpeg`, price: 0, rarity: "common" }

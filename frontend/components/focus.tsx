@@ -192,7 +192,11 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const exit = useCallback(async () => {
     if (sessionId) {
       try {
-        await client.finishFocus(authHeaders(), sessionId, { status: "cancelled", actualSeconds: total - left });
+        const res = (await client.finishFocus(authHeaders(), sessionId, { status: "cancelled", actualSeconds: total - left })) as { penaltyXp?: number };
+        if ((res?.penaltyXp ?? 0) > 0) {
+          void import("@/lib/sound").then((s) => s.playAbandon()).catch(() => undefined);
+          toast(`Left early · −${res.penaltyXp} XP — the quest waits for another run`, "i-close");
+        }
       } catch {
         /* leaving anyway */
       }
@@ -201,6 +205,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
     setRunning(false);
     setQuest(null);
     setSessionId(null);
+    window.dispatchEvent(new CustomEvent("liferpg:refresh"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, total, left]);
 

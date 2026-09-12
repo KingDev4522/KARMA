@@ -26,7 +26,7 @@ export async function getNotifications(userId: string): Promise<{ notifications:
   const todayKey = toDayKey();
   const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
 
-  const [dueCount, prog, recentAch, restToday, campaign] = await Promise.all([
+  const [dueCount, overdueCount, dueInstances, prog, recentAch, restToday, campaign] = await Promise.all([
     prefs.quest
       ? prisma.quest.count({
           where: {
@@ -35,6 +35,18 @@ export async function getNotifications(userId: string): Promise<{ notifications:
             status: { in: ["active", "in_progress", "draft"] },
             OR: [{ scheduledFor: dayStart }, { dueAt: { gte: dayStart, lt: new Date(`${todayKey}T23:59:59.999Z`) } }],
           },
+        })
+      : 0,
+    // Overdue reminders: still-open quests whose due moment already passed.
+    prefs.quest
+      ? prisma.quest.count({
+          where: { userId, deletedAt: null, status: { in: ["active", "in_progress", "draft"] }, dueAt: { lt: dayStart } },
+        })
+      : 0,
+    // Routine reminders: today's rhythm instances still open.
+    prefs.quest
+      ? prisma.questInstance.count({
+          where: { quest: { userId }, occurrenceDate: dayStart, status: { in: ["active", "in_progress", "draft"] } },
         })
       : 0,
     prisma.profileProgression.findUnique({ where: { profileId: userId } }),
@@ -53,8 +65,22 @@ export async function getNotifications(userId: string): Promise<{ notifications:
   if (restToday) {
     notices.push({ key: "rest-today", kind: "rest", title: "Rest day declared", body: "Rest is part of the run. We're not quitting; we're recovering." });
   }
-  if (prefs.quest && dueCount > 0) {
-    notices.push({ key: "due-today", kind: "quest", title: `${dueCount} quest${dueCount === 1 ? "" : "s"} due today`, body: "Your board is set. Pick the first one." });
+  if (prefs.quest && dueCount + dueInstances > 0) {
+    const total = dueCount + dueInstances;
+    notices.push({
+      key: "due-today",
+      kind: "quest",
+      title: `${total} quest${total === 1 ? "" : "s"} due today`,
+      body: dueInstances > 0 ? `Including ${dueInstances} rhythm check-in${dueInstances === 1 ? "" : "s"}. Pick the first one.` : "Your board is set. Pick the first one.",
+    });
+  }
+  if (prefs.quest && overdueCount > 0) {
+    notices.push({
+      key: "overdue",
+      kind: "quest",
+      title: `${overdueCount} overdue — no shame`,
+      body: "Reschedule or abandon them from Quests; the ledger keeps everything honest.",
+    });
   }
   if (prefs.streak && prog && prog.currentStreak > 0) {
     const lastDay = prog.lastActiveDay ? prog.lastActiveDay.toISOString().slice(0, 10) : null;

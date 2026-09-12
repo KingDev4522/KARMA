@@ -12,14 +12,34 @@ export interface GrantCtx {
 }
 
 /**
- * Deterministic achievement engine (LRP-RPG-001 §17, PRD v2 §34).
- * Mostly milestone-based. Evaluated inside completion transaction.
+ * Title showcase for achievements — each badge also unlocks a title box or
+ * frame the hero can wear in Personalize. Earned, never sold: this is how a
+ * player "beholds" a title after proving something. Item grants are
+ * idempotent (already-owned is skipped, never duplicated).
  */
+const ACHIEVEMENT_ITEM_REWARDS: Record<string, string> = {
+  first_quest: "title_box_5",
+  streak_5: "title_box_6",
+  streak_7: "title_box_7",
+  level_5: "title_box_8",
+  first_milestone: "title_box_9",
+  deep_focus_3: "title_box_10",
+  polymath: "title_box_11",
+  micro_20: "frame_no_5",
+  comeback: "frame_no_6",
+  craft_50: "frame_no_7",
+};
+
+export interface GrantedRewardItem {
+  key: string;
+  name: string;
+  assetPath: string;
+}
 export async function evaluateAndGrantAchievements(
   tx: Prisma.TransactionClient,
   userId: string,
   ctx: GrantCtx,
-): Promise<{ key: string; name: string; rewardCoins: number }[]> {
+): Promise<{ key: string; name: string; rewardCoins: number; rewardItems: GrantedRewardItem[] }[]> {
   const defs = await tx.achievement.findMany();
   const owned = await tx.userAchievement.findMany({ where: { userId } });
   const ownedSet = new Set(owned.map((o) => o.achievementId));
@@ -71,7 +91,7 @@ export async function evaluateAndGrantAchievements(
   });
   check("first_milestone", doneMilestones >= 1);
 
-  const unlocked: { key: string; name: string; rewardCoins: number }[] = [];
+  const unlocked: { key: string; name: string; rewardCoins: number; rewardItems: GrantedRewardItem[] }[] = [];
   for (const def of toGrant) {
     try {
       await tx.userAchievement.create({ data: { userId, achievementId: def.id } });
@@ -81,8 +101,25 @@ export async function evaluateAndGrantAchievements(
           data: { userId, sourceType: "achievement", sourceId: def.id, currencyType: "coins", amount: def.rewardCoins, metadata: { key: def.key } },
         });
       }
+      // Title showcase: the badge's companion title box / frame, if seeded.
+      const rewardItems: GrantedRewardItem[] = [];
+      const itemKey = ACHIEVEMENT_ITEM_REWARDS[def.key];
+      if (itemKey) {
+        const item = await tx.item.findUnique({ where: { key: itemKey } });
+        if (item && item.active) {
+          try {
+            await tx.inventory.create({ data: { userId, itemId: item.id, source: "achievement" } });
+          } catch {
+            // already owned — the title stays, no duplicate
+          }
+          await tx.rewardLedger.create({
+            data: { userId, sourceType: "achievement", sourceId: def.id, currencyType: "title", amount: 1, metadata: { key: def.key, itemKey } },
+          }).catch(() => undefined);
+          rewardItems.push({ key: item.key, name: item.name, assetPath: item.assetPath });
+        }
+      }
       ownedSet.add(def.id);
-      unlocked.push({ key: def.key, name: def.name, rewardCoins: def.rewardCoins });
+      unlocked.push({ key: def.key, name: def.name, rewardCoins: def.rewardCoins, rewardItems });
     } catch {
       // race: already unlocked — ignore (idempotent)
     }

@@ -52,6 +52,10 @@ Errors: `{ error: { code, message, details, retryable } }` — `retryable=true` 
 - `GET /api/v1/chronicle/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` unified feed: scheduled quests + routine instances + milestones + focus sessions (62-day cap).
 - `GET /api/v1/notifications` deterministic center: due quests, streak risk, recent badges, next objective + active prefs.
 - `GET /api/v1/quests?preview=true` attaches `rewardPreview` to every row; `GET /api/v1/quests/:id` always previews. `POST /api/v1/quests/preview` resolves with live user state (streak + today's micro count) so cap warnings are honest.
+- `POST /api/v1/quests/:id/abandon` stops a quest with XP negative marking (~25% of the difficulty's gain: 3/5/10/20/30; level never drops — clamps at level floor). Quest → `skipped` (re-queueable), ledger `sourceType "abandon"`, streak/coins/attrs untouched.
+- `POST /api/v1/focus/:id/finish {status: cancelled}` returns `penaltyXp` (5 XP when cancelled before 300 real seconds on a linked quest, else 0); the quest itself is never touched.
+- Achievements grant title boxes/frames (`rewardItems` in `unlockedAchievements`) in-transaction, idempotent.
+- Notifications include overdue quests and today's routine instances alongside due/streak/celebration/campaign items.
 - Micro-quest cap counts true micros (difficulty 1 + quick/recovery) through the quest relation — low-XP campaign/focus completions never inflate it.
 - `GET /api/v1/campaigns` includes live `progressPct + questCount` per journey; `DELETE /api/v1/campaigns/milestones/:mid` removes a milestone (linked quests keep history, link nulls).
 - Focus finish on a linked quest is followed by `POST /api/v1/quests/:id/complete` with idempotency key `focus-<sessionId>` — one tap from timer to reward, retries never double-grant. `GET /api/v1/focus` includes the linked quest title.

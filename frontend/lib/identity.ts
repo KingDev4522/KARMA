@@ -137,6 +137,16 @@ export function resolveAvatar(avatarAssetId?: string | null, heroAssetIdFallback
   return { kind: "hero", hero, variant, companion: COMPANIONS[0] };
 }
 
+/* ---------- Abandon penalties (display mirror of backend rpg/penalties) ---------- */
+
+/** ~25% of the difficulty's gain. Backend is authoritative; this previews the chip. */
+export const ABANDON_PENALTY_BY_DIFFICULTY: Record<number, number> = { 1: 3, 2: 5, 3: 10, 4: 20, 5: 30 };
+
+export function abandonPenaltyFor(difficulty?: number | null): number {
+  const d = Math.min(5, Math.max(1, Math.floor(difficulty ?? 3)));
+  return ABANDON_PENALTY_BY_DIFFICULTY[d] ?? 10;
+}
+
 /* ---------- Frames & title boxes (real art) ---------- */
 
 export const FRAME_COUNT = 20;

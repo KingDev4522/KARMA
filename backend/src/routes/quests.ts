@@ -4,7 +4,7 @@ import { asyncHandler } from "../shared/asyncHandler";
 import { requireAuth, currentUserId } from "../shared/auth";
 import { validateBody } from "../middlewares/validate";
 import { CompleteQuestSchema, CreateQuestSchema, UpdateQuestSchema } from "../modules/quests/schemas";
-import { completeQuest, createQuest, deleteQuest, getQuest, getToday, listQuests, previewQuestReward, suggestMapping, updateQuest } from "../modules/quests/service";
+import { completeQuest, abandonQuest, createQuest, deleteQuest, getQuest, getToday, listQuests, previewQuestReward, suggestMapping, updateQuest } from "../modules/quests/service";
 import { generateRoutineInstances, listRoutineInstances } from "../modules/routines/service";
 import { prisma } from "../db";
 
@@ -110,6 +110,15 @@ questRouter.post(
   validateBody(CompleteQuestSchema),
   asyncHandler(async (req, res) => {
     res.status(201).json(await completeQuest(currentUserId(req), req.params.id, req.body));
+  }),
+);
+
+// Abandon — stop/cancel a quest with XP negative marking (stays re-queueable).
+questRouter.post(
+  "/:id/abandon",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await abandonQuest(currentUserId(req), req.params.id));
   }),
 );
 

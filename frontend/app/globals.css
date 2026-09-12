@@ -914,3 +914,13 @@ button.cal-cell:hover{border-color:var(--border-strong)}
   .karma-loader-line{animation:none}
   .coin-delta{animation:none}
 }
+
+/* ============ ABANDON & NEGATIVE XP ============ */
+.chip--danger{border-color:#D64545;color:#D64545}
+.chip--danger:hover{background:#D64545;color:#fff;border-color:#D64545}
+.xp-neg{color:#D64545;font-weight:800}
+.tl-item.t-penalty .tl-dot{background:rgba(214,69,69,.12);color:#D64545}
+.tl-item.t-penalty strong{color:var(--text-2)}
+@media (prefers-reduced-motion:reduce){
+  .chip--danger{transition:none}
+}

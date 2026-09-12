@@ -11,6 +11,7 @@ import { didRankAdvance, levelUpCoinBonus, rankForXp, rankUpChestCoins } from ".
 import { xpProgressForLevel } from "../../rpg/xpCurve";
 import { evaluateAndGrantAchievements } from "../achievements/service";
 import { ensureProfile } from "../identity/service";
+import { abandonPenaltyFor, applyPenaltyToLifetime } from "../../rpg/penalties";
 
 /**
  * Quest domain (LRP-BE-001 §5, §8-§10, §13, §15, §19).
@@ -215,6 +216,60 @@ export async function deleteQuest(userId: string, id: string) {
   const quest = await prisma.quest.findUnique({ where: { id } });
   if (!quest || quest.userId !== userId || quest.deletedAt) throw new NotFoundError("Quest not found");
   return prisma.quest.update({ where: { id }, data: { deletedAt: new Date(), status: "archived" } });
+}
+
+export interface AbandonResult {
+  questId: string;
+  status: "skipped";
+  penaltyXp: number;
+  requestedPenalty: number;
+  newLifetimeXp: number;
+  level: number;
+  rankDisplay: string;
+  companion: { mood: string; message: string };
+}
+
+/**
+ * Abandon a quest — the "stop / cancel / couldn't do it" path with honest
+ * negative marking. The quest moves to `skipped` (re-queueable, never
+ * destructive) and ~25% of the difficulty's gain is deducted from lifetime
+ * XP, clamped so the level can never drop. Streak, coins, attributes and
+ * achievements are untouched. Fully ledgered (sourceType "abandon").
+ */
+export async function abandonQuest(userId: string, questId: string): Promise<AbandonResult> {
+  await ensureProfile(userId);
+  return prisma.$transaction(async (tx) => {
+    const quest = await tx.quest.findUnique({ where: { id: questId } });
+    if (!quest || quest.userId !== userId || quest.deletedAt) throw new NotFoundError("Quest not found");
+    if ((quest.status as string) === "completed") throw new ConflictError("Quest already completed — nothing to abandon.");
+    if ((quest.status as string) === "skipped") throw new ConflictError("Quest already stopped — re-queue it to try again.");
+    if ((quest.status as string) === "archived") throw new ConflictError("Quest is archived.");
+
+    const prog = await tx.profileProgression.findUniqueOrThrow({ where: { profileId: userId } });
+    const requested = abandonPenaltyFor(quest.difficulty);
+    const { newLifetime, applied } = applyPenaltyToLifetime(prog.lifetimeXp, prog.level, requested);
+
+    await tx.profileProgression.update({ where: { profileId: userId }, data: { lifetimeXp: newLifetime } });
+    if (applied > 0) {
+      await tx.rewardLedger.create({
+        data: { userId, sourceType: "abandon", sourceId: questId, currencyType: "xp", amount: -applied, metadata: { questId, difficulty: quest.difficulty, requested } },
+      });
+    }
+    await tx.quest.update({ where: { id: questId }, data: { status: "skipped" } });
+
+    const { rankForXp: rankFor } = await import("../../rpg/ranks");
+    const { companionMessage } = await import("../../rpg/companion");
+    return {
+      questId,
+      status: "skipped" as const,
+      penaltyXp: applied,
+      requestedPenalty: requested,
+      newLifetimeXp: newLifetime,
+      level: prog.level,
+      rankDisplay: rankFor(newLifetime).display,
+      companion: { mood: "encouraging", message: companionMessage("missed_task", {}) },
+    };
+  });
 }
 
 export interface CompletionResult {

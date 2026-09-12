@@ -17,17 +17,25 @@ export default function FocusPage() {
   const { data: sessions, error, loading, retry } = useApi<any>(() => client.listFocus(authHeaders(), 10), [userId, authLoading, focusSeq]);
   const [questId, setQuestId] = useState("");
   const [minutes, setMinutes] = useState(25);
+  const [custom, setCustom] = useState("");
 
   if (authLoading || loading) return <Skeleton label="Focus" rows={3} />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
   if (!userId) return <EmptyState message="Sign in (or enable dev bypass) to enter focus." />;
+
+  const effectiveMinutes = (() => {
+    const c = Math.floor(Number(custom));
+    if (custom.trim() !== "" && Number.isFinite(c)) return Math.min(240, Math.max(1, c));
+    return minutes;
+  })();
 
   const start = () => {
     const q = (quests ?? []).find((t) => t.id === questId);
     openFocus({
       id: q?.id,
       title: q?.title ?? "Free focus session",
-      minutes: q ? Math.min(q.estimatedMinutes ?? minutes, 120) : minutes,
+      // Any quest — spark or campaign — can hold any timer length.
+      minutes: q?.estimatedMinutes && custom.trim() === "" ? Math.min(q.estimatedMinutes, 240) : effectiveMinutes,
     });
   };
 
@@ -57,8 +65,8 @@ export default function FocusPage() {
         <div>
           <div className="field" style={{ margin: 0 }}>
             <label htmlFor="focusMinutes">Minutes</label>
-            <select id="focusMinutes" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
-              {[15, 25, 45, 60, 90].map((m) => (
+            <select id="focusMinutes" value={minutes} onChange={(e) => { setMinutes(Number(e.target.value)); setCustom(""); }}>
+              {[5, 15, 25, 45, 60, 90, 120].map((m) => (
                 <option key={m} value={m}>
                   {m} min
                 </option>
@@ -66,11 +74,29 @@ export default function FocusPage() {
             </select>
           </div>
         </div>
+        <div>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="focusCustom">Custom (1–240)</label>
+            <input
+              id="focusCustom"
+              type="number"
+              min={1}
+              max={240}
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              placeholder="Any length"
+              aria-label="Custom focus length in minutes"
+            />
+          </div>
+        </div>
         <button className="btn btn--primary btn--lg" onClick={start} style={{ alignSelf: "flex-end" }}>
           <Icon id="i-play" style={{ width: 16, height: 16 }} />
           Enter focus
         </button>
       </div>
+      <p style={{ fontSize: 12.5, color: "var(--text-3)", marginTop: 8 }}>
+        Finish and the linked quest completes by itself. Leave before 5 real minutes and it costs 5 XP — the quest stays for another run.
+      </p>
 
       <div className="sec-head" style={{ marginTop: 22 }}>
         <h3>Recent sessions</h3>

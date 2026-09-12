@@ -90,3 +90,9 @@ export function playBadge() {
 export function playCreate() {
   blip(587, 0, 0.09, "sine", 0.05);
 }
+
+/** Quest abandoned — low muted thud. Negative marking you can hear. */
+export function playAbandon() {
+  blip(220, 0, 0.16, "triangle", 0.07);
+  blip(165, 0.1, 0.2, "triangle", 0.06);
+}

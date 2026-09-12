@@ -177,6 +177,7 @@ export const ROUTES = {
   patchQuest: "PATCH /api/v1/quests/:id",
   deleteQuest: "DELETE /api/v1/quests/:id",
   completeQuest: "POST /api/v1/quests/:id/complete",
+  abandonQuest: "POST /api/v1/quests/:id/abandon",
   genInstances: "POST /api/v1/quests/:id/generate-instances",
   listInstances: "GET /api/v1/quests/:id/instances",
   activityTypes: "GET /api/v1/quests/meta/activity-types",
@@ -247,6 +248,11 @@ export const client = {
   },
   completeQuest: (h: H, id: string, idempotencyKey: string, opts?: { instanceId?: string }) => {
     const r = api<CompletionResponse>(`/api/v1/quests/${id}/complete`, { method: "POST", headers: h, body: JSON.stringify({ idempotencyKey, ...(opts?.instanceId ? { instanceId: opts.instanceId } : {}) }) });
+    r.then(() => invalidateCache("/api/v1/quests")).catch(() => undefined);
+    return r;
+  },
+  abandonQuest: (h: H, id: string) => {
+    const r = api<import("./types").AbandonResponse>(`/api/v1/quests/${id}/abandon`, { method: "POST", headers: h });
     r.then(() => invalidateCache("/api/v1/quests")).catch(() => undefined);
     return r;
   },

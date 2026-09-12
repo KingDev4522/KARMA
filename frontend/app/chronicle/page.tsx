@@ -61,6 +61,18 @@ export default function ChroniclePage() {
     }
 
     type Ev = { at: number; kind: string; label: string; time: string; xp?: number };
+    // Penalty ledger: abandoned quests + early focus cancels, shown as red
+    // −XP rows so the ledger reads both directions (gained AND negated).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const penaltyEvs = (((history as any)?.ledger ?? []) as any[])
+      .filter((l) => l.sourceType === "abandon" && (l.currencyType === "xp" || l.currencyType === undefined) && (l.amount ?? 0) < 0)
+      .map((l) => ({
+        at: new Date(l.createdAt).getTime(),
+        kind: "penalty",
+        label: l.metadata?.kind === "focus_early_cancel" ? "Left focus early" : "Quest abandoned",
+        time: new Date(l.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
+        xp: l.amount as number,
+      }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const focusEvs = (((sessions ?? []) as any[]).slice(0, 8)).map((s: any) => ({
       at: new Date(s.startedAt).getTime(),
@@ -87,6 +99,7 @@ export default function ChroniclePage() {
           xp: undefined,
         })),
       ...focusEvs,
+      ...penaltyEvs,
     ].sort((a, b) => b.at - a.at);
 
     // Unified planning markers: scheduled quests, routine instances, milestones, focus.
@@ -209,7 +222,7 @@ export default function ChroniclePage() {
                 {items.map((ev, j) => (
                   <div key={`${date}-${j}`} className={`tl-item t-${ev.kind}`}>
                     <span className="tl-dot">
-                      <Icon id={ev.kind === "achievement" ? "i-trophy" : "i-check"} />
+                      <Icon id={ev.kind === "achievement" ? "i-trophy" : ev.kind === "penalty" ? "i-close" : "i-check"} />
                     </span>
                     <div className="tl-body">
                       <strong>
@@ -220,6 +233,7 @@ export default function ChroniclePage() {
                           </span>
                         )}
                         {typeof ev.xp === "number" && ev.xp > 0 && <span className="tl-xp">+{ev.xp} XP</span>}
+                        {ev.kind === "penalty" && typeof ev.xp === "number" && ev.xp < 0 && <span className="tl-xp xp-neg">{ev.xp} XP</span>}
                       </strong>
                       <time>{ev.time}</time>
                     </div>

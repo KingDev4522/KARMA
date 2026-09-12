@@ -54,7 +54,27 @@ export async function finishSession(userId: string, id: string, input: { status:
     // Leave quest completion to explicit POST /quests/:id/complete (reward integrity).
     await prisma.quest.update({ where: { id: s.questId }, data: { status: "in_progress" } }).catch(() => undefined);
   }
-  return updated;
+  // Early cancel on a linked quest stings a little (-5 XP under 5 real minutes);
+  // a long session stopped late costs nothing — the effort already happened.
+  let penaltyXp = 0;
+  if (s.questId && input.status === "cancelled") {
+    const { focusCancelPenalty, applyPenaltyToLifetime } = await import("../../rpg/penalties");
+    const requested = focusCancelPenalty(actual);
+    if (requested > 0) {
+      const prog = await prisma.profileProgression.findUnique({ where: { profileId: userId } });
+      if (prog) {
+        const { newLifetime, applied } = applyPenaltyToLifetime(prog.lifetimeXp, prog.level, requested);
+        if (applied > 0) {
+          await prisma.profileProgression.update({ where: { profileId: userId }, data: { lifetimeXp: newLifetime } });
+          await prisma.rewardLedger.create({
+            data: { userId, sourceType: "abandon", sourceId: s.id, currencyType: "xp", amount: -applied, metadata: { questId: s.questId, kind: "focus_early_cancel", actualSeconds: actual } },
+          });
+        }
+        penaltyXp = applied;
+      }
+    }
+  }
+  return { ...updated, penaltyXp };
 }
 
 export async function listSessions(userId: string, limit = 20) {

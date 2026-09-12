@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/toast";
 import { useFocus } from "@/components/focus";
 import { Hero, HeroImage, Icon, type IconId } from "@/components/illustrations";
+import { abandonPenaltyFor } from "@/lib/identity";
 
 /* ================= Backend → display mapping ================= */
 
@@ -151,13 +152,17 @@ export function burstAt(sourceEl: Element | null, n = 9) {
 
 /** Surface freshly unlocked achievements: toast + fanfare each (PRD §16/§34). */
 export function announceAchievements(
-  r: { unlockedAchievements?: { key: string; name: string; rewardCoins: number }[] },
+  r: { unlockedAchievements?: { key: string; name: string; rewardCoins: number; rewardItems?: { key: string; name: string; assetPath: string }[] }[] },
   toast: (msg: string, icon?: import("@/components/illustrations").IconId) => void,
 ) {
   const list = r.unlockedAchievements ?? [];
   list.forEach((a, i) => {
     setTimeout(() => {
-      toast(`Badge earned: ${a.name} · +${a.rewardCoins} coins`, "i-trophy");
+      const titles = (a.rewardItems ?? []).map((t) => t.name).join(", ");
+      toast(
+        `Badge earned: ${a.name} · +${a.rewardCoins} coins${titles ? ` · + ${titles}` : ""}`,
+        "i-trophy",
+      );
       void import("@/lib/sound").then((s) => s.playBadge()).catch(() => undefined);
     }, 600 + i * 900);
   });
@@ -296,6 +301,7 @@ export function QuestRow({
   const { openFocus } = useFocus();
   const [manage, setManage] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [armedAbandon, setArmedAbandon] = useState(false);
   const [eTitle, setETitle] = useState(quest.title);
   const [eDesc, setEDesc] = useState(quest.description ?? "");
   const [eDue, setEDue] = useState((quest.dueAt ?? "").slice(0, 10));
@@ -310,9 +316,34 @@ export function QuestRow({
       toast(ok, "i-check");
       setManage(false);
       setEditing(false);
+      setArmedAbandon(false);
       onChanged?.();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't update quest. Nothing was changed.", "i-close");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Abandon with negative marking: the server deducts XP (level never drops)
+  // and the quest parks in skipped, re-queueable. Red sting, honest ledger.
+  const abandon = async () => {
+    setBusy(true);
+    try {
+      const r = await client.abandonQuest(authHeaders(), quest.id);
+      void import("@/lib/sound").then((s) => s.playAbandon()).catch(() => undefined);
+      toast(
+        r.penaltyXp > 0
+          ? `“${quest.title.length > 28 ? `${quest.title.slice(0, 28)}…”` : quest.title}” stopped · −${r.penaltyXp} XP`
+          : `“${quest.title.length > 28 ? `${quest.title.slice(0, 28)}…”` : quest.title}” stopped · no XP lost`,
+        "i-close",
+      );
+      setManage(false);
+      setEditing(false);
+      setArmedAbandon(false);
+      onChanged?.();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't stop quest. Nothing was changed.", "i-close");
     } finally {
       setBusy(false);
     }
@@ -400,9 +431,25 @@ export function QuestRow({
                 </button>
               )}
               {quest.status !== "skipped" ? (
-                <button className="chip" disabled={busy} onClick={() => mutate(() => client.patchQuest(authHeaders(), quest.id, { status: "skipped" }), "Quest skipped — reschedule anytime")}>
-                  Skip
-                </button>
+                armedAbandon ? (
+                  <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                    <button className="chip chip--danger" disabled={busy} onClick={() => abandon()}>
+                      Confirm −{abandonPenaltyFor(quest.difficulty ?? 3)} XP
+                    </button>
+                    <button className="chip" disabled={busy} onClick={() => setArmedAbandon(false)}>
+                      Keep
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    className="chip"
+                    disabled={busy}
+                    title={`Stop this quest · −${abandonPenaltyFor(quest.difficulty ?? 3)} XP (level never drops)`}
+                    onClick={() => setArmedAbandon(true)}
+                  >
+                    Abandon −{abandonPenaltyFor(quest.difficulty ?? 3)} XP
+                  </button>
+                )
               ) : (
                 <button className="chip" disabled={busy} onClick={() => mutate(() => client.patchQuest(authHeaders(), quest.id, { status: "active" }), "Quest back on the board")}>
                   Re-queue
@@ -478,7 +525,7 @@ const DIFFS = [
   { label: "Epic", num: 5, diff: 5 },
 ];
 const DURATIONS = [2, 5, 10, 15, 20, 30, 45, 60, 90, 120];
-const WHENS = ["Today", "Tomorrow", "This weekend", "Someday"] as const;
+const WHENS = ["Today", "Tomorrow", "This weekend", "Pick a date", "Someday"] as const;
 const KINDS = [
   { v: "quick", hint: "1–15 min · fast win" },
   { v: "focus", hint: "deep work + timer" },
@@ -490,7 +537,7 @@ const KINDS = [
 const DOW = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const STEP_QUESTIONS = ["What are you working on?", "How much effort?", "When?", "What kind of activity?", "Your reward"];
 
-function dateForWhen(when: string): string | undefined {
+function dateForWhen(when: string, customDate?: string): string | undefined {
   const d = new Date();
   if (when === "Today") return d.toISOString().slice(0, 10);
   if (when === "Tomorrow") {
@@ -501,6 +548,9 @@ function dateForWhen(when: string): string | undefined {
     const add = (6 - d.getDay() + 7) % 7 || 7;
     d.setDate(d.getDate() + add);
     return d.toISOString().slice(0, 10);
+  }
+  if (when === "Pick a date") {
+    return /^\d{4}-\d{2}-\d{2}$/.test(customDate ?? "") ? customDate : undefined;
   }
   return undefined;
 }
@@ -564,6 +614,8 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
   const [difficulty, setDifficulty] = useState("Medium");
   const [duration, setDuration] = useState(30);
   const [when, setWhen] = useState<string>("Today");
+  const [schedDate, setSchedDate] = useState("");
+  const [dueAt, setDueAt] = useState("");
   const [kind, setKind] = useState<string>("quick");
   const [repeat, setRepeat] = useState<"once" | "daily" | "weekly" | "custom">("once");
   const [recurDays, setRecurDays] = useState<number[]>([1, 3, 5]);
@@ -590,6 +642,7 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
         recurDays?: number[];
         customEvery?: number; customUnit?: "day" | "week";
         endsType?: "never" | "on" | "after"; endsDate?: string; endsCount?: number;
+        when?: string; schedDate?: string; dueAt?: string;
       };
       if (d.title) setTitle(d.title);
       if (d.desc) setDesc(d.desc);
@@ -602,6 +655,9 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
       if (d.endsType === "never" || d.endsType === "on" || d.endsType === "after") setEndsType(d.endsType);
       if (typeof d.endsDate === "string") setEndsDate(d.endsDate);
       if (Number.isFinite(d.endsCount)) setEndsCount(Math.min(100, Math.max(1, Math.floor(d.endsCount as number))));
+      if (typeof d.when === "string" && (WHENS as readonly string[]).includes(d.when)) setWhen(d.when);
+      if (typeof d.schedDate === "string") setSchedDate(d.schedDate);
+      if (typeof d.dueAt === "string") setDueAt(d.dueAt);
     } catch {
       /* corrupt draft is ignored */
     }
@@ -612,12 +668,12 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
     try {
       window.localStorage.setItem(
         "lrp-quest-draft",
-        JSON.stringify({ title, desc, kind, activity, repeat, recurDays, customEvery, customUnit, endsType, endsDate, endsCount }),
+        JSON.stringify({ title, desc, kind, activity, repeat, recurDays, customEvery, customUnit, endsType, endsDate, endsCount, when, schedDate, dueAt }),
       );
     } catch {
       /* storage blocked — creation still works */
     }
-  }, [open, title, desc, kind, activity, repeat, recurDays, customEvery, customUnit, endsType, endsDate, endsCount]);
+  }, [open, title, desc, kind, activity, repeat, recurDays, customEvery, customUnit, endsType, endsDate, endsCount, when, schedDate, dueAt]);
 
   useEffect(() => {
     if (open) {
@@ -688,6 +744,14 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
       setError("Pick at least one weekday for a weekly repeat.");
       return;
     }
+    if (when === "Pick a date" && !/^\d{4}-\d{2}-\d{2}$/.test(schedDate)) {
+      setError("Pick the date this quest belongs to.");
+      return;
+    }
+    if (dueAt.trim() !== "" && Number.isNaN(new Date(dueAt).getTime())) {
+      setError("That reminder moment doesn't parse — pick it from the calendar.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -699,7 +763,8 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
         activityKey: ACTIVITY_KEY[activity],
         difficulty: DIFFS.find((d) => d.label === difficulty)?.num ?? 2,
         estimatedMinutes: duration,
-        scheduledFor: dateForWhen(when),
+        scheduledFor: dateForWhen(when, schedDate),
+        ...(dueAt.trim() !== "" ? { dueAt: new Date(dueAt).toISOString() } : {}),
         ...(rule ? { recurrenceRule: rule } : {}),
         // Campaign linkage: quests created from a milestone serve it (PRD v2 §30).
         // Milestone-only quests surface as campaign quests, never as giant blobs.
@@ -718,6 +783,8 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
       }
       setTitle("");
       setDesc("");
+      setSchedDate("");
+      setDueAt("");
       onCreated();
       onClose();
       void import("@/lib/sound").then((s) => s.playCreate()).catch(() => undefined);
@@ -808,6 +875,27 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
               </button>
             ))}
           </div>
+          {when === "Pick a date" && (
+            <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label htmlFor="dqDate">Do it on</label>
+                <input id="dqDate" type="date" value={schedDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setSchedDate(e.target.value)} />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label htmlFor="dqDue">Reminder — due moment (optional)</label>
+                <input
+                  id="dqDue"
+                  type="datetime-local"
+                  value={dueAt}
+                  onChange={(e) => setDueAt(e.target.value)}
+                  aria-describedby="dqDueHint"
+                />
+                <span id="dqDueHint" style={{ fontSize: 12, color: "var(--text-3)" }}>
+                  Nudges you in notifications and flags overdue if it slips.
+                </span>
+              </div>
+            </div>
+          )}
           {(repeat === "daily" || repeat === "weekly" || repeat === "custom") && kind !== "routine" ? (
             <p style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600 }}>
               Repeating quests travel as routines — the quest type will be set accordingly.
