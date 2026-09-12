@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -78,6 +79,11 @@ function LoginInner() {
 
           {devBypass && <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-3)" }}>Local preview mode is on — you&apos;re already signed in as the dev hero.</p>}
           <p style={{ marginTop: 10, fontSize: 11, color: "var(--text-3)" }}>Google handles the password. This app never sees it.</p>
+          <p style={{ marginTop: 6, fontSize: 11 }}>
+            <Link href="/privacy" style={{ color: "var(--text-3)", textDecoration: "underline" }}>
+              Privacy Policy
+            </Link>
+          </p>
         </div>
       </div>
     </div>

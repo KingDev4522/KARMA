@@ -38,7 +38,7 @@ const TITLES: Record<string, string> = {
 };
 
 /** Public routes that mint or need no session (hard auth gate allow-list). */
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/welcome"];
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/welcome", "/privacy"];
 
 // Optional right-panel slot prop — reserved for future detail/preview pane (e.g. quest inspector).
 // Not rendered yet; CSS for .right-panel will be added in P2 when the slot is used.

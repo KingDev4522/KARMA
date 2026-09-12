@@ -175,7 +175,12 @@ export default function SettingsPage() {
         <div className="set-row">
           <div className="info">
             <strong>{profile.heroName ?? "Local hero"}</strong>
-            <span>Server-side profile — survives every device</span>
+            <span>
+              Server-side profile — survives every device ·{" "}
+              <Link href="/privacy" style={{ textDecoration: "underline" }}>
+                Privacy Policy
+              </Link>
+            </span>
           </div>
           <button onClick={signOut} className="btn btn--ghost">
             Sign out
