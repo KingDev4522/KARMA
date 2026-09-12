@@ -53,6 +53,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const sideRef = useRef<HTMLElement>(null);
 
   const refreshIdentity = useCallback(() => {
     if (!userId) return;
@@ -94,11 +97,35 @@ export function Shell({ children }: { children: React.ReactNode }) {
       if (e.key === "Escape") {
         setNotifOpen(false);
         setProfileOpen(false);
+        setSideOpen(false);
+      }
+    };
+    // Professional dismiss: a tap anywhere outside an open popup/menu closes it.
+    // pointerdown beats click so the close lands before the next action.
+    const onPointerDown = (e: PointerEvent) => {
+      if (!notifOpen && !profileOpen && !sideOpen) return;
+      const t = e.target as Node;
+      const inside = [notifRef.current, profileRef.current, sideRef.current].some((el) => el?.contains(t));
+      if (!inside) {
+        setNotifOpen(false);
+        setProfileOpen(false);
+        setSideOpen(false);
       }
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [notifOpen, profileOpen, sideOpen]);
+
+  // Navigating away always resets popups/menus.
+  useEffect(() => {
+    setNotifOpen(false);
+    setProfileOpen(false);
+    setSideOpen(false);
+  }, [path]);
 
   const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   const submitSearch = () => {
@@ -134,7 +161,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <IconSprite />
 
       {/* ============ SIDEBAR ============ */}
-      <aside className={`sidebar${sideOpen ? " is-open" : ""}`} aria-label="Primary">
+      <aside ref={sideRef} className={`sidebar${sideOpen ? " is-open" : ""}`} aria-label="Primary">
         <div className="sidebar__brand">
           <span className="brand-mark">
             <Icon id="i-spark" />
@@ -210,7 +237,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <button className="icon-btn" onClick={toggle} title="Toggle theme" aria-label="Toggle theme">
               <Icon id={theme === "dark" ? "i-sun" : "i-moon"} />
             </button>
-            <div className="notif-wrap">
+            <div className="notif-wrap" ref={notifRef}>
               <button className="icon-btn" onClick={() => { setNotifOpen((o) => !o); setProfileOpen(false); }} aria-label={`Notifications, ${notices.filter((n) => n.key !== "all-clear").length} unread`} aria-expanded={notifOpen}>
                 <Icon id="i-bell" />
                 {notices.some((n) => n.key !== "all-clear") && <em className="ping" />}
@@ -232,7 +259,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 </Link>
               </div>
             </div>
-            <div className="profile-wrap">
+            <div className="profile-wrap" ref={profileRef}>
               <button
                 className="icon-btn"
                 style={{ padding: 0 }}
