@@ -16,8 +16,17 @@ export const CreateQuestSchema = z.object({
   recurrenceRule: z
     .object({
       freq: z.enum(["daily", "weekly", "custom"]),
-      days: z.array(z.number().int().min(0).max(6)).optional(),
+      days: z.array(z.number().int().min(0).max(6)).min(1).optional(),
       time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+      every: z.number().int().min(1).max(30).optional(),
+      unit: z.enum(["day", "week"]).optional(),
+      ends: z
+        .object({
+          type: z.enum(["never", "on", "after"]),
+          date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+          count: z.number().int().min(1).max(100).optional(),
+        })
+        .optional(),
     })
     .optional(),
   primaryOverride: z.string().min(1).max(30).optional(),
