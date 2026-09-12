@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { client } from "@/lib/api";
 import { Hero, Icon, IconSprite, type IconId } from "@/components/illustrations";
+import { useIdentity } from "@/lib/identity";
 import type { Notice } from "@/lib/types";
 
 const NAV: { id: string; href: string; label: string; icon: IconId }[] = [
@@ -47,7 +48,10 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   const router = useRouter();
   const { authHeaders, userId, signOut, email, loading: authLoading } = useAuth();
   const { theme, toggle } = useTheme();
-  const [identity, setIdentity] = useState({ heroName: "Aki", level: 1, rank: "Drifter", coins: 0, active: 0, streak: 0 });
+  // Read identity from shared context (populated by refreshIdentity)
+  const identityCtx = useIdentity();
+  const identity = identityCtx;
+  const setIdentity = identityCtx.setIdentity;
   const [notices, setNotices] = useState<Notice[]>([]);
   const [query, setQuery] = useState("");
   const [sideOpen, setSideOpen] = useState(false);
@@ -58,31 +62,36 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   const profileRef = useRef<HTMLDivElement>(null);
   const sideRef = useRef<HTMLElement>(null);
 
+  /** Fetch identity data and notifications in PARALLEL (was sequential). */
   const refreshIdentity = useCallback(() => {
     if (!userId) return;
-    client
-      .getToday(authHeaders())
-      .then((t) =>
+    // Both requests fire simultaneously — no waterfall.
+    Promise.all([
+      client.getToday(authHeaders()).catch(() => null),
+      client.notifications(authHeaders()).catch(() => null),
+    ]).then(([todayData, notifData]) => {
+      if (todayData) {
         setIdentity({
-          heroName: t.greeting.heroName,
-          level: t.greeting.heroLevel,
-          rank: t.greeting.rank.display,
-          coins: t.greeting.coins,
-          active: t.counts.pinned + t.counts.due,
-          streak: t.streak.current,
-        }),
-      )
-      .catch(() => undefined);
-    client
-      .notifications(authHeaders())
-      .then((n) => setNotices(n.notifications))
-      .catch(() => undefined);
+          heroName: todayData.greeting?.heroName ?? "Aki",
+          level: todayData.greeting?.heroLevel ?? 1,
+          rank: todayData.greeting?.rank?.display ?? "Drifter",
+          coins: todayData.greeting?.coins ?? 0,
+          active: (todayData.counts?.pinned ?? 0) + (todayData.counts?.due ?? 0),
+          streak: todayData.streak?.current ?? 0,
+        });
+      }
+      if (notifData?.notifications) {
+        setNotices(notifData.notifications);
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, authHeaders]);
 
+  // Refresh identity on mount and when path changes.
   useEffect(() => {
     refreshIdentity();
   }, [refreshIdentity, path]);
+  // Listen for global refresh events (quest completion, etc.).
   useEffect(() => {
     const fn = () => {
       refreshIdentity();

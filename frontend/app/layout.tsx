@@ -4,7 +4,9 @@ import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import { ToastProvider } from "@/components/toast";
 import { FocusProvider } from "@/components/focus";
+import { IdentityProvider } from "@/lib/identity";
 import { Shell } from "@/components/Shell";
+import { KeepAlivePing } from "@/components/KeepAlivePing";
 
 export const metadata: Metadata = {
   title: "LIFE RPG — Quiet progress, kept score",
@@ -42,11 +44,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <ThemeProvider>
           <AuthProvider>
-            <ToastProvider>
-              <FocusProvider>
-                <Shell>{children}</Shell>
-              </FocusProvider>
-            </ToastProvider>
+            <IdentityProvider>
+              <KeepAlivePing>
+                <ToastProvider>
+                  <FocusProvider>
+                    <Shell>{children}</Shell>
+                  </FocusProvider>
+                </ToastProvider>
+              </KeepAlivePing>
+            </IdentityProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

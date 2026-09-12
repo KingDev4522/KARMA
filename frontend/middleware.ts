@@ -2,7 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Refreshes expired Supabase sessions on every route (cookie-based auth).
+ * Refreshes Supabase sessions on every route (cookie-based auth).
+ *
+ * Performance: we use `getSession()` which is a LOCAL cookie read — no
+ * network — whenever the access token is still fresh. Only when the
+ * session is missing entirely do we fall back to `getUser()` (a server
+ * validation + mint). `getSession()` also transparently auto-refreshes
+ * an expired token (writing fresh cookies back) via @supabase/ssr.
+ *
+ * Result: sidebar navigation no longer pays a Supabase round-trip for a
+ * fresh session, but an expired/missing session is still recovered.
+ *
  * Does not redirect — pages decide signed-in vs signed-out UI themselves.
  */
 export async function middleware(request: NextRequest) {
@@ -30,8 +40,12 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // getUser() both validates and refreshes when needed.
-  await supabase.auth.getUser();
+  // Local cookie read — cheap and usually no network when the token is fresh.
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) {
+    // No session at all — getUser() validates/mints, refreshing the cookie.
+    await supabase.auth.getUser();
+  }
 
   return supabaseResponse;
 }
