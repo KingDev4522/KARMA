@@ -106,12 +106,30 @@ export function companionMessage(event: CompanionEvent, ctx: CompanionContext = 
   }
 }
 
-export function daypart(date = new Date()): "morning" | "afternoon" | "evening" | "night" {
-  const h = date.getUTCHours();
+export function daypart(date = new Date(), timeZone?: string | null): "morning" | "afternoon" | "evening" | "night" {
+  const h = hourInZone(date, timeZone);
   if (h >= 5 && h < 12) return "morning";
   if (h >= 12 && h < 17) return "afternoon";
   if (h >= 17 && h < 22) return "evening";
   return "night";
+}
+
+/**
+ * Wall-clock hour in the viewer's timezone (IANA name from the client, e.g.
+ * "Asia/Kolkata"). Invalid/absent zones fall back to UTC. Uses only the
+ * built-in Intl API — no dependencies, no lookups, works for every corner
+ * of the world including DST transitions.
+ */
+function hourInZone(date: Date, timeZone?: string | null): number {
+  if (!timeZone || timeZone.length > 60) return date.getUTCHours();
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", hour12: false }).formatToParts(date);
+    const h = Number(parts.find((p) => p.type === "hour")?.value);
+    if (!Number.isFinite(h)) return date.getUTCHours();
+    return h % 24; // hour12:false renders midnight as 24 in en-US
+  } catch {
+    return date.getUTCHours();
+  }
 }
 
 /** Daily greeting composition — Smart without AI (BLUEPRINT §23): deterministic from state. */

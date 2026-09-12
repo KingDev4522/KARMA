@@ -87,7 +87,13 @@ export const ROUTES = {
 } as const;
 
 export const client = {
-  getToday: (h: H, date?: string) => api<TodayResponse>(`/api/v1/quests/today${date ? `?date=${date}` : ""}`, { headers: h }),
+  getToday: (h: H, date?: string, tz?: string) => {
+    const q = new URLSearchParams();
+    if (date) q.set("date", date);
+    if (tz) q.set("tz", tz);
+    const qs = q.toString();
+    return api<TodayResponse>(`/api/v1/quests/today${qs ? `?${qs}` : ""}`, { headers: h });
+  },
   listQuests: (h: H, qs = "status=active,in_progress,draft&preview=true&limit=50") =>
     api<Quest[]>(`/api/v1/quests?${qs}`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -135,7 +141,11 @@ export const client = {
   deleteProfile: (h: H) => api<{ deleted: boolean; authDeleted: boolean }>(`/api/v1/profile/me`, { method: "DELETE", headers: h }),
   getProgression: (h: H) => api<{ level: number; coins: number; currentStreak: number }>(`/api/v1/profile/me/progression`, { headers: h }),
   achievements: (h: H) => api<{ unlocked: unknown[] }>(`/api/v1/achievements`, { headers: h }),
-  companion: (h: H, event = "app_open") => api<{ mood: string; message: string }>(`/api/v1/companion?event=${event}`, { headers: h }),
+  companion: (h: H, event = "app_open", tz?: string) => {
+    const q = new URLSearchParams({ event });
+    if (tz) q.set("tz", tz);
+    return api<{ mood: string; message: string }>(`/api/v1/companion?${q.toString()}`, { headers: h });
+  },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   history: (h: H, limit = 20) => api<any>(`/api/v1/chronicle/history?limit=${limit}`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

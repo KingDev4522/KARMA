@@ -567,7 +567,7 @@ export function suggestMapping(activityKey?: string | null, primaryOverride?: st
  * Returns the FE Today screen in ONE call (FE §4/§21 minimal blocking requests):
  * greeting/level/coins + companion + buckets + campaign + attribute snapshot + streak + recent reward.
  */
-export async function getToday(userId: string, dateKey = toDayKey()) {
+export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: string | null) {
   await ensureProfile(userId);
   const [pinned, due, routines, campaignNext] = await Promise.all([
     prisma.quest.findMany({ where: { userId, deletedAt: null, isPinned: true, status: { in: ["active", "in_progress", "draft"] } }, take: 7, orderBy: { createdAt: "desc" }, include: { activityType: true } }),
@@ -655,7 +655,7 @@ export async function getToday(userId: string, dateKey = toDayKey()) {
       coins: progression?.coins ?? 0,
       xpProgress: xpProg(lifetimeXp),
       rank: rankForXpFn(lifetimeXp),
-      timeOfDay: daypart(),
+      timeOfDay: daypart(new Date(), timeZone),
     },
     companion: {
       mood: "greeting" as const,
@@ -664,6 +664,7 @@ export async function getToday(userId: string, dateKey = toDayKey()) {
         questsToday: pick.length,
         streak: progression?.currentStreak ?? 0,
         campaignPct,
+        timeOfDay: daypart(new Date(), timeZone),
       }),
     },
     // FE §5 buckets (explicit) + combined list for convenience — all with rewardPreview.

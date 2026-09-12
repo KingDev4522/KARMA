@@ -46,3 +46,20 @@ export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = [], opts: { en
 export function fmtPct(pct: number) {
   return `${Math.round(pct * 100)}%`;
 }
+
+/**
+ * Viewer's IANA timezone (e.g. "Asia/Kolkata") for locale-correct greetings.
+ * Resolved once from the browser; undefined when unavailable (server keeps UTC).
+ */
+let cachedTz: string | undefined | null = null;
+
+export function clientTimeZone(): string | undefined {
+  if (cachedTz !== null) return cachedTz;
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    cachedTz = tz && tz.length <= 60 ? tz : undefined;
+  } catch {
+    cachedTz = undefined;
+  }
+  return cachedTz;
+}

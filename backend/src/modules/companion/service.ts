@@ -4,7 +4,7 @@ import { ensureProfile } from "../identity/service";
 import { toDayKey } from "../../shared/utils";
 
 /** Companion read model — deterministic greeting/reaction (no AI, LRP-FE-001 §11). */
-export async function getCompanionState(userId: string, event: CompanionEvent = "app_open") {
+export async function getCompanionState(userId: string, event: CompanionEvent = "app_open", timeZone?: string | null) {
   await ensureProfile(userId);
   const [profile, prog, todayCount, campaign] = await Promise.all([
     prisma.profile.findUnique({ where: { id: userId } }),
@@ -35,7 +35,7 @@ export async function getCompanionState(userId: string, event: CompanionEvent = 
     streak: prog?.currentStreak ?? 0,
     campaignPct,
     level: prog?.level ?? 1,
-    timeOfDay: daypart(),
+    timeOfDay: daypart(new Date(), timeZone),
   };
 
   return {

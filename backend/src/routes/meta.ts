@@ -20,7 +20,8 @@ metaRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     const event = (typeof req.query.event === "string" ? req.query.event : "app_open") as never;
-    res.json(await getCompanionState(currentUserId(req), event));
+    const tz = typeof req.query.tz === "string" ? req.query.tz.slice(0, 60) : undefined;
+    res.json(await getCompanionState(currentUserId(req), event, tz));
   }),
 );
 

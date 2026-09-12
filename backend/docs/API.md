@@ -5,7 +5,7 @@ Errors: `{ error: { code, message, details, retryable } }` — `retryable=true` 
 
 ## Read models (minimal blocking requests, LRP-FE-001 §21)
 
-- `GET /api/v1/quests/today?date=YYYY-MM-DD` → greeting (hero/level/coins/xp/rank/timeOfDay), companion greeting, **buckets** `{pinned, dueToday, routine, campaign, spark}`, combined `quests` (max 7), campaign summary + `progressPct`, `attributeSnapshot` (top 3), `streak`, `recentReward`, `emptyHints`.
+- `GET /api/v1/quests/today?date=YYYY-MM-DD&tz=Asia/Kolkata` → greeting (hero/level/coins/xp/rank/timeOfDay **in the viewer's timezone**, UTC fallback), companion greeting, **buckets** `{pinned, dueToday, routine, campaign, spark}`, combined `quests` (max 7), campaign summary + `progressPct`, `attributeSnapshot` (top 3), `streak`, `recentReward`, `emptyHints`.
 - `GET /api/v1/realm` → hero, companion, progression + xp/rank, attributes, achievements, collection, equipped, heroCard (LRP-FE-001 §12).
 - `GET /api/v1/hero-card` → preview-optimized card: identity, level/rank, top attrs, streak, **title name**, achievements, campaigns, equipped (LRP-FE-001 §14).
 - `GET /api/v1/chronicle/history|analytics|debrief`

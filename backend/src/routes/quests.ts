@@ -16,7 +16,8 @@ questRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     const date = typeof req.query.date === "string" ? req.query.date : undefined;
-    res.json(await getToday(currentUserId(req), date));
+    const tz = typeof req.query.tz === "string" ? req.query.tz.slice(0, 60) : undefined;
+    res.json(await getToday(currentUserId(req), date, tz));
   }),
 );
 

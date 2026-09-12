@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useApi } from "@/lib/utils";
+import { clientTimeZone, useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { useFocus } from "@/components/focus";
 import type { Campaign, CompletionResponse, Quest } from "@/lib/types";
@@ -20,7 +20,7 @@ export default function TodayPage() {
   const toast = useToast();
   const router = useRouter();
   const { focusSeq } = useFocus();
-  const { data, error, loading, retry } = useApi(() => client.getToday(authHeaders()), [userId, focusSeq], {
+  const { data, error, loading, retry } = useApi(() => client.getToday(authHeaders(), undefined, clientTimeZone()), [userId, focusSeq], {
     enabled: !authLoading && !!userId,
   });
   const summaryId = data?.campaignSummary?.id ?? null;
