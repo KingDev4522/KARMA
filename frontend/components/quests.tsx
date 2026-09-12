@@ -314,6 +314,9 @@ export function QuestRow({
           <span>{diffLabel(quest.difficulty ?? 3)}</span>
           <DiffDots level={quest.difficulty ?? 3} />
           <span><Icon id="i-clock" />{quest.estimatedMinutes ? `${quest.estimatedMinutes}m` : "—"}</span>
+          {quest.questType === "routine" && quest.recurrenceRule ? (
+            <span>{describeRule(quest.recurrenceRule as any)}</span>
+          ) : null}
         </div>
         {lastResult && (
           <p style={{ fontSize: 12, fontWeight: 700, color: "var(--tint-sage-d)", marginTop: 4 }}>
@@ -437,13 +440,13 @@ const ACTIVITY_ATTR: Record<string, string> = {
   Tidy: "discipline",
 };
 const DIFFS = [
-  { label: "Easy", num: 1 },
-  { label: "Medium", num: 2 },
-  { label: "Hard", num: 3 },
-  { label: "Major", num: 4 },
-  { label: "Epic", num: 5 },
+  { label: "Easy", num: 1, diff: 1 },
+  { label: "Medium", num: 2, diff: 2 },
+  { label: "Hard", num: 3, diff: 3 },
+  { label: "Major", num: 4, diff: 4 },
+  { label: "Epic", num: 5, diff: 5 },
 ];
-const DURATIONS = [2, 5, 10, 15, 30, 45, 60, 90, 120];
+const DURATIONS = [2, 5, 10, 15, 20, 30, 45, 60, 90, 120];
 const WHENS = ["Today", "Tomorrow", "This weekend", "Someday"] as const;
 const KINDS = [
   { v: "quick", hint: "1–15 min · fast win" },
@@ -471,6 +474,49 @@ function dateForWhen(when: string): string | undefined {
   return undefined;
 }
 
+export type RepeatEnds =
+  | { type: "never" }
+  | { type: "on"; date: string }
+  | { type: "after"; count: number };
+
+export interface RepeatRule {
+  freq: "daily" | "weekly" | "custom";
+  days?: number[];
+  every?: number;
+  unit?: "day" | "week";
+  ends?: RepeatEnds;
+}
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+/** Human sentence for a recurrence rule ("Every 3 days · ends after 10"). */
+export function describeRule(rule?: RepeatRule | null): string {
+  if (!rule) return "Does not repeat";
+  const endBit =
+    !rule.ends || rule.ends.type === "never"
+      ? ""
+      : rule.ends.type === "on"
+        ? ` · ends ${rule.ends.date}`
+        : ` · ends after ${rule.ends.count}`;
+  if (rule.freq === "daily") return `Daily${endBit}`;
+  if (rule.freq === "weekly") {
+    const days = [...(rule.days ?? [])].sort((a, b) => a - b);
+    const dayBit = days.length === 7 ? "" : days.length > 0 ? ` · ${days.map((d) => DAY_NAMES[d]).join(", ")}` : "";
+    return `Weekly${dayBit}${endBit}`;
+  }
+  const every = Math.min(30, Math.max(1, Math.floor(rule.every ?? 1)));
+  const unit = rule.unit === "week" ? "week" : "day";
+  const unitBit = every === 1 ? unit : `${unit}s`;
+  const dayBit =
+    unit === "week"
+      ? (() => {
+          const days = [...(rule.days ?? [])].sort((a, b) => a - b);
+          return days.length > 0 && days.length < 7 ? ` · ${days.map((d) => DAY_NAMES[d]).join(", ")}` : "";
+        })()
+      : "";
+  return `Every ${every} ${unitBit}${dayBit}${endBit}`;
+}
+
 export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const { authHeaders } = useAuth();
   const toast = useToast();
@@ -481,8 +527,13 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
   const [duration, setDuration] = useState(30);
   const [when, setWhen] = useState<string>("Today");
   const [kind, setKind] = useState<string>("quick");
-  const [recurFreq, setRecurFreq] = useState<"daily" | "weekly">("weekly");
+  const [repeat, setRepeat] = useState<"once" | "daily" | "weekly" | "custom">("once");
   const [recurDays, setRecurDays] = useState<number[]>([1, 3, 5]);
+  const [customEvery, setCustomEvery] = useState(2);
+  const [customUnit, setCustomUnit] = useState<"day" | "week">("day");
+  const [endsType, setEndsType] = useState<"never" | "on" | "after">("never");
+  const [endsDate, setEndsDate] = useState("");
+  const [endsCount, setEndsCount] = useState(10);
   const [mapping, setMapping] = useState<{ primary: string; secondary: string } | null>(null);
   const [activity, setActivity] = useState<string>("Move");
   const [preview, setPreview] = useState<RewardPreview | null>(null);
@@ -490,16 +541,29 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
   const [error, setError] = useState<string | null>(null);
 
   // Offline-tolerant draft (client cache only — the server stays authoritative).
+  // Reads tolerate drafts saved by older versions (missing fields → defaults).
   useEffect(() => {
     if (!open) return;
     try {
       const raw = window.localStorage.getItem("lrp-quest-draft");
       if (!raw) return;
-      const d = JSON.parse(raw) as { title?: string; desc?: string; kind?: string; activity?: string };
+      const d = JSON.parse(raw) as {
+        title?: string; desc?: string; kind?: string; activity?: string; repeat?: string;
+        recurDays?: number[];
+        customEvery?: number; customUnit?: "day" | "week";
+        endsType?: "never" | "on" | "after"; endsDate?: string; endsCount?: number;
+      };
       if (d.title) setTitle(d.title);
       if (d.desc) setDesc(d.desc);
       if (d.kind) setKind(d.kind);
       if (d.activity) setActivity(d.activity);
+      if (d.repeat === "once" || d.repeat === "daily" || d.repeat === "weekly" || d.repeat === "custom") setRepeat(d.repeat);
+      if (Array.isArray(d.recurDays)) setRecurDays(d.recurDays.filter((n) => Number.isInteger(n) && n >= 0 && n <= 6));
+      if (Number.isFinite(d.customEvery)) setCustomEvery(Math.min(30, Math.max(1, Math.floor(d.customEvery as number))));
+      if (d.customUnit === "day" || d.customUnit === "week") setCustomUnit(d.customUnit);
+      if (d.endsType === "never" || d.endsType === "on" || d.endsType === "after") setEndsType(d.endsType);
+      if (typeof d.endsDate === "string") setEndsDate(d.endsDate);
+      if (Number.isFinite(d.endsCount)) setEndsCount(Math.min(100, Math.max(1, Math.floor(d.endsCount as number))));
     } catch {
       /* corrupt draft is ignored */
     }
@@ -508,11 +572,14 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
   useEffect(() => {
     if (!open) return;
     try {
-      window.localStorage.setItem("lrp-quest-draft", JSON.stringify({ title, desc, kind, activity }));
+      window.localStorage.setItem(
+        "lrp-quest-draft",
+        JSON.stringify({ title, desc, kind, activity, repeat, recurDays, customEvery, customUnit, endsType, endsDate, endsCount }),
+      );
     } catch {
       /* storage blocked — creation still works */
     }
-  }, [open, title, desc, kind, activity]);
+  }, [open, title, desc, kind, activity, repeat, recurDays, customEvery, customUnit, endsType, endsDate, endsCount]);
 
   useEffect(() => {
     if (open) {
@@ -528,7 +595,7 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
     let alive = true;
     setPreview(null);
     const diffNum = DIFFS.find((d) => d.label === difficulty)?.num ?? 2;
-    const qType = kind;
+    const qType = rulePreview ? "routine" : kind;
     const aKey = ACTIVITY_KEY[activity];
     Promise.all([
       client.previewQuest(authHeaders(), { difficulty: diffNum, questType: qType, activityKey: aKey }).catch(() => null),
@@ -542,31 +609,62 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, step, difficulty, activity, kind]);
+  }, [open, step, difficulty, activity, kind, repeat]);
 
   if (!open) return null;
+
+  /** Rule for the payload, or null for a one-time quest. */
+  const buildRule = (): RepeatRule | null => {
+    if (repeat === "once") return null;
+    if (repeat === "daily") return { freq: "daily" };
+    if (repeat === "weekly") return { freq: "weekly", days: [...recurDays].sort() };
+    const every = Math.min(30, Math.max(1, Math.floor(customEvery) || 1));
+    const ends: RepeatEnds =
+      endsType === "on" && /^\d{4}-\d{2}-\d{2}$/.test(endsDate)
+        ? { type: "on", date: endsDate }
+        : endsType === "after"
+          ? { type: "after", count: Math.min(100, Math.max(1, Math.floor(endsCount) || 1)) }
+          : { type: "never" };
+    return customUnit === "week"
+      ? { freq: "custom", every, unit: "week", days: [...recurDays].sort(), ends }
+      : { freq: "custom", every, unit: "day", ends };
+  };
+
+  const rulePreview = buildRule();
 
   const create = async () => {
     if (!title.trim()) {
       toast("Give your quest a name first", "i-close");
       return;
     }
+    if (repeat === "custom" && endsType === "on" && !/^\d{4}-\d{2}-\d{2}$/.test(endsDate)) {
+      setError("Pick an end date for the custom repeat.");
+      return;
+    }
+    if (repeat === "custom" && endsType === "on" && endsDate < new Date().toISOString().slice(0, 10)) {
+      setError("The end date is in the past — pick today or later.");
+      return;
+    }
+    const usesWeekdays = repeat === "weekly" || (repeat === "custom" && customUnit === "week");
+    if (usesWeekdays && recurDays.length === 0) {
+      setError("Pick at least one weekday for a weekly repeat.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
+      const rule = buildRule();
       const created = await client.createQuest(authHeaders(), {
         title: title.trim(),
         description: desc.trim() || undefined,
-        questType: kind,
+        questType: rule ? "routine" : kind,
         activityKey: ACTIVITY_KEY[activity],
         difficulty: DIFFS.find((d) => d.label === difficulty)?.num ?? 2,
         estimatedMinutes: duration,
         scheduledFor: dateForWhen(when),
-        ...(kind === "routine"
-          ? { recurrenceRule: recurFreq === "daily" ? { freq: "daily" as const } : { freq: "weekly" as const, days: [...recurDays].sort() } }
-          : {}),
+        ...(rule ? { recurrenceRule: rule } : {}),
       });
-      if (kind === "routine") {
+      if (rule) {
         const today = new Date().toISOString().slice(0, 10);
         const end = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
         await client.genInstances(authHeaders(), created.id, today, end).catch(() => undefined);
@@ -627,8 +725,8 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
           <>
             <div className="option-grid">
               {DIFFS.map((d) => (
-                <button key={d.label} className={`option${difficulty === d.label ? " is-on" : ""}`} onClick={() => setDifficulty(d.label)} aria-pressed={difficulty === d.label}>
-                  <strong>{d.label}</strong>
+                <button key={d.label} data-diff={d.diff} className={`option${difficulty === d.label ? " is-on" : ""}`} onClick={() => setDifficulty(d.label)} aria-pressed={difficulty === d.label}>
+                  <strong className="diff-name"><span className="diff-dot" aria-hidden />{d.label}</strong>
                   <span>{"●".repeat({ Easy: 1, Medium: 2, Hard: 3, Major: 4, Epic: 5 }[d.label] ?? 2)} · level {d.num}</span>
                 </button>
               ))}
@@ -661,17 +759,21 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
               </button>
             ))}
           </div>
-          {kind === "routine" && (
+          {(repeat === "daily" || repeat === "weekly" || repeat === "custom") && kind !== "routine" ? (
+            <p style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600 }}>
+              Repeating quests travel as routines — the quest type will be set accordingly.
+            </p>
+          ) : null}
             <div style={{ marginTop: 12 }}>
               <p style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>Repeats</p>
-              <div className="chip-row" role="group" aria-label="Repeat frequency">
-                {(["daily", "weekly"] as const).map((f) => (
-                  <button key={f} className={`chip${recurFreq === f ? " is-on" : ""}`} onClick={() => setRecurFreq(f)} aria-pressed={recurFreq === f}>
-                    {f}
+              <div className="chip-row" role="group" aria-label="Repeat">
+                {(["once", "daily", "weekly", "custom"] as const).map((f) => (
+                  <button key={f} className={`chip${repeat === f ? " is-on" : ""}`} onClick={() => setRepeat(f)} aria-pressed={repeat === f} title={f === "once" ? "One time only — never repeats" : f === "custom" ? "Your own rhythm: interval and end" : `Repeats ${f}`}>
+                    {f === "once" ? "Once" : f === "daily" ? "Daily" : f === "weekly" ? "Weekly" : "Custom"}
                   </button>
                 ))}
               </div>
-              {recurFreq === "weekly" && (
+              {(repeat === "weekly" || (repeat === "custom" && customUnit === "week")) && (
                 <div className="chip-row" style={{ marginTop: 8 }} role="group" aria-label="Repeat days">
                   {DOW.map((d, i) => (
                     <button
@@ -686,8 +788,48 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
                   ))}
                 </div>
               )}
+              {repeat === "custom" && (
+                <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                  <div>
+                    <p style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>Every</p>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <button className="chip" onClick={() => setCustomEvery((n) => Math.max(1, n - 1))} aria-label="Decrease interval">−</button>
+                        <strong aria-live="polite" style={{ minWidth: 24, textAlign: "center" }}>{customEvery}</strong>
+                        <button className="chip" onClick={() => setCustomEvery((n) => Math.min(30, n + 1))} aria-label="Increase interval">+</button>
+                      </span>
+                      <span className="chip-row" role="group" aria-label="Interval unit">
+                        {(["day", "week"] as const).map((u) => (
+                          <button key={u} className={`chip${customUnit === u ? " is-on" : ""}`} onClick={() => setCustomUnit(u)} aria-pressed={customUnit === u}>
+                            {customEvery === 1 ? u : `${u}s`}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>Ends</p>
+                    <div className="chip-row" role="group" aria-label="End condition">
+                      {(["never", "on", "after"] as const).map((t) => (
+                        <button key={t} className={`chip${endsType === t ? " is-on" : ""}`} onClick={() => setEndsType(t)} aria-pressed={endsType === t}>
+                          {t === "never" ? "Never" : t === "on" ? "On date" : "After…"}
+                        </button>
+                      ))}
+                    </div>
+                    {endsType === "on" && (
+                      <input type="date" value={endsDate} onChange={(e) => setEndsDate(e.target.value)} aria-label="End date" style={{ marginTop: 8, width: "100%" }} />
+                    )}
+                    {endsType === "after" && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+                        <button className="chip" onClick={() => setEndsCount((n) => Math.max(1, n - 1))} aria-label="Decrease occurrences">−</button>
+                        <strong aria-live="polite" style={{ minWidth: 60, textAlign: "center", fontSize: 13 }}>{endsCount} times</strong>
+                        <button className="chip" onClick={() => setEndsCount((n) => Math.min(100, n + 1))} aria-label="Increase occurrences">+</button>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
           <p style={{ fontSize: 12.5, color: "var(--text-3)", marginTop: 16, fontWeight: 600 }}>
             You can reschedule any time from the Quests page.
           </p>
@@ -714,8 +856,8 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
             <div className="reward-preview">
               <h4>{title.trim() || "Untitled quest"}</h4>
               <p style={{ fontSize: 12.5, color: "var(--text-3)", fontWeight: 600 }}>
-                {activity} · {kind} · {duration} min · {difficulty} · {when}
-                {kind === "routine" ? (recurFreq === "daily" ? " · daily" : ` · ${recurDays.length}×/week`) : ""}
+                {activity} · {rulePreview ? "routine" : kind} · {duration} min · {difficulty} · {when}
+                {" · "}{describeRule(rulePreview)}
               </p>
               <div className="rp-rows">
                 <span className="meta-chip xp">+{preview ? preview.rewardXp : "…"}&nbsp;XP</span>
