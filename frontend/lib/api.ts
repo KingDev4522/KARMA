@@ -63,6 +63,7 @@ export const ROUTES = {
   deleteCampaign: "DELETE /api/v1/campaigns/:id",
   createMilestone: "POST /api/v1/campaigns/:id/milestones",
   patchMilestone: "PATCH /api/v1/campaigns/milestones/:mid",
+  deleteMilestone: "DELETE /api/v1/campaigns/milestones/:mid",
   listFocus: "GET /api/v1/focus",
   startFocus: "POST /api/v1/focus/start",
   finishFocus: "POST /api/v1/focus/:id/finish",
@@ -105,8 +106,8 @@ export const client = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   patchQuest: (h: H, id: string, body: any) => api<Quest>(`/api/v1/quests/${id}`, { method: "PATCH", headers: h, body: JSON.stringify(body) }),
   deleteQuest: (h: H, id: string) => api<unknown>(`/api/v1/quests/${id}`, { method: "DELETE", headers: h }),
-  completeQuest: (h: H, id: string, idempotencyKey: string) =>
-    api<CompletionResponse>(`/api/v1/quests/${id}/complete`, { method: "POST", headers: h, body: JSON.stringify({ idempotencyKey }) }),
+  completeQuest: (h: H, id: string, idempotencyKey: string, opts?: { instanceId?: string }) =>
+    api<CompletionResponse>(`/api/v1/quests/${id}/complete`, { method: "POST", headers: h, body: JSON.stringify({ idempotencyKey, ...(opts?.instanceId ? { instanceId: opts.instanceId } : {}) }) }),
   activityTypes: (h: H) => api<{ key: string; name: string }[]>(`/api/v1/quests/meta/activity-types`, { headers: h }),
   listCampaigns: (h: H) => api<Campaign[]>(`/api/v1/campaigns`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,6 +120,7 @@ export const client = {
   createMilestone: (h: H, id: string, body: any) => api<unknown>(`/api/v1/campaigns/${id}/milestones`, { method: "POST", headers: h, body: JSON.stringify(body) }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   patchMilestone: (h: H, mid: string, body: any) => api<unknown>(`/api/v1/campaigns/milestones/${mid}`, { method: "PATCH", headers: h, body: JSON.stringify(body) }),
+  deleteMilestone: (h: H, mid: string) => api<unknown>(`/api/v1/campaigns/milestones/${mid}`, { method: "DELETE", headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   startFocus: (h: H, body: any) => api<{ id: string; status: string }>(`/api/v1/focus/start`, { method: "POST", headers: h, body: JSON.stringify(body) }),
   listFocus: (h: H, limit = 20) => api<unknown[]>(`/api/v1/focus?limit=${limit}`, { headers: h }),

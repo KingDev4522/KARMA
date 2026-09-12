@@ -3,9 +3,11 @@ import { BadRequestError, ForbiddenError, NotFoundError } from "../../shared/err
 import { ensureProfile } from "../identity/service";
 
 /**
- * Focus — Quest → Focus timer → Pause/Resume → Finish → (separate) Quest Completion → Reward
+ * Focus — Quest → Focus timer → Pause/Resume → Finish → Quest Completion → Reward
  * (MASTER PRD §8, LRP-FE-001 §9 Focus UX: Quest, Timer, Pause/Resume, Finish → reward sequence).
  * Backend stores planned/actual/start/finish/linked Quest; browser displays countdown (LRP-BE-001 §16).
+ * The client completes the linked quest right after a completed finish (idempotent —
+ * key `focus-<sessionId>`), so rewards stay server-authoritative while the chain is one tap.
  */
 
 export async function startSession(userId: string, input: { questId?: string; plannedSeconds: number }) {
@@ -57,5 +59,10 @@ export async function finishSession(userId: string, id: string, input: { status:
 
 export async function listSessions(userId: string, limit = 20) {
   if (limit > 100) throw new ForbiddenError("limit too large");
-  return prisma.focusSession.findMany({ where: { userId }, orderBy: { startedAt: "desc" }, take: limit });
+  return prisma.focusSession.findMany({
+    where: { userId },
+    orderBy: { startedAt: "desc" },
+    take: limit,
+    include: { quest: { select: { id: true, title: true, status: true } } },
+  });
 }

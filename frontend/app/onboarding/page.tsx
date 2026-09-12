@@ -6,43 +6,46 @@ import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
-import { Companion, Hero, Icon } from "@/components/illustrations";
+import { CompanionImage, HeroImage, Icon } from "@/components/illustrations";
+import { FREE_COMPANIONS, HEROES, PREMIUM_COMPANIONS, heroAssetId } from "@/lib/identity";
 import { SignInPrompt, Skeleton } from "@/components/States";
 
-/** Onboarding — entering the world. */
-const HEROES = [
-  { id: "hero_ember", label: "Ember" },
-  { id: "hero_sage", label: "Sage" },
-  { id: "hero_warden", label: "Warden" },
-  { id: "hero_scout", label: "Scout" },
-  { id: "hero_mystic", label: "Mystic" },
-  { id: "hero_forge", label: "Forge" },
-];
-const COMPANIONS = [
-  { id: "comp_spark", label: "Spark" },
-  { id: "comp_moss", label: "Moss" },
-  { id: "comp_ember", label: "Emberling" },
-];
 const DOMAINS = ["Fitness", "Learning", "Career", "Creativity", "Relationships", "Home", "Mindfulness"];
 
+/**
+ * Onboarding — entering the world.
+ * 1 hero (of 6, traditional attire) → hero name + oath → companion (of 6 free)
+ * + companion name → life domains → first campaign + first quest.
+ * Premium companions and variant skins live in the Store, not here.
+ */
 export default function OnboardingPage() {
   const { authHeaders, userId, loading: authLoading } = useAuth();
   const toast = useToast();
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [heroAssetId, setHeroAssetId] = useState(HEROES[0].id);
+  const [heroId, setHeroId] = useState(HEROES[5].id); // Kavya first paint
   const [heroName, setHeroName] = useState("");
-  const [companionAssetId, setCompanionAssetId] = useState(COMPANIONS[0].id);
+  const [oath, setOath] = useState("");
+  const [companionId, setCompanionId] = useState(FREE_COMPANIONS[0].id);
+  const [companionName, setCompanionName] = useState("");
   const [domains, setDomains] = useState<string[]>(["Learning"]);
   const [firstQuest, setFirstQuest] = useState("Drink a glass of water");
   const [firstCampaign, setFirstCampaign] = useState("My first campaign");
   const [domainsSaved, setDomainsSaved] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: starterPack } = useApi<any>(() => client.starters(authHeaders()), [userId, domainsSaved], {
-    enabled: !!userId && step === 3 && domainsSaved,
+    enabled: !!userId && step === 4 && domainsSaved,
   });
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!companionName) {
+      const c = FREE_COMPANIONS.find((x) => x.id === companionId);
+      if (c) setCompanionName(c.name);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companionId]);
 
   const toggleDomain = (d: string) => setDomains((s) => (s.includes(d) ? s.filter((x) => x !== d) : [...s, d]));
 
@@ -57,11 +60,23 @@ export default function OnboardingPage() {
       return;
     }
     try {
-      await client.patchProfile(authHeaders(), { heroAssetId, heroName: heroName.trim(), companionAssetId, lifeDomains: domains });
+      await client.patchProfile(authHeaders(), {
+        heroAssetId: heroAssetId(heroId, "traditional"),
+        heroName: heroName.trim(),
+        companionAssetId: companionId,
+        companionName: companionName.trim() || null,
+        bio: oath.trim() || null,
+        lifeDomains: domains,
+      });
       const camp = await client.createCampaign(authHeaders(), { title: firstCampaign.trim() || "My first campaign" });
       await client.createQuest(authHeaders(), { title: firstQuest.trim(), questType: "quick", activityKey: "routine_habit", difficulty: 1, campaignId: camp.id });
       setDone(true);
       toast("Welcome to the realm.", "i-spark");
+      try {
+        window.localStorage.setItem("lrp-tour", "ready");
+      } catch {
+        /* ignore */
+      }
       router.push("/");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't finish onboarding. Nothing was written.");
@@ -69,9 +84,10 @@ export default function OnboardingPage() {
   };
 
   const starters: { title: string }[] = starterPack?.suggestions ?? [];
+  const hero = HEROES.find((h) => h.id === heroId) ?? HEROES[0];
 
   return (
-    <div className="page is-active" style={{ maxWidth: 560, margin: "0 auto" }}>
+    <div className="page is-active" style={{ maxWidth: 600, margin: "0 auto" }}>
       {authLoading ? (
         <Skeleton label="Onboarding" rows={2} />
       ) : !userId ? (
@@ -82,52 +98,79 @@ export default function OnboardingPage() {
         <div>
           <h2>Enter the realm</h2>
           <p className="sub">
-            Step {step + 1} of 4 — your life is the campaign.
+            Step {step + 1} of 5 — your life is the campaign.
           </p>
         </div>
       </div>
 
       <div className="wizard-steps" aria-hidden="true">
-        {[0, 1, 2, 3].map((i) => (
+        {[0, 1, 2, 3, 4].map((i) => (
           <i key={i} className={i <= step ? "on" : ""} />
         ))}
       </div>
 
       {step === 0 && (
         <section className="panel" style={{ padding: 24 }} aria-label="Choose hero">
+          <h3 style={{ fontSize: 17, marginBottom: 4, textAlign: "center" }}>Choose your hero</h3>
+          <p style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center", marginBottom: 12 }}>
+            Six travelers, traditional attire. Other looks are earned in the Store.
+          </p>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-            <Hero width={120} />
+            <div style={{ width: 150, borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)" }}>
+              <HeroImage assetId={heroAssetId(heroId, "traditional")} eager alt={hero.name} />
+            </div>
           </div>
-          <h3 style={{ fontSize: 17, marginBottom: 12, textAlign: "center" }}>Choose your hero</h3>
-          <div className="option-grid">
+          <div className="option-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
             {HEROES.map((h) => (
-              <button key={h.id} onClick={() => setHeroAssetId(h.id)} aria-pressed={heroAssetId === h.id} className={`option${heroAssetId === h.id ? " is-on" : ""}`}>
-                <strong>{h.label}</strong>
+              <button key={h.id} onClick={() => setHeroId(h.id)} aria-pressed={heroId === h.id} className={`option${heroId === h.id ? " is-on" : ""}`} title={`${h.region} — ${h.line}`}>
+                <strong>{h.name}</strong>
+                <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>{h.region}</span>
               </button>
             ))}
           </div>
-          <div className="field" style={{ marginTop: 16, marginBottom: 0 }}>
-            <label htmlFor="obName">Hero name</label>
-            <input id="obName" type="text" value={heroName} onChange={(e) => setHeroName(e.target.value)} placeholder="Aki" maxLength={24} />
-          </div>
+          <p style={{ fontSize: 12.5, color: "var(--text-3)", textAlign: "center", marginTop: 10 }}>{hero.line}</p>
         </section>
       )}
       {step === 1 && (
-        <section className="panel" style={{ padding: 24 }} aria-label="Choose companion">
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-            <Companion width={110} />
+        <section className="panel" style={{ padding: 24 }} aria-label="Name hero">
+          <h3 style={{ fontSize: 17, marginBottom: 4, textAlign: "center" }}>Name {hero.name}, define yourself</h3>
+          <p style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center", marginBottom: 14 }}>
+            Give your hero a name and a one-line oath — a goal, a strength, a habit to break.
+          </p>
+          <div className="field">
+            <label htmlFor="obName">Hero name</label>
+            <input id="obName" type="text" value={heroName} onChange={(e) => setHeroName(e.target.value)} placeholder={hero.name} maxLength={80} />
           </div>
-          <h3 style={{ fontSize: 17, marginBottom: 12, textAlign: "center" }}>Choose your companion</h3>
-          <div className="option-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-            {COMPANIONS.map((c) => (
-              <button key={c.id} onClick={() => setCompanionAssetId(c.id)} aria-pressed={companionAssetId === c.id} className={`option${companionAssetId === c.id ? " is-on" : ""}`}>
-                <strong>{c.label}</strong>
-              </button>
-            ))}
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="obOath">Oath (shown on your Realm)</label>
+            <input id="obOath" type="text" value={oath} onChange={(e) => setOath(e.target.value)} placeholder="Ship my portfolio, kill doomscroll" maxLength={500} />
           </div>
         </section>
       )}
       {step === 2 && (
+        <section className="panel" style={{ padding: 24 }} aria-label="Choose companion">
+          <h3 style={{ fontSize: 17, marginBottom: 4, textAlign: "center" }}>Choose your companion</h3>
+          <p style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center", marginBottom: 12 }}>
+            Six walk beside you free. Rarer friends await in the Store.
+          </p>
+          <div className="option-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+            {FREE_COMPANIONS.map((c) => (
+              <button key={c.id} onClick={() => setCompanionId(c.id)} aria-pressed={companionId === c.id} className={`option${companionId === c.id ? " is-on" : ""}`}>
+                <CompanionImage assetId={c.id} width={64} />
+                <strong style={{ marginTop: 6 }}>{c.name}</strong>
+              </button>
+            ))}
+          </div>
+          <div className="field" style={{ marginTop: 16, marginBottom: 0 }}>
+            <label htmlFor="obCompName">Companion name (yours to choose)</label>
+            <input id="obCompName" type="text" value={companionName} onChange={(e) => setCompanionName(e.target.value)} placeholder="Moss" maxLength={80} />
+          </div>
+          <p style={{ fontSize: 12.5, color: "var(--text-3)", textAlign: "center", marginTop: 10 }}>
+            Premium: {PREMIUM_COMPANIONS.map((c) => c.name).join(" · ")} — earn coins, meet them in the Store.
+          </p>
+        </section>
+      )}
+      {step === 3 && (
         <section className="panel" style={{ padding: 24 }} aria-label="Choose focus">
           <h3 style={{ fontSize: 17, marginBottom: 12 }}>What will you work on?</h3>
           <div className="chip-row">
@@ -139,7 +182,7 @@ export default function OnboardingPage() {
           </div>
         </section>
       )}
-      {step === 3 && (
+      {step === 4 && (
         <section className="panel" style={{ padding: 24 }} aria-label="First quest">
           <h3 style={{ fontSize: 17, marginBottom: 6 }}>Name your first campaign</h3>
           <p style={{ fontSize: 13.5, color: "var(--text-2)", marginBottom: 14 }}>
@@ -178,11 +221,11 @@ export default function OnboardingPage() {
             Back
           </button>
         )}
-        {step < 3 ? (
+        {step < 4 ? (
           <button
             onClick={async () => {
-              if (step === 2) {
-                // Persist interests first so step 3 suggestions come from the server.
+              if (step === 3) {
+                // Persist interests first so step 4 suggestions come from the server.
                 await client.patchProfile(authHeaders(), { lifeDomains: domains }).catch(() => undefined);
                 setDomainsSaved(true);
               }

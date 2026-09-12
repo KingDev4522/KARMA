@@ -7,7 +7,7 @@ import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/toast";
 import { useFocus } from "@/components/focus";
-import { Hero, Icon, type IconId } from "@/components/illustrations";
+import { Hero, HeroImage, Icon, type IconId } from "@/components/illustrations";
 
 /* ================= Backend → display mapping ================= */
 
@@ -100,7 +100,7 @@ export function DiffDots({ level, title }: { level: number; title?: string }) {
   );
 }
 
-/** Fly XP particles from a source element to coin pill + level ring (subtle RPG). */
+/** Fly coin + spark particles from a source element to the coin pill + level ring. */
 export function burstAt(sourceEl: Element | null, n = 9) {
   try {
     if (document.documentElement.dataset.motion === "off") return;
@@ -113,19 +113,30 @@ export function burstAt(sourceEl: Element | null, n = 9) {
       const useRing = !!toRing && i % 3 === 0;
       const target = (useRing ? toRing : toCoin) as HTMLElement;
       const tr = target.getBoundingClientRect();
-      const p = document.createElement("i");
-      p.className = "xp-particle";
-      if (i % 4 === 0) p.style.background = "var(--accent)";
       const sx = f.left + f.width / 2 + (Math.random() - 0.5) * 40;
       const sy = f.top + f.height / 2 + (Math.random() - 0.5) * 20;
+      let p: HTMLElement;
+      if (!useRing && toCoin) {
+        // Real coin for coin-bound flights.
+        const img = document.createElement("img");
+        img.src = "/brand/coin.png";
+        img.alt = "";
+        img.className = "xp-coin";
+        img.draggable = false;
+        p = img;
+      } else {
+        p = document.createElement("i");
+        p.className = "xp-particle";
+        if (i % 4 === 0) p.style.background = "var(--accent)";
+      }
       p.style.left = `${sx}px`;
       p.style.top = `${sy}px`;
       document.body.appendChild(p);
       const anim = p.animate(
         [
-          { transform: "translate(0,0) scale(1)", opacity: 1 },
+          { transform: "translate(0,0) scale(1) rotate(0deg)", opacity: 1 },
           {
-            transform: `translate(${tr.left + tr.width / 2 - sx + (Math.random() - 0.5) * 30}px,${tr.top + tr.height / 2 - sy}px) scale(.3)`,
+            transform: `translate(${tr.left + tr.width / 2 - sx + (Math.random() - 0.5) * 30}px,${tr.top + tr.height / 2 - sy}px) scale(.3) rotate(200deg)`,
             opacity: 0.9,
           },
         ],
@@ -136,6 +147,21 @@ export function burstAt(sourceEl: Element | null, n = 9) {
   } catch {
     /* decorative only */
   }
+}
+
+/** Surface freshly unlocked achievements: toast + fanfare each (PRD §16/§34). */
+export function announceAchievements(
+  r: { unlockedAchievements?: { key: string; name: string; rewardCoins: number }[] },
+  toast: (msg: string, icon?: import("@/components/illustrations").IconId) => void,
+) {
+  const list = r.unlockedAchievements ?? [];
+  list.forEach((a, i) => {
+    setTimeout(() => {
+      toast(`Badge earned: ${a.name} · +${a.rewardCoins} coins`, "i-trophy");
+      void import("@/lib/sound").then((s) => s.playBadge()).catch(() => undefined);
+    }, 600 + i * 900);
+  });
+  return list.length;
 }
 
 export function shakeCoins() {
@@ -368,6 +394,11 @@ export function QuestRow({
               >
                 {quest.isPinned ? "Unpin" : "Pin today"}
               </button>
+              {(quest.status === "active" || quest.status === "draft") && (
+                <button className="chip" disabled={busy} onClick={() => mutate(() => client.patchQuest(authHeaders(), quest.id, { status: "in_progress" }), "Quest started — finish it or take it into Focus")}>
+                  Start
+                </button>
+              )}
               {quest.status !== "skipped" ? (
                 <button className="chip" disabled={busy} onClick={() => mutate(() => client.patchQuest(authHeaders(), quest.id, { status: "skipped" }), "Quest skipped — reschedule anytime")}>
                   Skip
@@ -517,7 +548,14 @@ export function describeRule(rule?: RepeatRule | null): string {
   return `Every ${every} ${unitBit}${dayBit}${endBit}`;
 }
 
-export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+export interface QuestLink {
+  campaignId?: string | null;
+  milestoneId?: string | null;
+  campaignTitle?: string | null;
+  milestoneTitle?: string | null;
+}
+
+export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean; onClose: () => void; onCreated: () => void; link?: QuestLink | null }) {
   const { authHeaders } = useAuth();
   const toast = useToast();
   const [step, setStep] = useState(1);
@@ -663,6 +701,10 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
         estimatedMinutes: duration,
         scheduledFor: dateForWhen(when),
         ...(rule ? { recurrenceRule: rule } : {}),
+        // Campaign linkage: quests created from a milestone serve it (PRD v2 §30).
+        // Milestone-only quests surface as campaign quests, never as giant blobs.
+        ...(link?.campaignId ? { campaignId: link.campaignId } : {}),
+        ...(link?.milestoneId ? { milestoneId: link.milestoneId } : {}),
       });
       if (rule) {
         const today = new Date().toISOString().slice(0, 10);
@@ -678,6 +720,7 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
       setDesc("");
       onCreated();
       onClose();
+      void import("@/lib/sound").then((s) => s.playCreate()).catch(() => undefined);
       toast("Quest created. The path awaits.", "i-spark");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't create quest. Nothing was written.");
@@ -698,6 +741,12 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
             <p className="sub">
               Step {step} of 5 — {STEP_QUESTIONS[step - 1]}
             </p>
+            {link?.campaignId && (
+              <p className="sub" style={{ marginTop: 4 }}>
+                Serving {link.campaignTitle ? `“${link.campaignTitle}”` : "a campaign"}
+                {link.milestoneTitle ? ` → ${link.milestoneTitle}` : ""}
+              </p>
+            )}
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             <Icon id="i-close" />
@@ -938,19 +987,28 @@ function CountUp({ to, duration = 700 }: { to: number; duration?: number }) {
   return <>{n}</>;
 }
 
-export function LevelUpModal({ level, message, rankUp, onClose }: { level: number; message: string; rankUp?: { from: string; to: string; bonusCoins: number } | null; onClose: () => void }) {
+export function LevelUpModal({ level, message, rankUp, onClose, heroAssetId }: { level: number; message: string; rankUp?: { from: string; to: string; bonusCoins: number } | null; onClose: () => void; heroAssetId?: string | null }) {
   const reduced = typeof document !== "undefined" && (document.documentElement.dataset.motion === "off" || window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
+  useEffect(() => {
+    void import("@/lib/sound").then((s) => s.playLevelUp()).catch(() => undefined);
+  }, []);
   return (
     <AnimatePresence>
       <motion.div className="modal-backdrop is-open" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : 0.22 }}>
         <motion.div className="modal levelup-modal" role="dialog" aria-modal="true" aria-label={`Level ${level}`} initial={reduced ? false : { scale: 0.96, y: 12, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.98, y: 8, opacity: 0 }} transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 }}>
           <div className="lv-ring" aria-hidden="true" />
-          <Hero width={120} className="lv-hero idle" />
+          {heroAssetId ? (
+            <div style={{ width: 120, margin: "0 auto", borderRadius: 16, overflow: "hidden" }}>
+              <HeroImage assetId={heroAssetId} variant="warrior" eager alt="Hero, victorious" />
+            </div>
+          ) : (
+            <Hero width={120} className="lv-hero idle" />
+          )}
           <h3>Level up</h3>
           <div className="lv-num"><CountUp to={level} /></div>
           {rankUp && (

@@ -1,5 +1,6 @@
 import { prisma } from "../../db";
 import { ATTRIBUTE_KEYS } from "../../shared/validation";
+import { STARTER_ITEM_KEYS } from "../../shared/starterKit";
 
 /**
  * Identity domain — Hero + Companion + Profile bootstrap.
@@ -48,6 +49,7 @@ export async function ensureProfile(userId: string) {
 
 export async function getFullProfile(userId: string) {
   await ensureProfile(userId);
+  await grantStarterKit(userId);
   const [profile, progression, attributes, loadout] = await Promise.all([
     prisma.profile.findUniqueOrThrow({ where: { id: userId } }),
     prisma.profileProgression.findUnique({ where: { profileId: userId } }),
@@ -59,14 +61,22 @@ export async function getFullProfile(userId: string) {
 
 export async function updateIdentity(
   userId: string,
-  data: { displayName?: string; heroName?: string; bio?: string; heroAssetId?: string; companionAssetId?: string; lifeDomains?: string[]; reducedMotion?: boolean; theme?: string | null; notifyQuest?: boolean; notifyStreak?: boolean; notifyCelebrate?: boolean },
+  data: { displayName?: string; heroName?: string; companionName?: string; bio?: string; heroAssetId?: string; companionAssetId?: string; avatarAssetId?: string | null; lifeDomains?: string[]; reducedMotion?: boolean; theme?: string | null; notifyQuest?: boolean; notifyStreak?: boolean; notifyCelebrate?: boolean },
 ) {
   await ensureProfile(userId);
+  // companionName/avatarAssetId columns are added by migration 20260913_identity_store;
+  // older databases without them fall back gracefully instead of failing the whole save.
+  const cols = await prisma.$queryRawUnsafe(`SELECT column_name FROM information_schema.columns WHERE table_name='profiles'`).catch(() => []) as { column_name: string }[];
+  const names = new Set((Array.isArray(cols) ? cols : []).map((c) => c.column_name));
+  const hasCompanionName = names.size === 0 || names.has("companion_name");
+  const hasAvatar = names.size === 0 || names.has("avatar_asset_id");
   return prisma.profile.update({
     where: { id: userId },
     data: {
       displayName: data.displayName?.trim(),
       heroName: data.heroName?.trim(),
+      ...(hasCompanionName && data.companionName !== undefined ? { companionName: data.companionName?.trim() || null } : {}),
+      ...(hasAvatar && data.avatarAssetId !== undefined ? { avatarAssetId: data.avatarAssetId || null } : {}),
       bio: data.bio,
       heroAssetId: data.heroAssetId,
       companionAssetId: data.companionAssetId,
@@ -81,11 +91,25 @@ export async function updateIdentity(
 }
 
 /**
- * Account deletion (PRD v2 §45: users own their data, incl. leaving).
- * Removes every app-owned row transactionally; historical integrity no longer
- * applies once the owner asks to be forgotten. Also attempts the Supabase Auth
- * user deletion when a service-role key is configured (best-effort, reported).
+ * Starter kit grant — 4 frames + 4 title boxes free forever. Idempotent:
+ * only creates rows the user doesn't already own, and silently skips when
+ * the seed hasn't been run yet (items missing). Called for new profiles and
+ * on profile reads so existing heroes get the kit too.
  */
+export async function grantStarterKit(userId: string) {
+  try {
+    const items = await prisma.item.findMany({ where: { key: { in: STARTER_ITEM_KEYS } }, select: { id: true, key: true } });
+    if (items.length === 0) return;
+    const owned = await prisma.inventory.findMany({ where: { userId, itemId: { in: items.map((i) => i.id) } }, select: { itemId: true } });
+    const ownedSet = new Set(owned.map((o) => o.itemId));
+    const missing = items.filter((i) => !ownedSet.has(i.id));
+    if (missing.length === 0) return;
+    await prisma.inventory.createMany({ data: missing.map((i) => ({ userId, itemId: i.id, source: "starter" })), skipDuplicates: true });
+  } catch {
+    /* starter kit is a gift, never a blocker */
+  }
+}
+/** Account deletion (PRD v2 §45): removes app rows; auth deletion best-effort. */
 export async function deleteAccount(userId: string): Promise<{ deleted: boolean; authDeleted: boolean }> {
   await prisma.$transaction(async (tx) => {
     const questIds = (await tx.quest.findMany({ where: { userId }, select: { id: true } })).map((q) => q.id);

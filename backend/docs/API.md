@@ -36,6 +36,8 @@ Errors: `{ error: { code, message, details, retryable } }` — `retryable=true` 
 - `POST /api/v1/store/purchase` `{itemId}` → `{entry, item, balance, loadout}` (equip immediately after confirm).
 - `GET /api/v1/inventory`, `POST /api/v1/inventory/equip {itemId}`, `POST /api/v1/inventory/unequip {slot}`.
 - `nameplate` items equip to the `frameItemId` hero-chrome slot (documented; FE renders nameplate from loadout frame slot when item type is nameplate).
+- `hero_skin` items carry `metadata.heroAssetId` (`<hero>-<variant>`); equipping also flips `Profile.heroAssetId` so Today/Realm/Hero Card change immediately. `companion` items carry `metadata.companionAssetId` and flip `Profile.companionAssetId` the same way. Loadout slots: `heroSkinItemId`, `companionItemId`.
+- Today (`GET /api/v1/quests/today`) returns a top-level `hero {heroAssetId, heroName, companionAssetId, companionName}` block for instant header/portrait render (single call, no follow-up fetch).
 
 ## Companion (LRP-FE-001 §11)
 
@@ -44,11 +46,15 @@ Errors: `{ error: { code, message, details, retryable } }` — `retryable=true` 
 
 ## Misc
 
-- `PATCH /api/v1/profile/me` identity + UX prefs `{reducedMotion, theme}` + notification prefs `{notifyQuest, notifyStreak, notifyCelebrate}` (persisted; localStorage is cache only).
+- `PATCH /api/v1/profile/me` identity + UX prefs `{reducedMotion, theme}` + notification prefs `{notifyQuest, notifyStreak, notifyCelebrate}` (persisted; localStorage is cache only). Identity fields: `displayName, heroName, companionName, bio (oath), heroAssetId (<hero>-<variant>), companionAssetId, avatarAssetId (null = follow hero, `<hero>-<variant>`, or `companion:<id>`), lifeDomains`.
+- Starter kit: every profile is granted frames 1–4 + title boxes 1–4 (free, `source: "starter"`) on creation and on profile/store reads — Personalize always has day-one options. Retired placeholder items (old SVG/JSON art) are seed-deactivated; owners keep inventory, Store hides them.
 - `DELETE /api/v1/profile/me` erases all app data (and the Supabase Auth identity when a service-role key is configured). Double-confirm in UI.
 - `GET /api/v1/chronicle/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` unified feed: scheduled quests + routine instances + milestones + focus sessions (62-day cap).
 - `GET /api/v1/notifications` deterministic center: due quests, streak risk, recent badges, next objective + active prefs.
-- `GET /api/v1/quests?preview=true` attaches `rewardPreview` to every row; `GET /api/v1/quests/:id` always previews.
+- `GET /api/v1/quests?preview=true` attaches `rewardPreview` to every row; `GET /api/v1/quests/:id` always previews. `POST /api/v1/quests/preview` resolves with live user state (streak + today's micro count) so cap warnings are honest.
+- Micro-quest cap counts true micros (difficulty 1 + quick/recovery) through the quest relation — low-XP campaign/focus completions never inflate it.
+- `GET /api/v1/campaigns` includes live `progressPct + questCount` per journey; `DELETE /api/v1/campaigns/milestones/:mid` removes a milestone (linked quests keep history, link nulls).
+- Focus finish on a linked quest is followed by `POST /api/v1/quests/:id/complete` with idempotency key `focus-<sessionId>` — one tap from timer to reward, retries never double-grant. `GET /api/v1/focus` includes the linked quest title.
 - Completion returns `rankUp: {from, to, bonusCoins} | null` + matching `rank_up` ledger entry.
 - `GET /api/v1/starters` deterministic starter suggestions from `lifeDomains`.
 - `GET|POST /api/v1/rest-days`, `GET /api/v1/achievements`, `GET /api/v1/wallet`.

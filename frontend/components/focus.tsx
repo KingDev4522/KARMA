@@ -3,9 +3,10 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
 import { client } from "@/lib/api";
+import type { CompletionResponse } from "@/lib/types";
 import { useToast } from "@/components/toast";
 import { Icon } from "@/components/illustrations";
-import { ATTR_META, questAttrKey } from "@/components/quests";
+import { ATTR_META, LevelUpModal, announceAchievements, questAttrKey } from "@/components/quests";
 
 export interface FocusQuest {
   id?: string;
@@ -36,6 +37,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const [running, setRunning] = useState(false);
   const [seq, setSeq] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [ceremony, setCeremony] = useState<CompletionResponse | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopTick = () => {
@@ -74,19 +76,51 @@ export function FocusProvider({ children }: { children: ReactNode }) {
     [authHeaders],
   );
 
+  // PRD chain: Focus finish on a linked quest completes the quest server-side
+  // so XP + Coins + Attributes + Streak land in one tap. Idempotency key is
+  // derived from the session so retries/auto-finish can never double-grant.
+  const completeLinkedQuest = useCallback(
+    async (questId: string | undefined, sid: string | null) => {
+      if (!questId) {
+        toast("Focus session complete — well held.", "i-focus");
+        return;
+      }
+      try {
+        const r = await client.completeQuest(authHeaders(), questId, `focus-${sid ?? "free"}`);
+        void import("@/lib/sound").then((s) => s.playCoin()).catch(() => undefined);
+        toast(`“${quest?.title ?? "Quest"}” complete · +${r.rewardXp} XP · +${r.rewardCoins} coins`, "i-check");
+        announceAchievements(r, toast);
+        if (r.leveledUp) setCeremony(r);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        if (/already|conflict|completed/i.test(msg)) {
+          toast("That quest already counted — session logged.", "i-check");
+        } else {
+          toast(e instanceof Error ? e.message : "Session logged, but the quest reward didn't land — complete it from Quests.", "i-close");
+        }
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [authHeaders, quest?.title],
+  );
+
   // Auto-finish at zero
   useEffect(() => {
     if (quest && left === 0 && sessionId) {
+      const qid = quest.id;
+      const sid = sessionId;
       client
-        .finishFocus(authHeaders(), sessionId, { status: "completed", actualSeconds: total })
-        .catch(() => undefined);
-      stopTick();
-      setRunning(false);
-      setSeq((s) => s + 1);
-      toast("Focus session complete · +40 XP", "i-focus");
-      setQuest(null);
-      setSessionId(null);
-      window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+        .finishFocus(authHeaders(), sid, { status: "completed", actualSeconds: total })
+        .catch(() => undefined)
+        .finally(() => {
+          stopTick();
+          setRunning(false);
+          setSeq((s) => s + 1);
+          void completeLinkedQuest(qid, sid);
+          setQuest(null);
+          setSessionId(null);
+          window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left]);
@@ -126,9 +160,11 @@ export function FocusProvider({ children }: { children: ReactNode }) {
 
   const finish = useCallback(
     async (done: boolean) => {
-      if (sessionId) {
+      const qid = quest?.id;
+      const sid = sessionId;
+      if (sid) {
         try {
-          await client.finishFocus(authHeaders(), sessionId, {
+          await client.finishFocus(authHeaders(), sid, {
             status: done ? "completed" : "cancelled",
             actualSeconds: total - left,
           });
@@ -143,14 +179,14 @@ export function FocusProvider({ children }: { children: ReactNode }) {
       setRunning(false);
       if (done) {
         setSeq((s) => s + 1);
-        toast("Focus session complete · +40 XP", "i-focus");
+        await completeLinkedQuest(qid, sid);
         window.dispatchEvent(new CustomEvent("liferpg:refresh"));
       }
       setQuest(null);
       setSessionId(null);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sessionId, total, left],
+    [sessionId, total, left, quest?.id, completeLinkedQuest],
   );
 
   const exit = useCallback(async () => {
@@ -174,6 +210,14 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   return (
     <FocusCtx.Provider value={{ openFocus, focusSeq: seq }}>
       {children}
+      {ceremony && (
+        <LevelUpModal
+          level={ceremony.newLevel}
+          message={`${ceremony.companion.message} A new rank: ${ceremony.newRankDisplay}.`}
+          rankUp={ceremony.rankUp}
+          onClose={() => setCeremony(null)}
+        />
+      )}
       <div className={`focus-session${quest ? " is-open" : ""}`} role="dialog" aria-modal={!!quest} aria-label="Focus session">
         <button className="btn btn--ghost focus-exit" onClick={exit}>
           <Icon id="i-close" style={{ width: 15, height: 15 }} />

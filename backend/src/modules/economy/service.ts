@@ -1,6 +1,6 @@
 import { prisma } from "../../db";
 import { BadRequestError, ConflictError, NotFoundError } from "../../shared/errors";
-import { ensureProfile } from "../identity/service";
+import { ensureProfile, grantStarterKit } from "../identity/service";
 
 /** Economy + Store (LRP-BE-001 §17, MASTER PRD §12, PRD v2 §17-§19). Coins spendable, XP permanent. */
 
@@ -13,6 +13,7 @@ export async function getWallet(userId: string) {
 
 export async function listStore(userId: string) {
   await ensureProfile(userId);
+  await grantStarterKit(userId);
   const [items, owned, loadout, prog] = await Promise.all([
     prisma.item.findMany({ where: { active: true }, orderBy: [{ itemType: "asc" }, { price: "asc" }] }),
     prisma.inventory.findMany({ where: { userId } }),

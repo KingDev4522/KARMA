@@ -31,6 +31,7 @@ const CONTRACT: [string, string][] = [
   ["/api/v1/campaigns/${id}`", "deleteCampaign"],
   ["/milestones`", "createMilestone"],
   ["/milestones/${mid}`", "patchMilestone"],
+  ["/milestones/${mid}`", "deleteMilestone"],
   ["/api/v1/focus/start`", "startFocus"],
   ["/finish`", "finishFocus"],
   ["/pause`", "pauseFocus"],

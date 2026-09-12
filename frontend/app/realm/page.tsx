@@ -3,7 +3,9 @@
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { EnvStack, Hero, Icon, variantFor } from "@/components/illustrations";
+import { CompanionImage, EnvStack, FrameWrap, HeroImage, Icon, TitleBox } from "@/components/illustrations";
+import Link from "next/link";
+import { attrProgress } from "@/lib/identity";
 import { ATTR_META } from "@/components/quests";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
@@ -27,6 +29,11 @@ export default function RealmPage() {
   if (!data) return <EmptyState message="Your realm is unformed. Complete a quest to begin." />;
 
   const heroName = data.hero?.name ?? data.hero?.displayName ?? data.hero?.heroAssetId ?? data.hero?.assetId ?? "Unnamed Hero";
+  const heroAssetId = data.hero?.heroAssetId ?? data.hero?.assetId ?? null;
+  const avatarAssetId = data.hero?.avatarAssetId ?? null;
+  const companionAssetId = data.companion?.companionAssetId ?? null;
+  const companionName = data.companion?.companionName ?? null;
+  const oath = data.hero?.bio ?? null;
   const level = data.progression?.level ?? 1;
   const rank = data.rank?.display ?? "";
   const coins = data.progression?.coins ?? 0;
@@ -41,6 +48,15 @@ export default function RealmPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const locked: any[] = (badgeBook?.locked ?? []).map((a: any) => ({ key: a.key, name: a.name, description: a.description, iconPath: a.iconPath }));
   const equipped = data.equipped ?? data.loadout ?? {};
+  // Resolve equipped frame + title-box art from the collection (inventory items).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const collectionItems: any[] = data.collection ?? [];
+  const itemById = new Map<string, string>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const e of collectionItems) if (e?.itemId && e?.item?.assetPath) itemById.set(e.itemId, e.item.assetPath);
+  const frameAsset: string | null = (equipped?.frameItemId && itemById.get(equipped.frameItemId)) || null;
+  const titleBoxRaw: string | null = (equipped?.titleItemId && itemById.get(equipped.titleItemId)) || null;
+  const titleBoxAsset = titleBoxRaw?.endsWith(".jpeg") ? titleBoxRaw : null;
   const cosmeticTags: string[] = [];
   if (equipped?.frameItemId || equipped?.frame) cosmeticTags.push(`Frame · ${equipped.frameItemId ?? equipped.frame}`);
   if (title) cosmeticTags.push(`Title · ${title}`);
@@ -59,7 +75,7 @@ export default function RealmPage() {
       <div className="page-head">
         <div>
           <h2>Realm</h2>
-          <p className="sub">This is who you&apos;re becoming.</p>
+          <p className="sub">This is who you&apos;re becoming — identity, attributes, badges, loadout.</p>
         </div>
       </div>
 
@@ -67,16 +83,17 @@ export default function RealmPage() {
         <div className="realm-hero-card">
           <EnvStack />
           <div className="nameplate">
-            <span className="np-frame">
-              <Hero width={20} variant={variantFor(data.hero?.heroAssetId ?? data.hero?.assetId ?? null)} />
+            <span className="np-frame" style={{ overflow: "hidden" }}>
+              <HeroImage assetId={heroAssetId} width={20} alt={heroName} />
             </span>
             <div>
-              <strong>{heroName}</strong>
-              <span>{title}</span>
+              <TitleBox boxSrc={titleBoxAsset} name={heroName} sub={title} />
             </div>
           </div>
           <div className="hero-fig">
-            <Hero width="100%" className="idle" variant={variantFor(data.hero?.heroAssetId ?? data.hero?.assetId ?? null)} />
+            <FrameWrap frameSrc={frameAsset} label={`${heroName}'s frame`}>
+              <HeroImage assetId={heroAssetId} eager alt={heroName} />
+            </FrameWrap>
           </div>
         </div>
 
@@ -90,6 +107,15 @@ export default function RealmPage() {
                   <span className="seal" title={rank} aria-label={rank}>{String(rank).slice(0,2).toUpperCase()}</span>
                 </div>
                 <p className="rank-line"><b>{rank}</b> rank · {xpInto} / {xpNeed} XP · {coins.toLocaleString("en-US")} coins</p>
+                {oath && (
+                  <p style={{ fontSize: 13.5, color: "var(--text-2)", marginTop: 8, fontStyle: "italic" }}>“{oath}”</p>
+                )}
+                {companionAssetId && (
+                  <p style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-2)", marginTop: 10 }}>
+                    <CompanionImage assetId={companionAssetId} width={34} alt={companionName ?? "Companion"} />
+                    <span>{companionName ? <strong>{companionName} walks with you.</strong> : "Your companion walks with you."}</span>
+                  </p>
+                )}
               </div>
               <span className="streak-pill">
                 <Icon id="i-flame" />
@@ -119,7 +145,7 @@ export default function RealmPage() {
                         <em>Lv {a.level}</em>
                       </div>
                       <div className="attr-bar">
-                        <i style={{ width: `${Math.min(100, Math.round(((Number(a.xp) || 0) % 500) / 5))}%` }} />
+                        <i style={{ width: `${attrProgress(Number(a.level) || 1, Number(a.xp) || 0)}%` }} />
                       </div>
                       <span style={{width:6,height:6,borderRadius:"50%",background:"var(--border-strong)", display:"inline-block", marginTop:6}} />
                     </div>
@@ -162,6 +188,7 @@ export default function RealmPage() {
             </div>
             <div className="sec-head" style={{ padding: "8px 24px 0", margin: 0 }}>
               <h3>Equipped cosmetics</h3>
+              <Link className="link-btn" href="/personalize">Dressing room</Link>
             </div>
             <div className="cosmetic-row">
               {cosmeticTags.length === 0 && <span style={{ fontSize: 12.5, color: "var(--text-3)" }}>Nothing equipped — visit the Store.</span>}

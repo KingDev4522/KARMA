@@ -15,7 +15,17 @@ export async function createCampaign(userId: string, input: { title: string; des
 }
 
 export async function listCampaigns(userId: string) {
-  return prisma.campaign.findMany({ where: { userId }, orderBy: { updatedAt: "desc" }, include: { milestones: { orderBy: { orderIndex: "asc" } } } });
+  const campaigns = await prisma.campaign.findMany({ where: { userId }, orderBy: { updatedAt: "desc" }, include: { milestones: { orderBy: { orderIndex: "asc" } } } });
+  // LRP-FE-001 §8: list cards show live progress too (not just detail) so no
+  // journey reads 0% while its milestones advance.
+  const withProgress = await Promise.all(
+    campaigns.map(async (c) => {
+      const quests = await prisma.quest.findMany({ where: { campaignId: c.id, deletedAt: null }, select: { status: true } });
+      const questCount = quests.length;
+      return { ...c, progressPct: deriveProgress(c.milestones as never, quests as never), questCount };
+    }),
+  );
+  return withProgress;
 }
 
 async function ownedCampaign(userId: string, id: string) {
@@ -87,6 +97,14 @@ export async function updateMilestone(userId: string, milestoneId: string, patch
       orderIndex: patch.orderIndex,
     },
   });
+}
+
+export async function deleteMilestone(userId: string, milestoneId: string) {
+  const m = await prisma.campaignMilestone.findUnique({ where: { id: milestoneId }, include: { campaign: true } });
+  if (!m || m.campaign.userId !== userId) throw new NotFoundError("Milestone not found");
+  // Linked quests keep history; their milestone link nulls out (SetNull).
+  await prisma.campaignMilestone.delete({ where: { id: milestoneId } });
+  return { deleted: true };
 }
 
 function deriveProgress(milestones: { status: string }[], quests: { status: string }[]): number {

@@ -193,7 +193,9 @@ export async function getHeroCard(userId: string) {
   return {
     heroName: profile.heroName ?? profile.displayName ?? "Unnamed Hero",
     avatar: profile.heroAssetId,
+    avatarAssetId: (profile as Record<string, unknown>).avatarAssetId ?? null,
     companion: profile.companionAssetId,
+    companionName: (profile as Record<string, unknown>).companionName ?? null,
     level: prog?.level ?? 1,
     xpProgress: xpProgressForLevel(lifetimeXp),
     rank: rankForXp(lifetimeXp),
@@ -231,8 +233,8 @@ export async function getRealm(userId: string) {
   const items = itemIds.length ? await prisma.item.findMany({ where: { id: { in: itemIds } } }) : [];
   const byId = new Map(items.map((i) => [i.id, i]));
   return {
-    hero: { name: profile.heroName, displayName: profile.displayName, bio: profile.bio, heroAssetId: profile.heroAssetId },
-    companion: { companionAssetId: profile.companionAssetId },
+    hero: { name: profile.heroName, displayName: profile.displayName, bio: profile.bio, heroAssetId: profile.heroAssetId, avatarAssetId: (profile as Record<string, unknown>).avatarAssetId ?? null },
+    companion: { companionAssetId: profile.companionAssetId, companionName: (profile as Record<string, unknown>).companionName ?? null },
     progression: prog,
     xpProgress: xpProgressForLevel(lifetimeXp),
     rank: rankForXp(lifetimeXp),

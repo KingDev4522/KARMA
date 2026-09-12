@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
+import { useTour } from "@/components/tour";
+import { soundEnabled, setSoundEnabled } from "@/lib/sound";
 import { ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 /** Settings — appearance, motion, hero identity, rest days, sign out. */
@@ -14,14 +16,21 @@ export default function SettingsPage() {
   const { authHeaders, userId, signOut, email, loading: authLoading } = useAuth();
   const { theme, setTheme } = useTheme();
   const toast = useToast();
+  const { replay } = useTour();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error, loading, retry } = useApi<any>(() => client.getProfile(authHeaders()), [userId], {
     enabled: !authLoading && !!userId,
   });
   const [restDate, setRestDate] = useState("");
   const [motionOff, setMotionOff] = useState<boolean | null>(null);
+  const [soundOn, setSoundOn] = useState(true);
   const [armed, setArmed] = useState(false);
   const [erasing, setErasing] = useState(false);
+
+  useEffect(() => {
+    setSoundOn(soundEnabled());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (authLoading || loading) return <Skeleton label="Settings" rows={3} />;
   if (!userId) return <SignInPrompt />;
@@ -35,6 +44,7 @@ export default function SettingsPage() {
       await client.patchProfile(authHeaders(), patch);
       toast(msg, "i-check");
       retry();
+      window.dispatchEvent(new CustomEvent("liferpg:refresh"));
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't save. Nothing was changed.", "i-close");
     }
@@ -109,27 +119,65 @@ export default function SettingsPage() {
           </div>
           <button className={`switch${reduceMotion ? " is-on" : ""}`} role="switch" aria-checked={reduceMotion} aria-label="Reduce motion" onClick={toggleMotion} />
         </div>
+        <div className="set-row">
+          <div className="info">
+            <strong>Sound effects</strong>
+            <span>Coins, level-ups, badges and purchases</span>
+          </div>
+          <button
+            className={`switch${soundOn ? " is-on" : ""}`}
+            role="switch"
+            aria-checked={soundOn}
+            aria-label="Sound effects"
+            onClick={() => {
+              const next = !soundOn;
+              setSoundOn(next);
+              setSoundEnabled(next);
+              toast(next ? "Sound on" : "Sound off", "i-check");
+            }}
+          />
+        </div>
+        <div className="set-row">
+          <div className="info">
+            <strong>Companion tour</strong>
+            <span>Replay the first-run guide with your companion</span>
+          </div>
+          <button className="btn btn--ghost" onClick={replay}>
+            Replay tour
+          </button>
+        </div>
       </div>
 
       <div className="settings-panel">
-        <h3>Hero</h3>
+        <h3>Hero & companion</h3>
         <form
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
-            save({ heroName: String(fd.get("heroName") || ""), bio: String(fd.get("bio") || "") }, "Hero updated");
+            save(
+              {
+                heroName: String(fd.get("heroName") || ""),
+                companionName: String(fd.get("companionName") || ""),
+                bio: String(fd.get("bio") || ""),
+              },
+              "Identity updated",
+            );
           }}
         >
           <div className="field">
-            <label htmlFor="setHero">Hero name</label>
-            <input id="setHero" name="heroName" type="text" defaultValue={profile.heroName ?? ""} className="set-input" />
+            <label htmlFor="setHero">Hero name (yours to choose)</label>
+            <input id="setHero" name="heroName" type="text" defaultValue={profile.heroName ?? ""} className="set-input" maxLength={80} />
           </div>
           <div className="field">
-            <label htmlFor="setBio">Bio</label>
-            <input id="setBio" name="bio" type="text" defaultValue={profile.bio ?? ""} className="set-input" />
+            <label htmlFor="setComp">Companion name (yours to choose)</label>
+            <input id="setComp" name="companionName" type="text" defaultValue={profile.companionName ?? ""} className="set-input" maxLength={80} />
+          </div>
+          <div className="field">
+            <label htmlFor="setBio">Oath — how do you define yourself?</label>
+            <input id="setBio" name="bio" type="text" defaultValue={profile.bio ?? ""} className="set-input" maxLength={500} placeholder="Ship my portfolio, kill doomscroll" />
           </div>
           <button type="submit" className="btn btn--primary">
-            Save hero
+            Save identity
           </button>
         </form>
       </div>

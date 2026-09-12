@@ -6,11 +6,13 @@ import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import type { StoreItem } from "@/lib/types";
-import { Companion, EnvStack, Hero, Icon } from "@/components/illustrations";
+import { Companion, EnvStack, Hero, Icon, CoinImg } from "@/components/illustrations";
 import { burstAt, shakeCoins } from "@/components/quests";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 const CAT_LABEL: Record<string, string> = {
+  hero_skin: "Hero Skins",
+  companion: "Companions",
   frame: "Frames",
   title: "Titles",
   nameplate: "Nameplates",
@@ -22,7 +24,24 @@ const CAT_LABEL: Record<string, string> = {
   hero_card: "Hero Card Themes",
 };
 
+/** True when the item carries real raster art (hero/companions/frames). */
+function isRaster(item: StoreItem): boolean {
+  const p = (item as StoreItem & { assetPath?: string; preview?: string }).assetPath
+    ?? (item as StoreItem & { preview?: string }).preview
+    ?? "";
+  return /\.(jpe?g|png|webp)$/i.test(p);
+}
+
+function rasterSrc(item: StoreItem): string {
+  const m = item as StoreItem & { assetPath?: string; preview?: string };
+  return m.assetPath ?? m.preview ?? "";
+}
+
 function Preview({ item }: { item: StoreItem }) {
+  if (isRaster(item)) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={rasterSrc(item)} alt={item.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />;
+  }
   switch (item.itemType) {
     case "frame":
       return <div className="frame-ring" />;
@@ -71,6 +90,8 @@ function Preview({ item }: { item: StoreItem }) {
 }
 
 const PREVIEW_BG: Record<string, string> = {
+  "Hero Skins": "",
+  Companions: "",
   Frames: "tint-coral",
   Titles: "tint-yellow",
   Nameplates: "tint-cream",
@@ -112,6 +133,7 @@ export default function StorePage() {
     try {
       await client.purchase(authHeaders(), item.id);
       burstAt(el);
+      void import("@/lib/sound").then((s) => s.playPurchase()).catch(() => undefined);
       toast(`${item.name} unlocked — equip it in your Realm`, "i-spark");
       retry();
       window.dispatchEvent(new CustomEvent("liferpg:refresh"));
@@ -127,8 +149,10 @@ export default function StorePage() {
     setBusyId(item.id);
     try {
       await client.equip(authHeaders(), item.id);
+      void import("@/lib/sound").then((s) => s.playPurchase()).catch(() => undefined);
       toast(`${item.name} equipped`, "i-check");
       retry();
+      window.dispatchEvent(new CustomEvent("liferpg:refresh"));
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't equip.", "i-close");
     } finally {
@@ -142,6 +166,10 @@ export default function StorePage() {
         <div>
           <h2>Store</h2>
           <p className="sub">Spend what you&apos;ve earned. Equip what feels like you.</p>
+        </div>
+        <div className="coin-pill" title="Your coins" aria-label={`${data.coins} coins`} style={{ alignSelf: "center" }}>
+          <CoinImg size={16} />
+          <span className="coin-val">{data.coins.toLocaleString("en-US")}</span>
         </div>
       </div>
 
@@ -182,6 +210,9 @@ export default function StorePage() {
                     <strong>{it.name}</strong>
                     <span className="si-rare" style={{ marginTop: 4 }}>{it.rarity}</span>
                     <div className="si-cat">{label}</div>
+                    <div className="si-cat" style={{ opacity: 0.75 }}>
+                      {it.equipped ? "Equipped" : it.owned ? "Owned — equip it" : data.coins < it.price ? `Locked · need ${(it.price - data.coins).toLocaleString("en-US")} more` : "Available"}
+                    </div>
                   </div>
                   {it.equipped ? (
                     <span className="si-buy equipped">Equipped</span>
@@ -219,6 +250,8 @@ export default function StorePage() {
 
 // Mirrors backend RESOLVED_SLOT (inventory service): nameplates share the frame slot.
 const SLOT_FOR: Record<string, string> = {
+  hero_skin: "heroSkinItemId",
+  companion: "companionItemId",
   frame: "frameItemId",
   title: "titleItemId",
   nameplate: "frameItemId",
@@ -251,6 +284,7 @@ function CollectionView({ onChanged }: { onChanged: () => void }) {
     setBusy(id);
     try {
       await fn();
+      void import("@/lib/sound").then((s) => s.playPurchase()).catch(() => undefined);
       toast(ok, "i-check");
       retry();
       onChanged();

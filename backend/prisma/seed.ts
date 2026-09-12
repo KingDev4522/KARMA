@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { ACTIVITY_TYPES, ATTRIBUTE_DEFS } from "../src/rpg/attributes";
+import { STARTER_ITEM_KEYS } from "../src/shared/starterKit";
 
 const prisma = new PrismaClient();
 
@@ -17,45 +18,62 @@ const ACHIEVEMENTS = [
 ];
 
 // MVP store: product-wide identity (PRD v2 §19, BLUEPRINT §17). No clothing dependency.
-const ITEMS: { itemType: never; key: string; name: string; description: string; assetPath: string; price: number; rarity: string }[] = [
-  // Frames
-  { itemType: "frame" as never, key: "frame_glass", name: "Glass Frame", description: "Clean glass border for your hero.", assetPath: "/frames/glass.svg", price: 40, rarity: "common" },
-  { itemType: "frame" as never, key: "frame_neon", name: "Neon Frame", description: "Luminous neon edge.", assetPath: "/frames/neon.svg", price: 120, rarity: "rare" },
-  { itemType: "frame" as never, key: "frame_ember", name: "Ember Frame", description: "Warm ember glow.", assetPath: "/frames/ember.svg", price: 150, rarity: "rare" },
-  { itemType: "frame" as never, key: "frame_astral", name: "Astral Frame", description: "Starfield glow.", assetPath: "/frames/astral.svg", price: 250, rarity: "epic" },
-  // Titles
-  { itemType: "title" as never, key: "title_consistent", name: "The Consistent", description: "For showing up daily.", assetPath: "/titles/consistent.svg", price: 60, rarity: "common" },
-  { itemType: "title" as never, key: "title_night_builder", name: "Night Builder", description: "For late-night makers.", assetPath: "/titles/night-builder.svg", price: 80, rarity: "common" },
-  { itemType: "title" as never, key: "title_code_smith", name: "Code Smith", description: "For builders.", assetPath: "/titles/code-smith.svg", price: 100, rarity: "rare" },
-  { itemType: "title" as never, key: "title_early_riser", name: "Early Riser", description: "For dawn starters.", assetPath: "/titles/early-riser.svg", price: 80, rarity: "common" },
-  // Nameplates
-  { itemType: "nameplate" as never, key: "nameplate_slate", name: "Slate Nameplate", description: "Minimal slate identity plate.", assetPath: "/nameplates/slate.svg", price: 50, rarity: "common" },
-  { itemType: "nameplate" as never, key: "nameplate_gilded", name: "Gilded Nameplate", description: "Gold-trimmed plate.", assetPath: "/nameplates/gilded.svg", price: 180, rarity: "epic" },
-  // Realms
-  { itemType: "realm" as never, key: "realm_dawn", name: "Dawn Realm", description: "Warm dawn dashboard theme.", assetPath: "/realms/dawn.svg", price: 100, rarity: "common" },
-  { itemType: "realm" as never, key: "realm_midnight", name: "Midnight Realm", description: "Deep midnight theme.", assetPath: "/realms/midnight.svg", price: 100, rarity: "common" },
-  { itemType: "realm" as never, key: "realm_forest", name: "Forest Realm", description: "Calm forest theme.", assetPath: "/realms/forest.svg", price: 120, rarity: "rare" },
-  { itemType: "realm" as never, key: "realm_observatory", name: "Observatory Realm", description: "Starry observatory theme.", assetPath: "/realms/observatory.svg", price: 200, rarity: "epic" },
-  // Effects (XP bursts + completion FX)
-  { itemType: "effect" as never, key: "effect_spark", name: "Spark Burst", description: "Small spark XP effect.", assetPath: "/effects/spark.json", price: 60, rarity: "common" },
-  { itemType: "effect" as never, key: "effect_arc", name: "Arc Burst", description: "Arcing XP effect.", assetPath: "/effects/arc.json", price: 90, rarity: "rare" },
-  { itemType: "effect" as never, key: "effect_confetti", name: "Confetti FX", description: "Celebratory confetti.", assetPath: "/effects/confetti.json", price: 110, rarity: "rare" },
-  { itemType: "effect" as never, key: "effect_pixel", name: "Pixel Burst", description: "Retro pixel burst.", assetPath: "/effects/pixel.json", price: 140, rarity: "epic" },
-  // Companion emotes
-  { itemType: "companion_emote" as never, key: "emote_clap", name: "Clap", description: "Companion claps.", assetPath: "/companions/emotes/clap.json", price: 30, rarity: "common" },
-  { itemType: "companion_emote" as never, key: "emote_celebrate", name: "Celebrate", description: "Companion celebrates.", assetPath: "/companions/emotes/celebrate.json", price: 70, rarity: "rare" },
-  { itemType: "companion_emote" as never, key: "emote_focused", name: "Focused", description: "Companion focus pose.", assetPath: "/companions/emotes/focused.json", price: 50, rarity: "common" },
-  { itemType: "companion_emote" as never, key: "emote_shocked", name: "Shocked", description: "Companion shocked reaction.", assetPath: "/companions/emotes/shocked.json", price: 60, rarity: "rare" },
-  // Quest skins
-  { itemType: "quest_skin" as never, key: "skin_obsidian", name: "Obsidian Cards", description: "Dark quest card treatment.", assetPath: "/skins/obsidian.json", price: 90, rarity: "rare" },
-  { itemType: "quest_skin" as never, key: "skin_parchment", name: "Parchment Cards", description: "Warm parchment treatment.", assetPath: "/skins/parchment.json", price: 90, rarity: "rare" },
-  // Badge cases
-  { itemType: "badge_case" as never, key: "case_oak", name: "Oak Case", description: "Wooden badge display.", assetPath: "/cases/oak.svg", price: 70, rarity: "common" },
-  { itemType: "badge_case" as never, key: "case_crystal", name: "Crystal Case", description: "Crystal badge display.", assetPath: "/cases/crystal.svg", price: 160, rarity: "epic" },
-  // Hero card templates
-  { itemType: "hero_card" as never, key: "card_classic", name: "Classic Card", description: "Classic hero card layout.", assetPath: "/hero-cards/classic.svg", price: 80, rarity: "common" },
-  { itemType: "hero_card" as never, key: "card_mythic", name: "Mythic Card", description: "Mythic foil hero card.", assetPath: "/hero-cards/mythic.svg", price: 220, rarity: "legendary" },
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+const ITEMS: { itemType: never; key: string; name: string; description: string; assetPath: string; price: number; rarity: string; metadata?: Record<string, string> }[] = [
+  // NOTE: retired placeholder items (old SVG/JSON art) are NOT listed here —
+  // RETIRED_KEYS below deactivates them so the Store only sells working art.
+  // Hero skins — non-default variants (traditional is free with the hero).
+  // metadata.heroAssetId is applied to Profile.heroAssetId on equip.
+  ...(["meera", "dev", "zoya", "tenzing", "arjun", "kavya"] as const).flatMap((hero) => [
+    { itemType: "hero_skin" as never, key: `skin_${hero}_warrior`, name: `${cap(hero)} · Warrior`, description: "Warrior variant — level-up and inferno quests.", assetPath: `/heroes/${hero}-warrior.jpeg`, price: 220, rarity: "epic", metadata: { heroAssetId: `${hero}-warrior` } },
+    { itemType: "hero_skin" as never, key: `skin_${hero}_modern`, name: `${cap(hero)} · Modern`, description: "Modern variant — focus room attire.", assetPath: `/heroes/${hero}-modern.jpeg`, price: 180, rarity: "rare", metadata: { heroAssetId: `${hero}-modern` } },
+    { itemType: "hero_skin" as never, key: `skin_${hero}_holiday`, name: `${cap(hero)} · Holiday`, description: "Holiday variant — streak and rest-day wear.", assetPath: `/heroes/${hero}-holiday.jpeg`, price: 150, rarity: "rare", metadata: { heroAssetId: `${hero}-holiday` } },
+  ]),
+  // Premium companions — the 6 common ones are free at onboarding; these 4 are store-only.
+  // metadata.companionAssetId is applied to Profile.companionAssetId on equip.
+  { itemType: "companion" as never, key: "companion_dragon", name: "Dragon Companion", description: "Rare skyfire drake. Premium companion.", assetPath: "/companions/dragon.png", price: 400, rarity: "legendary", metadata: { companionAssetId: "dragon" } },
+  { itemType: "companion" as never, key: "companion_otter", name: "Otter Companion", description: "Playful river otter. Premium companion.", assetPath: "/companions/otter.jpeg", price: 300, rarity: "epic", metadata: { companionAssetId: "otter" } },
+  { itemType: "companion" as never, key: "companion_panda", name: "Panda Companion", description: "Gentle bamboo panda. Premium companion.", assetPath: "/companions/panda.jpeg", price: 300, rarity: "epic", metadata: { companionAssetId: "panda" } },
+  { itemType: "companion" as never, key: "companion_penguin", name: "Penguin Companion", description: "Dapper ice penguin. Premium companion.", assetPath: "/companions/penguin.jpeg", price: 250, rarity: "rare", metadata: { companionAssetId: "penguin" } },
+  // Real frames (assessts/title frame → public/frames). Frames 1–4 are the free
+  // starter set granted to every hero; 5–20 are earned in the Store.
+  ...([1, 2, 3, 4] as const).map((n) => (
+    { itemType: "frame" as never, key: `frame_no_${n}`, name: `Frame ${n}`, description: "Starter frame — yours from day one.", assetPath: `/frames/frame-${n}.jpeg`, price: 0, rarity: "common" }
+  )),
+  ...([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] as const).map((n) => (
+    { itemType: "frame" as never, key: `frame_no_${n}`, name: `Frame ${n}`, description: "Hand-drawn temple frame for your portrait.", assetPath: `/frames/frame-${n}.jpeg`, price: n <= 10 ? 120 : n <= 16 ? 220 : 350, rarity: n <= 10 ? "rare" : n <= 16 ? "epic" : "legendary" }
+  )),
+  // Real title boxes (assessts/tilte box → public/frames). Boxes 1–4 are free;
+  // 5–11 are earned. Your hero name is rendered inside the equipped box.
+  ...([1, 2, 3, 4] as const).map((n) => (
+    { itemType: "title" as never, key: `title_box_${n}`, name: `Title Box ${n}`, description: "Starter title plate — your name, framed.", assetPath: `/frames/titlebox-${n}.jpeg`, price: 0, rarity: "common" }
+  )),
+  ...([5, 6, 7, 8, 9, 10, 11] as const).map((n) => (
+    { itemType: "title" as never, key: `title_box_${n}`, name: `Title Box ${n}`, description: "Ornate title plate for your name.", assetPath: `/frames/titlebox-${n}.jpeg`, price: n <= 7 ? 150 : 280, rarity: n <= 7 ? "rare" : "epic" }
+  )),
 ];
+
+// Retired display-only items: placeholder SVG/JSON art with no real asset and no
+// visible in-app application. Deactivated so the Store only sells what works;
+// existing owners keep their inventory rows untouched.
+const RETIRED_KEYS = [
+  "frame_glass", "frame_neon", "frame_ember", "frame_astral",
+  "title_consistent", "title_night_builder", "title_code_smith", "title_early_riser",
+  "nameplate_slate", "nameplate_gilded",
+  "realm_dawn", "realm_midnight", "realm_forest", "realm_observatory",
+  "effect_spark", "effect_arc", "effect_confetti", "effect_pixel",
+  "emote_clap", "emote_celebrate", "emote_focused", "emote_shocked",
+  "skin_obsidian", "skin_parchment",
+  "case_oak", "case_crystal",
+  "card_classic", "card_mythic",
+  "frame_temple_01", "frame_temple_02", "frame_temple_03",
+  "title_box_gold", "title_box_crimson",
+];
+
+/** Starter kit: 4 frames + 4 title boxes, free forever. (Keys live in shared/starterKit.) */
+export { STARTER_ITEM_KEYS };
 
 async function main() {
   for (const a of ATTRIBUTE_DEFS) {
@@ -74,9 +92,13 @@ async function main() {
   for (const i of ITEMS) {
     await prisma.item.upsert({
       where: { key: i.key },
-      update: { name: i.name, description: i.description, assetPath: i.assetPath, price: i.price, rarity: i.rarity, active: true, itemType: i.itemType as never },
-      create: { itemType: i.itemType as never, key: i.key, name: i.name, description: i.description, assetPath: i.assetPath, price: i.price, rarity: i.rarity, active: true },
+      update: { name: i.name, description: i.description, assetPath: i.assetPath, price: i.price, rarity: i.rarity, active: true, itemType: i.itemType as never, metadata: i.metadata ?? {} },
+      create: { itemType: i.itemType as never, key: i.key, name: i.name, description: i.description, assetPath: i.assetPath, price: i.price, rarity: i.rarity, active: true, metadata: i.metadata ?? {} },
     });
+  }
+  // Retire dead placeholder cards (owners keep inventory; store hides them).
+  for (const key of RETIRED_KEYS) {
+    await prisma.item.updateMany({ where: { key }, data: { active: false } });
   }
   console.log(`Seeded ${ATTRIBUTE_DEFS.length} attributes, ${ACTIVITY_TYPES.length} activity types, ${ACHIEVEMENTS.length} achievements, ${ITEMS.length} items.`);
 }

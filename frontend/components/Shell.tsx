@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { client } from "@/lib/api";
-import { Hero, Icon, IconSprite, type IconId } from "@/components/illustrations";
+import { Icon, IconSprite, BrandLogo, CoinImg, AvatarImg, type IconId } from "@/components/illustrations";
 import type { Notice } from "@/lib/types";
 
 const NAV: { id: string; href: string; label: string; icon: IconId }[] = [
@@ -20,6 +20,8 @@ const NAV: { id: string; href: string; label: string; icon: IconId }[] = [
 
 const MORE: { id: string; href: string; label: string; icon: IconId }[] = [
   { id: "store", href: "/store", label: "Store", icon: "i-store" },
+  { id: "personalize", href: "/personalize", label: "Personalize", icon: "i-spark" },
+  { id: "hero-card", href: "/hero-card", label: "Hero Card", icon: "i-level" },
   { id: "settings", href: "/settings", label: "Settings", icon: "i-settings" },
 ];
 
@@ -31,6 +33,7 @@ const TITLES: Record<string, string> = {
   "/realm": "Realm",
   "/chronicle": "Chronicle",
   "/store": "Store",
+  "/personalize": "Personalize",
   "/settings": "Settings",
   "/hero-card": "Hero Card",
   "/onboarding": "Onboarding",
@@ -47,7 +50,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   const router = useRouter();
   const { authHeaders, userId, signOut, email, loading: authLoading } = useAuth();
   const { theme, toggle } = useTheme();
-  const [identity, setIdentity] = useState({ heroName: "Aki", level: 1, rank: "Drifter", coins: 0, active: 0, streak: 0 });
+  const [identity, setIdentity] = useState({ heroName: "Aki", heroAssetId: null as string | null, avatarAssetId: null as string | null, level: 1, rank: "Drifter", coins: 0, active: 0, streak: 0 });
   const [notices, setNotices] = useState<Notice[]>([]);
   const [query, setQuery] = useState("");
   const [sideOpen, setSideOpen] = useState(false);
@@ -65,6 +68,8 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
       .then((t) =>
         setIdentity({
           heroName: t.greeting.heroName,
+          heroAssetId: (t as unknown as { hero?: { heroAssetId?: string | null; avatarAssetId?: string | null } }).hero?.heroAssetId ?? null,
+          avatarAssetId: (t as unknown as { hero?: { heroAssetId?: string | null; avatarAssetId?: string | null } }).hero?.avatarAssetId ?? null,
           level: t.greeting.heroLevel,
           rank: t.greeting.rank.display,
           coins: t.greeting.coins,
@@ -191,9 +196,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
         aria-hidden={sideOpen ? "false" : "true"}
       >
         <div className="sidebar__brand">
-          <span className="brand-mark" aria-hidden="true">
-            L
-          </span>
+          <BrandLogo size={30} />
           <span className="brand-name">
             LIFE<em>RPG</em>
           </span>
@@ -218,9 +221,9 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
             </Link>
           ))}
         </nav>
-        <Link href="/realm" className="sidebar__user">
-          <span className="avatar">
-            <Hero width={26} />
+        <Link href="/realm" className="sidebar__user" title="Open your Realm">
+          <span className="avatar" style={{ overflow: "hidden" }}>
+            <AvatarImg avatarAssetId={identity.avatarAssetId} heroAssetId={identity.heroAssetId} width={26} alt={identity.heroName} />
           </span>
           <span>
             <strong>{identity.heroName}</strong>
@@ -267,7 +270,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
           </div>
           <div className="topbar__actions">
             <div className="coin-pill" id="coinPill" title="Your coins" aria-label={`${identity.coins} coins`}>
-              <Icon id="i-coin" />
+              <CoinImg size={16} />
               <span className="coin-val">{identity.coins.toLocaleString("en-US")}</span>
             </div>
             <button className="icon-btn" onClick={toggle} title="Toggle theme" aria-label="Toggle theme">
@@ -303,8 +306,8 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
                 aria-label="Profile menu"
                 aria-expanded={profileOpen}
               >
-                <span className="avatar" style={{ width: 32, height: 32 }}>
-                  <Hero width={24} />
+                <span className="avatar" style={{ width: 32, height: 32, overflow: "hidden" }}>
+                  <AvatarImg avatarAssetId={identity.avatarAssetId} heroAssetId={identity.heroAssetId} width={24} alt={identity.heroName} />
                 </span>
               </button>
               <div className={`dropdown${profileOpen ? " is-open" : ""}`} role="menu" aria-label="Profile">

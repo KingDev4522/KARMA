@@ -9,9 +9,10 @@ import { clientTimeZone, useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { useFocus } from "@/components/focus";
 import type { Campaign, CompletionResponse, Quest } from "@/lib/types";
-import { Companion, Hero, Icon, variantFor } from "@/components/illustrations";
-import { ATTR_META, LevelUpModal, QuestPrimary, QuestRow, burstAt } from "@/components/quests";
+import { CompanionImage, FrameWrap, HeroImage, Icon, TitleBox } from "@/components/illustrations";
+import { ATTR_META, LevelUpModal, QuestPrimary, QuestRow, announceAchievements, burstAt } from "@/components/quests";
 import { CampaignPreview } from "@/components/journey";
+import { attrProgress } from "@/lib/identity";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton, useNowDate } from "@/components/States";
 
 /** Today — editorial command center: greeting, level, decisive quest, quiet ledger. */
@@ -45,7 +46,9 @@ export default function TodayPage() {
       const r = await client.completeQuest(authHeaders(), q.id, crypto.randomUUID());
       setResults((m) => ({ ...m, [q.id]: r }));
       burstAt(el);
+      void import("@/lib/sound").then((s) => s.playCoin()).catch(() => undefined);
       toast(`“${q.title.length > 32 ? `${q.title.slice(0, 32)}…` : q.title}” complete · +${r.rewardXp} XP`, "i-check");
+      announceAchievements(r, toast);
       if (r.leveledUp) setCeremony(r);
       retry();
       window.dispatchEvent(new CustomEvent("liferpg:refresh"));
@@ -57,8 +60,11 @@ export default function TodayPage() {
   };
 
   const g = data.greeting as typeof data.greeting & { heroAssetId?: string | null; heroName?: string };
+  // Canonical identity comes from data.hero (backend today aggregate); fall
+  // back to legacy greeting/profile fields for older deployments.
+  const heroObj = (data as unknown as { hero?: { heroAssetId?: string | null; heroName?: string; companionAssetId?: string | null; companionName?: string | null; avatarAssetId?: string | null; frameAsset?: string | null; titleBoxAsset?: string | null } }).hero;
   const heroAssetId: string | null =
-    ((data as any)?.hero?.heroAssetId as string | null | undefined) ??
+    heroObj?.heroAssetId ??
     ((data as any)?.hero?.assetId as string | null | undefined) ??
     ((data as any)?.heroAssetId as string | null | undefined) ??
     ((data as any)?.greeting?.heroAssetId as string | null | undefined) ??
@@ -66,8 +72,18 @@ export default function TodayPage() {
     ((data as any)?.profile?.heroAssetId as string | null | undefined) ??
     ((g as any)?.heroAssetId as string | null | undefined) ??
     null;
-  const heroVariant = variantFor(heroAssetId) ?? 0;
-  const heroName: string = (g as any)?.heroName ?? (data as any)?.hero?.heroName ?? (data as any)?.heroName ?? "hero";
+  const companionAssetId: string | null =
+    heroObj?.companionAssetId ??
+    ((data as any)?.companion?.companionAssetId as string | null | undefined) ??
+    ((data as any)?.companionAssetId as string | null | undefined) ??
+    null;
+  const companionName: string | null =
+    heroObj?.companionName ??
+    ((data as any)?.companion?.companionName as string | null | undefined) ??
+    null;
+  const heroName: string = heroObj?.heroName ?? (g as any)?.heroName ?? (data as any)?.hero?.heroName ?? (data as any)?.heroName ?? "hero";
+  const frameAsset: string | null = heroObj?.frameAsset ?? null;
+  const titleBoxAsset: string | null = heroObj?.titleBoxAsset ?? null;
   const seen = new Set<string>();
   const flat: Quest[] = [];
   for (const q of [...data.buckets.pinned, ...data.buckets.dueToday, ...data.buckets.routine, ...data.buckets.campaign, ...data.quests]) {
@@ -93,6 +109,7 @@ export default function TodayPage() {
             level={ceremony.newLevel}
             message={`${ceremony.companion.message} A new rank: ${ceremony.newRankDisplay}.`}
             rankUp={ceremony.rankUp}
+            heroAssetId={heroAssetId}
             onClose={() => setCeremony(null)}
           />
       )}
@@ -116,8 +133,11 @@ export default function TodayPage() {
             {g.coins.toLocaleString("en-US")} coins in hand.
           </p>
           <div className="companion-note">
-            <Companion width={30} />
-            <p>{data.companion.message}</p>
+            <CompanionImage assetId={companionAssetId} width={30} alt={companionName ?? "Companion"} />
+            <p>
+              {companionName ? <strong>{companionName} · </strong> : null}
+              {data.companion.message}
+            </p>
           </div>
         </div>
         <div className="ed-side">
@@ -135,8 +155,12 @@ export default function TodayPage() {
             </div>
           </div>
           <figure className="hero-portrait">
-            <Hero width="100%" variant={heroVariant} />
-            <figcaption className="hp-cap">{heroName}</figcaption>
+            <FrameWrap frameSrc={frameAsset} label={`${heroName}'s frame`}>
+              <HeroImage assetId={heroAssetId} eager alt={heroName} />
+            </FrameWrap>
+            <figcaption className="hp-cap">
+              <TitleBox boxSrc={titleBoxAsset} name={heroName} />
+            </figcaption>
           </figure>
         </div>
         <span className="seal seal--line" title="Today" aria-hidden="true" style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, fontSize: 11, lineHeight: 1 }}>
@@ -202,7 +226,7 @@ export default function TodayPage() {
                         <em>Lv {a.level}</em>
                       </div>
                       <div className="attr-bar">
-                        <i style={{ width: `${Math.min(100, Math.round(((a.xp % 500) / 500) * 100))}%` }} />
+                        <i style={{ width: `${attrProgress(a.level ?? 1, a.xp ?? 0)}%` }} />
                         <i className={`attr-dot${(a.level ?? 0) >= 5 ? " is-accent" : ""}`} aria-hidden />
                       </div>
                     </div>

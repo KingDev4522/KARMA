@@ -868,3 +868,32 @@ p{max-width:65ch}
   .focus-session{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
   .focus-clock{font-size:clamp(48px, 12vw, 56px)}
 }
+
+/* ============ XP COINS, FRAMES, TITLE BOXES, TOUR ============ */
+.xp-coin{position:fixed;width:15px;height:15px;object-fit:contain;z-index:130;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
+.frame-wrap{position:relative;display:block;border-radius:16px;overflow:hidden}
+.frame-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.frame-inner{position:relative;display:block;padding:11%}
+.frame-inner img{border-radius:8px}
+.titlebox{position:relative;display:inline-block;max-width:100%}
+.titlebox img{display:block;width:100%;max-width:340px;height:auto;border-radius:10px}
+.titlebox-name{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:clamp(17px,2.4vw,22px);letter-spacing:-.01em;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.55);padding:0 12%;text-align:center}
+.titlebox-fallback{display:inline-flex;flex-direction:column;gap:2px}
+.titlebox-fallback strong{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.titlebox-fallback span{font-size:12.5px;color:var(--text-2)}
+.tour-card{position:fixed;right:16px;bottom:76px;z-index:150;display:flex;gap:12px;align-items:flex-start;max-width:min(360px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.22);animation:tourIn .4s var(--spring)}
+.tour-card img{flex:none}
+.tour-bubble{flex:1;font-size:13.5px}
+.tour-bubble strong{display:flex;justify-content:space-between;align-items:baseline;font-size:13px}
+.tour-step{font-weight:500;font-size:11px;color:var(--text-3)}
+.tour-title{font-weight:800;font-size:15px;margin:2px 0 4px}
+.tour-bubble p{margin:0 0 4px;color:var(--text-2)}
+.tour-actions{display:flex;gap:8px;margin-top:8px}
+@keyframes tourIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+button.cal-cell{font:inherit;color:inherit;text-align:left;width:100%}
+button.cal-cell:hover{border-color:var(--border-strong)}
+.cal-cell.is-selected{border:1px solid var(--accent);background:var(--accent-soft)}
+@media (prefers-reduced-motion:reduce){
+  .toast{animation:none}
+  .tour-card{animation:none}
+}

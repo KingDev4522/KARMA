@@ -3,7 +3,7 @@
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { Companion, Hero, Icon, variantFor } from "@/components/illustrations";
+import { CompanionImage, FrameWrap, HeroImage, CoinImg, Icon, TitleBox } from "@/components/illustrations";
 import { ATTR_META } from "@/components/quests";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
@@ -21,6 +21,12 @@ export default function HeroCardPage() {
   if (!data) return <EmptyState message="No hero yet." />;
 
   const pct = Math.round((data.xpProgress?.pct ?? 0) * 100);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const equipped = ((data.equippedItems ?? []) as any[]);
+  const frameAsset = equipped.find((i) => i.itemType === "frame")?.assetPath ?? null;
+  const titleBoxRaw = equipped.find((i) => i.itemType === "title")?.assetPath ?? null;
+  const titleBoxAsset = typeof titleBoxRaw === "string" && titleBoxRaw.endsWith(".jpeg") ? titleBoxRaw : null;
+  const avatarId = data.avatarAssetId ?? data.avatar ?? data.heroAssetId;
 
   const exportPng = async () => {
     const el = document.querySelector(".panel > div") as HTMLElement;
@@ -96,15 +102,24 @@ export default function HeroCardPage() {
       <div className="panel" style={{ padding: 10 }}>
         <div className="share-card">
           <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".35em", color: "var(--text-3)" }}>HERO · 勇者</p>
-          <p style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>{data.heroName}</p>
+          <div style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
+            <TitleBox boxSrc={titleBoxAsset} name={String(data.heroName ?? "Hero")} />
+          </div>
           <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
             Level {data.level} · {data.rank?.display}
           </p>
           <div style={{ display: "flex", justifyContent: "center", margin: "14px 0" }}>
-            <Hero width={180} variant={variantFor(data.heroAssetId)} />
+            <div style={{ width: 180 }}>
+              <FrameWrap frameSrc={frameAsset} label="Framed hero">
+                <span style={{ display: "block", borderRadius: 16, overflow: "hidden" }}>
+                  <HeroImage assetId={avatarId} eager alt={data.heroName ?? "Hero"} />
+                </span>
+              </FrameWrap>
+            </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-            <Companion width={64} />
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, flexDirection: "column", alignItems: "center", gap: 4 }}>
+            <CompanionImage assetId={data.companion ?? data.companionAssetId} width={64} alt={data.companionName ?? "Companion"} />
+            {data.companionName && <span style={{ fontSize: 12, color: "var(--text-2)", fontWeight: 700 }}>{data.companionName}</span>}
           </div>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -155,8 +170,8 @@ export default function HeroCardPage() {
             </div>
           )}
           {typeof data.coins === "number" && (
-            <p style={{ marginTop: 4, fontSize: 12, color: "var(--gold)", fontWeight: 800 }}>
-              <Icon id="i-coin" style={{ display: "inline", verticalAlign: -2 }} /> {data.coins} coins
+            <p style={{ marginTop: 4, fontSize: 12, color: "var(--gold)", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+              <CoinImg size={14} /> {data.coins} coins
             </p>
           )}
         </div>

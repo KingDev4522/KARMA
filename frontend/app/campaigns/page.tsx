@@ -20,17 +20,18 @@ export default function CampaignsPage() {
   const { data, error, loading, retry } = useApi(() => client.listCampaigns(authHeaders()), [userId], {
     enabled: !authLoading && !!userId,
   });
-  const firstId = data?.[0]?.id ?? null;
-  const { data: detail, retry: retryDetail } = useApi(
-    () => (firstId ? client.getCampaign(authHeaders(), firstId) : Promise.resolve(null as unknown as Campaign)),
-    [firstId],
-    { enabled: !authLoading && !!userId && !!firstId },
-  );
   const [newTitle, setNewTitle] = useState("");
   const [newMile, setNewMile] = useState("");
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const headId = selectedId ?? data?.[0]?.id ?? null;
+  const { data: detail, retry: retryDetail } = useApi(
+    () => (headId ? client.getCampaign(authHeaders(), headId) : Promise.resolve(null as unknown as Campaign)),
+    [headId],
+    { enabled: !authLoading && !!userId && !!headId },
+  );
 
   const refresh = () => {
     retry();
@@ -56,7 +57,8 @@ export default function CampaignsPage() {
   if (error) return <ErrorState error={error} onRetry={retry} />;
   if (!data || data.length === 0) return <EmptyState message="No journeys yet. Your first campaign begins with a single quest." />;
 
-  const [head, ...rest] = data;
+  const head = data.find((c) => c.id === headId) ?? data[0];
+  const rest = data.filter((c) => c.id !== head.id);
   const headDetail = detail && detail.id === head.id ? detail : head;
   const miles = (headDetail.milestones ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex);
   const nextId = headDetail.nextMilestone?.id ?? miles.find((m) => m.status !== "done")?.id ?? null;
@@ -66,11 +68,29 @@ export default function CampaignsPage() {
     if (nq) {
       openFocus({ id: nq.id, title: nq.title, minutes: Math.min(nq.estimatedMinutes ?? 25, 50) });
     } else if (headDetail.nextMilestone) {
-      toast(`Next milestone: ${headDetail.nextMilestone.title}`, "i-spark");
-      router.push("/quests");
+      // No actionable quest yet — create one directly under this milestone.
+      const qp = new URLSearchParams({
+        create: "1",
+        campaignId: head.id,
+        milestoneId: headDetail.nextMilestone.id,
+        campaignTitle: head.title,
+        milestoneTitle: headDetail.nextMilestone.title,
+      });
+      router.push(`/quests?${qp.toString()}`);
     } else {
       toast("Journey complete. Begin a new one from a quest.", "i-trophy");
     }
+  };
+
+  const addQuestFor = (milestoneId: string, milestoneTitle: string) => {
+    const qp = new URLSearchParams({
+      create: "1",
+      campaignId: head.id,
+      milestoneId,
+      campaignTitle: head.title,
+      milestoneTitle,
+    });
+    router.push(`/quests?${qp.toString()}`);
   };
 
   return (
@@ -78,7 +98,7 @@ export default function CampaignsPage() {
       <div className="page-head">
         <div>
           <h2>Campaigns</h2>
-          <p className="sub">Long journeys, one milestone at a time.</p>
+          <p className="sub">Long journeys, one milestone at a time — each milestone feeds Today&apos;s march.</p>
         </div>
       </div>
 
@@ -152,11 +172,25 @@ export default function CampaignsPage() {
             {miles.filter((m) => m.status !== "done").map((m) => (
               <li key={m.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
                 <span style={{ flex: 1 }}>{m.title}</span>
+                <button className="chip" disabled={busy} onClick={() => addQuestFor(m.id, m.title)} title="Create a quest under this milestone">
+                  Add quest
+                </button>
                 <button className="chip" disabled={busy} onClick={() => mutate(() => client.patchMilestone(authHeaders(), m.id, { status: "done" }), `Milestone reached: ${m.title}`)}>
                   Done
                 </button>
                 <button className="chip" disabled={busy} onClick={() => mutate(() => client.patchMilestone(authHeaders(), m.id, { status: "skipped" }), "Milestone skipped")}>
                   Skip
+                </button>
+                <button
+                  className="chip"
+                  disabled={busy}
+                  onClick={() => {
+                    if (window.confirm(`Remove milestone “${m.title}”? Its quests stay on your board.`)) {
+                      mutate(() => client.deleteMilestone(authHeaders(), m.id), "Milestone removed");
+                    }
+                  }}
+                >
+                  Remove
                 </button>
               </li>
             ))}
@@ -190,7 +224,7 @@ export default function CampaignsPage() {
                 title={c.title}
                 meta={`${c.status} · ${c.progressPct ?? 0}%`}
                 progressPct={c.progressPct ?? 0}
-                onOpen={() => router.push("/quests")}
+                onOpen={() => setSelectedId(c.id)}
               />
             ))}
           </div>

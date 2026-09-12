@@ -53,6 +53,8 @@ export const ItemTypeEnum = z.enum([
   "quest_skin",
   "badge_case",
   "hero_card",
+  "hero_skin",
+  "companion",
 ]);
 export type ItemType = z.infer<typeof ItemTypeEnum>;
 

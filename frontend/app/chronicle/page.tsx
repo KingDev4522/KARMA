@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
@@ -31,6 +32,7 @@ export default function ChroniclePage() {
   });
   const now = new Date();
   const [cal, setCal] = useState({ y: now.getFullYear(), m: now.getMonth() });
+  const [selected, setSelected] = useState(() => now.toISOString().slice(0, 10));
   const monthStart = `${cal.y}-${String(cal.m + 1).padStart(2, "0")}-01`;
   const monthEnd = new Date(cal.y, cal.m + 1, 0).toISOString().slice(0, 10);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,22 +90,46 @@ export default function ChroniclePage() {
     ].sort((a, b) => b.at - a.at);
 
     // Unified planning markers: scheduled quests, routine instances, milestones, focus.
+    // dayEvents keeps the underlying link keys so a day drills into its quests.
     const marks: Record<string, { q: number; r: number; m: number; f: number }> = {};
+    const dayEvents: Record<string, { kind: string; label: string; href: string }[]> = {};
     const bump = (k: string | null | undefined, f: "q" | "r" | "m" | "f") => {
       if (!k) return;
       marks[k] = marks[k] ?? { q: 0, r: 0, m: 0, f: 0 };
       marks[k][f] += 1;
     };
+    const pushEv = (k: string | null | undefined, ev: { kind: string; label: string; href: string }) => {
+      if (!k) return;
+      dayEvents[k] = dayEvents[k] ?? [];
+      dayEvents[k].push(ev);
+    };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const q of ((feed?.quests ?? []) as any[])) bump((q.dueAt ?? q.scheduledFor ?? "").slice(0, 10) || null, "q");
+    for (const q of ((feed?.quests ?? []) as any[])) {
+      const k = (q.dueAt ?? q.scheduledFor ?? "").slice(0, 10) || null;
+      bump(k, "q");
+      pushEv(k, { kind: "quest", label: q.title ?? "Quest", href: `/quests?q=${encodeURIComponent(q.title ?? "")}` });
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const i of ((feed?.instances ?? []) as any[])) bump(String(i.date).slice(0, 10), "r");
+    for (const i of ((feed?.instances ?? []) as any[])) {
+      const k = String(i.date).slice(0, 10);
+      bump(k, "r");
+      pushEv(k, { kind: "routine", label: `${i.questTitle ?? "Routine"} · instance`, href: `/quests?q=${encodeURIComponent(i.questTitle ?? "")}` });
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const m of ((feed?.milestones ?? []) as any[])) bump(m.date ? String(m.date).slice(0, 10) : null, "m");
+    for (const m of ((feed?.milestones ?? []) as any[])) {
+      const k = m.date ? String(m.date).slice(0, 10) : null;
+      bump(k, "m");
+      pushEv(k, { kind: "milestone", label: `${m.title ?? "Milestone"} · ${m.campaignTitle ?? "campaign"}`, href: "/campaigns" });
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const s of ((feed?.focusSessions ?? []) as any[])) bump(String(s.startedAt).slice(0, 10), "f");
+    for (const s of ((feed?.focusSessions ?? []) as any[])) {
+      const k = String(s.startedAt).slice(0, 10);
+      bump(k, "f");
+      const mins = Math.round(((s.actualSeconds ?? s.plannedSeconds ?? 0) as number) / 60);
+      pushEv(k, { kind: "focus", label: `Focus session · ${mins} min`, href: "/focus" });
+    }
 
-    return { completions, weekXP, days, evs, focusHours: focusSecs / 3600, marks };
+    return { completions, weekXP, days, evs, focusHours: focusSecs / 3600, marks, dayEvents };
   }, [history, achievements, sessions, feed]);
 
   if (authLoading || loading) return <Skeleton label="Chronicle" rows={4} />;
@@ -118,7 +144,7 @@ export default function ChroniclePage() {
       <div className="page-head">
         <div>
           <h2>Chronicle</h2>
-          <p className="sub">The story of your discipline, written daily.</p>
+          <p className="sub">The story of your discipline, written daily — history, calendar, analytics.</p>
         </div>
       </div>
 
@@ -223,9 +249,31 @@ export default function ChroniclePage() {
         year={cal.y}
         month={cal.m}
         marks={model.marks}
+        selected={selected}
+        onSelect={setSelected}
         onPrev={() => setCal((c) => (c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 }))}
         onNext={() => setCal((c) => (c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 }))}
       />
+
+      <section aria-label="Selected day agenda" className="panel" style={{ marginTop: 12 }}>
+        <div className="sec-head" style={{ margin: 0 }}>
+          <h3>{new Date(`${selected}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</h3>
+        </div>
+        {(model.dayEvents[selected] ?? []).length === 0 ? (
+          <p style={{ fontSize: 13.5, color: "var(--text-3)" }}>Nothing planned this day — quests you schedule land here.</p>
+        ) : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+            {(model.dayEvents[selected] ?? []).map((ev, j) => (
+              <li key={`${selected}-${j}`}>
+                <Link href={ev.href} className="dd-item" style={{ display: "flex", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 12px" }}>
+                  <Icon id={ev.kind === "milestone" ? "i-campaigns" : ev.kind === "focus" ? "i-focus" : ev.kind === "routine" ? "i-clock" : "i-quests"} />
+                  <span style={{ fontSize: 13 }}>{ev.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -234,12 +282,16 @@ function MonthCalendar({
   year,
   month,
   marks,
+  selected,
+  onSelect,
   onPrev,
   onNext,
 }: {
   year: number;
   month: number;
   marks: Record<string, { q: number; r: number; m: number; f: number }>;
+  selected: string;
+  onSelect: (dayKey: string) => void;
   onPrev: () => void;
   onNext: () => void;
 }) {
@@ -273,11 +325,14 @@ function MonthCalendar({
           const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const mk = marks[key];
           return (
-            <div
+            <button
               key={i}
-              role="gridcell"
+              type="button"
+              onClick={() => onSelect(key)}
               aria-label={key + (mk ? `: ${mk.q} quests, ${mk.r} routines, ${mk.m} milestones, ${mk.f} focus` : "")}
-              className={`cal-cell${key === todayKey ? " is-today" : ""}`}
+              aria-pressed={selected === key}
+              className={`cal-cell${key === todayKey ? " is-today" : ""}${selected === key ? " is-selected" : ""}`}
+              style={{ cursor: "pointer" }}
             >
               <span className="cal-num">{d}</span>
               {mk && (
@@ -285,7 +340,7 @@ function MonthCalendar({
                   {dots.map((t) => (mk[t.k] > 0 ? <i key={t.k} style={{ background: t.c }} /> : null))}
                 </span>
               )}
-            </div>
+            </button>
           );
         })}
       </div>

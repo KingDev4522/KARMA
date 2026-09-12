@@ -1,6 +1,8 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { useState } from "react";
+import { resolveAvatar, resolveCompanion, resolveHero, type HeroVariant } from "@/lib/identity";
 
 /* ============================================================
    Illustration system — monochrome editorial linework.
@@ -66,6 +68,191 @@ export function Companion({ width = "100%" }: { width?: string | number }) {
     <svg viewBox="0 0 140 110" width={width} aria-hidden="true">
       <use href="#ill-companion" />
     </svg>
+  );
+}
+
+/* ============================================================
+   Real-asset identity images (assessts/ → public/).
+   HeroImage / CompanionImage render the true JPEG/PNG art and fall
+   back to the SVG linework only if the raster is missing, so old
+   profiles and slow networks never render blank.
+   ============================================================ */
+
+export function HeroImage({  assetId,
+  variant,
+  width = "100%",
+  className,
+  alt = "Hero portrait",
+  eager = false,
+}: {
+  assetId?: string | null;
+  variant?: HeroVariant;
+  width?: string | number;
+  className?: string;
+  alt?: string;
+  eager?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  const { hero, variant: v } = resolveHero(assetId);
+  const useVariant = variant ?? v;
+  if (failed) return <Hero width={width} className={className} variant={0} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={hero.file(useVariant)}
+      alt={`${hero.name} · ${useVariant} — ${alt}`}
+      width={typeof width === "number" ? width : undefined}
+      style={typeof width === "number" ? undefined : { width: width as string, height: "auto", display: "block" }}
+      className={className}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+export function CompanionImage({
+  assetId,
+  width = 72,
+  alt = "Companion",
+  eager = false,
+}: {
+  assetId?: string | null;
+  width?: string | number;
+  alt?: string;
+  eager?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  const c = resolveCompanion(assetId);
+  if (failed) return <Companion width={width} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={c.src}
+      alt={`${c.name} — ${alt}`}
+      width={typeof width === "number" ? width : undefined}
+      style={typeof width === "number" ? { height: "auto", borderRadius: 12 } : { width: width as string, height: "auto", display: "block", borderRadius: 12 }}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+/** Real coin currency mark (assessts/coin.png). Falls back to the SVG coin. */
+export function CoinImg({ size = 16 }: { size?: number }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <Icon id="i-coin" style={{ width: size, height: size }} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/brand/coin.png"
+      alt="Coins"
+      width={size}
+      height={size}
+      style={{ width: size, height: size, objectFit: "contain" }}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+/** App brand mark (assessts/logo.png). Falls back to the letter mark. */
+export function BrandLogo({ size = 30 }: { size?: number }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span className="brand-mark" aria-hidden="true">
+        L
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/brand/logo.png"
+      alt="LIFE RPG"
+      width={size}
+      height={size}
+      style={{ width: size, height: size, objectFit: "contain", borderRadius: 8 }}
+      loading="eager"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+/* ============================================================
+   Profile picture + equipped cosmetics.
+   AvatarImg renders the chosen profile picture (hero variant or
+   companion); FrameWrap dresses any portrait in the equipped
+   title-frame art; TitleBox renders the hero name inside the
+   equipped title-box art. All fall back gracefully to plain UI.
+   ============================================================ */
+
+export function AvatarImg({
+  avatarAssetId,
+  heroAssetId,
+  width = 32,
+  alt = "Profile",
+  eager = false,
+}: {
+  avatarAssetId?: string | null;
+  heroAssetId?: string | null;
+  width?: string | number;
+  alt?: string;
+  eager?: boolean;
+}) {
+  const a = resolveAvatar(avatarAssetId, heroAssetId);
+  if (a.kind === "companion") return <CompanionImage assetId={a.companion.id} width={width} alt={alt} eager={eager} />;
+  return <HeroImage assetId={`${a.hero.id}-${a.variant}`} width={width} alt={alt} eager={eager} />;
+}
+
+export function FrameWrap({
+  frameSrc,
+  children,
+  label = "Framed portrait",
+}: {
+  frameSrc?: string | null;
+  children: ReactNode;
+  label?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (!frameSrc || failed) return <>{children}</>;
+  return (
+    <span className="frame-wrap" role="img" aria-label={label}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={frameSrc} alt="" aria-hidden="true" className="frame-art" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      <span className="frame-inner">{children}</span>
+    </span>
+  );
+}
+
+export function TitleBox({
+  boxSrc,
+  name,
+  sub,
+}: {
+  boxSrc?: string | null;
+  name: string;
+  sub?: string | null;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (!boxSrc || failed) {
+    return (
+      <span className="titlebox-fallback">
+        <strong>{name}</strong>
+        {sub ? <span>{sub}</span> : null}
+      </span>
+    );
+  }
+  return (
+    <span className="titlebox" role="img" aria-label={`${name}${sub ? `, ${sub}` : ""}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={boxSrc} alt="" aria-hidden="true" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      <span className="titlebox-name">{name}</span>
+    </span>
   );
 }
 

@@ -65,7 +65,7 @@ questRouter.post(
   requireAuth,
   validateBody(PreviewSchema),
   asyncHandler(async (req, res) => {
-    res.json(await previewQuestReward(req.body));
+    res.json(await previewQuestReward(currentUserId(req), req.body));
   }),
 );
 

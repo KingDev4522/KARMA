@@ -41,6 +41,7 @@ export interface Quest {
 
 export interface TodayResponse {
   date: string;
+  hero?: { heroAssetId?: string | null; heroName?: string; companionAssetId?: string | null; companionName?: string | null; avatarAssetId?: string | null; frameAsset?: string | null; titleBoxAsset?: string | null } | null;
   greeting: {
     heroName: string;
     heroLevel: number;

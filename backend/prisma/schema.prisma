@@ -40,6 +40,8 @@ enum ItemType {
   quest_skin
   badge_case
   hero_card
+  hero_skin
+  companion
 }
 
 enum FocusStatus {
@@ -71,6 +73,8 @@ model Profile {
   bio              String?  @db.Text
   heroAssetId      String?  @map("hero_asset_id") @db.Text
   companionAssetId String?  @map("companion_asset_id") @db.Text
+  companionName    String?  @map("companion_name") @db.Text
+  avatarAssetId    String?  @map("avatar_asset_id") @db.Text
   lifeDomains      String[] @default([]) @map("life_domains")
   // UX prefs (LRP-FE-001 §15/§20): reduced-motion + theme. Authoritative here so
   // prefs survive refresh/cross-device; localStorage is only non-authoritative cache.
@@ -320,6 +324,8 @@ model UserLoadout {
   questSkinItemId      String? @map("quest_skin_item_id") @db.Uuid
   badgeCaseItemId      String? @map("badge_case_item_id") @db.Uuid
   heroCardItemId       String? @map("hero_card_item_id") @db.Uuid
+  heroSkinItemId       String? @map("hero_skin_item_id") @db.Uuid
+  companionItemId      String? @map("companion_item_id") @db.Uuid
 
   profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
 

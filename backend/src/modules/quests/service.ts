@@ -98,6 +98,25 @@ type QuestRow = {
 };
 
 /**
+ * Today's micro-quest count — mirrors the engine's isMicroQuest() rule
+ * (difficulty 1 + quick/recovery), counted through the quest relation so
+ * low-XP campaign/focus completions never inflate the cap.
+ */
+async function countMicrosToday(
+  db: Pick<typeof prisma, "questCompletion">,
+  userId: string,
+  dayStart: Date,
+): Promise<number> {
+  return db.questCompletion.count({
+    where: {
+      userId,
+      completedAt: { gte: dayStart },
+      quest: { difficulty: { lte: 1 }, questType: { in: ["quick", "recovery"] as never } },
+    },
+  });
+}
+
+/**
  * Attach deterministic reward previews to quest rows (LRP-FE-001 §6 Quest Card:
  * every card shows +XP / +coins + primary/secondary attrs BEFORE action).
  * One extra query per call (streak + today's micro count), shared across rows.
@@ -108,7 +127,7 @@ export async function withRewardPreviews<T extends QuestRow>(userId: string, row
   const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
   const [prog, microCountToday] = await Promise.all([
     prisma.profileProgression.findUnique({ where: { profileId: userId } }),
-    prisma.questCompletion.count({ where: { userId, completedAt: { gte: dayStart }, rewardXp: { lte: 10 } } }),
+    countMicrosToday(prisma, userId, dayStart),
   ]);
   return rows.map((r) => ({
     ...r,
@@ -288,9 +307,7 @@ export async function completeQuest(
 
     // Anti-farming state: count today's micro completions
     const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
-    const microCountToday = await tx.questCompletion.count({
-      where: { userId, completedAt: { gte: dayStart }, rewardXp: { lte: 10 } },
-    });
+    const microCountToday = await countMicrosToday(tx, userId, dayStart);
 
     const prog = await tx.profileProgression.findUniqueOrThrow({ where: { profileId: userId } });
     const activityKey = quest.activityType?.key ?? null;
@@ -519,27 +536,42 @@ function companionForCompletion(opts: { leveledUp: boolean; newLevel: number; ac
  * Deterministic preview of XP/coins/attributes BEFORE the quest is created or completed.
  * Uses the same engine as completion (minus streak bonus variance, which is flagged).
  */
-export async function previewQuestReward(input: {
-  difficulty?: number;
-  questType?: string;
-  activityKey?: string | null;
-  primaryOverride?: string | null;
-  secondaryOverride?: string | null;
-  currentStreak?: number;
-  microCountToday?: number;
-}) {
+export async function previewQuestReward(
+  userId: string,
+  input: {
+    difficulty?: number;
+    questType?: string;
+    activityKey?: string | null;
+    primaryOverride?: string | null;
+    secondaryOverride?: string | null;
+    currentStreak?: number;
+    microCountToday?: number;
+  },
+) {
   const difficulty = Math.min(5, Math.max(1, Math.floor(input.difficulty ?? 3)));
   const questType = input.questType ?? "quick";
   const activityKey = input.activityKey ?? null;
   if (activityKey && !ACTIVITY_BY_KEY[activityKey]) throw new BadRequestError(`Unknown activityKey ${activityKey}`);
+  // Creator preview uses live user state (streak + today's micro count) so the
+  // anti-farming cap warning is honest before creation, not just after.
+  const todayKey = toDayKey();
+  const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
+  const [prog, liveMicros] = await Promise.all([
+    input.currentStreak !== undefined
+      ? Promise.resolve(null)
+      : prisma.profileProgression.findUnique({ where: { profileId: userId } }),
+    input.microCountToday !== undefined
+      ? Promise.resolve(input.microCountToday)
+      : countMicrosToday(prisma, userId, dayStart),
+  ]);
   const rewards = resolveRewards({
     difficulty,
     questType,
     activityKey,
     primaryOverride: input.primaryOverride ?? null,
     secondaryOverride: input.secondaryOverride ?? null,
-    microCountToday: input.microCountToday ?? 0,
-    currentStreak: input.currentStreak ?? 0,
+    microCountToday: liveMicros,
+    currentStreak: input.currentStreak ?? prog?.currentStreak ?? 0,
   });
   return {
     ...rewards,
@@ -605,13 +637,18 @@ export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: 
     if (candidate) spark = candidate;
   }
 
-  const [profile, progression, campaignSummary, attrRows, recentCompletion] = await Promise.all([
+  const [profile, progression, campaignSummary, attrRows, recentCompletion, loadout] = await Promise.all([
     prisma.profile.findUnique({ where: { id: userId } }),
     prisma.profileProgression.findUnique({ where: { profileId: userId } }),
     prisma.campaign.findFirst({ where: { userId, status: "active" }, orderBy: { updatedAt: "desc" }, include: { milestones: true } }),
     prisma.profileAttribute.findMany({ where: { profileId: userId }, include: { attribute: true }, orderBy: { xp: "desc" }, take: 3 }),
     prisma.questCompletion.findFirst({ where: { userId }, orderBy: { completedAt: "desc" } }),
+    prisma.userLoadout.findUnique({ where: { userId } }),
   ]);
+  // Equipped frame + title-box art for the header portrait (Personalize/Store).
+  const frameIds = [loadout?.frameItemId, loadout?.titleItemId].filter((v): v is string => !!v);
+  const frameItems = frameIds.length ? await prisma.item.findMany({ where: { id: { in: frameIds } }, select: { id: true, assetPath: true } }) : [];
+  const frameById = new Map(frameItems.map((i) => [i.id, i.assetPath]));
 
   const { dailyGreeting, daypart } = require("../../rpg/companion") as typeof import("../../rpg/companion");
   const { rankForXp: rankForXpFn } = require("../../rpg/ranks") as typeof import("../../rpg/ranks");
@@ -649,6 +686,15 @@ export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: 
   return {
     date: dateKey,
     // FE §4 header
+    hero: {
+      heroAssetId: profile?.heroAssetId ?? null,
+      heroName: profile?.heroName ?? profile?.displayName ?? "hero",
+      companionAssetId: profile?.companionAssetId ?? null,
+      companionName: (profile as Record<string, unknown> | null | undefined)?.companionName ?? null,
+      avatarAssetId: (profile as Record<string, unknown> | null | undefined)?.avatarAssetId ?? null,
+      frameAsset: (loadout?.frameItemId && frameById.get(loadout.frameItemId)) || null,
+      titleBoxAsset: (loadout?.titleItemId && frameById.get(loadout.titleItemId)) || null,
+    },
     greeting: {
       heroName: profile?.heroName ?? profile?.displayName ?? "hero",
       heroLevel: progression?.level ?? 1,

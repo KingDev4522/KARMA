@@ -3,7 +3,7 @@ import { asyncHandler } from "../shared/asyncHandler";
 import { requireAuth, currentUserId } from "../shared/auth";
 import { validateBody } from "../middlewares/validate";
 import { CreateCampaignSchema, CreateMilestoneSchema, UpdateCampaignSchema, UpdateMilestoneSchema } from "../modules/campaigns/schemas";
-import { createCampaign, createMilestone, deleteCampaign, getCampaign, listCampaigns, updateCampaign, updateMilestone } from "../modules/campaigns/service";
+import { createCampaign, createMilestone, deleteCampaign, deleteMilestone, getCampaign, listCampaigns, updateCampaign, updateMilestone } from "../modules/campaigns/service";
 
 export const campaignRouter = Router();
 
@@ -22,4 +22,7 @@ campaignRouter.post("/:id/milestones", requireAuth, validateBody(CreateMilestone
 }));
 campaignRouter.patch("/milestones/:mid", requireAuth, validateBody(UpdateMilestoneSchema), asyncHandler(async (req, res) => {
   res.json(await updateMilestone(currentUserId(req), req.params.mid, req.body));
+}));
+campaignRouter.delete("/milestones/:mid", requireAuth, asyncHandler(async (req, res) => {
+  res.json(await deleteMilestone(currentUserId(req), req.params.mid));
 }));

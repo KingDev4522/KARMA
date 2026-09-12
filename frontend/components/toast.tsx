@@ -7,6 +7,7 @@ interface ToastItem {
   id: number;
   msg: string;
   icon: IconId;
+  out?: boolean;
 }
 
 const ToastCtx = createContext<(msg: string, icon?: IconId) => void>(() => undefined);
@@ -22,6 +23,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback((msg: string, icon: IconId = "i-check") => {
     const id = ++nextId.current;
     setItems((list) => [...list.slice(-2), { id, msg, icon }]);
+    // Slide out before unmount so messages visibly come and go.
+    setTimeout(() => {
+      setItems((list) => list.map((t) => (t.id === id ? { ...t, out: true } : t)));
+    }, 2700);
     setTimeout(() => {
       setItems((list) => list.filter((t) => t.id !== id));
     }, 3000);
@@ -32,7 +37,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="toast-stack" aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} className="toast" role="status">
+          <div key={t.id} className={`toast${t.out ? " out" : ""}`} role="status">
             <Icon id={t.icon} />
             <span>{t.msg}</span>
           </div>

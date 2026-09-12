@@ -60,9 +60,13 @@ export default function WelcomePage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <Skeleton label="your realm" rows={2} />
+    <div className="mx-auto max-w-sm" style={{ textAlign: "center", paddingTop: 48 }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/logo.png" alt="LIFE RPG" width={76} height={76} style={{ borderRadius: 18, objectFit: "contain", margin: "0 auto" }} />
       <p className="mt-3 text-center text-sm text-ink-muted">Crossing into your realm…</p>
+      <div style={{ marginTop: 16 }}>
+        <Skeleton label="your realm" rows={2} />
+      </div>
     </div>
   );
 }
