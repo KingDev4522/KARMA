@@ -8,6 +8,7 @@ import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { HeroFigure, CompanionSprite } from "@/components/world";
 import { Field, inputCls } from "@/components/ui";
+import { SignInPrompt } from "@/components/States";
 import { cn } from "@/lib/cn";
 
 /** Onboarding — entering the world. No fixed personas; the user defines the quest. */
@@ -27,7 +28,7 @@ const COMPANIONS = [
 const DOMAINS = ["Fitness", "Learning", "Career", "Creativity", "Relationships", "Home", "Mindfulness"];
 
 export default function OnboardingPage() {
-  const { authHeaders } = useAuth();
+  const { authHeaders, userId, loading: authLoading } = useAuth();
   const router = useRouter();
   const reduce = useReducedMotion();
   const [step, setStep] = useState(0);
@@ -63,6 +64,8 @@ export default function OnboardingPage() {
   };
 
   const titles = ["Choose your hero", "Name your hero", "Choose your companion", "Areas of interest", "Your first quest"];
+
+  if (!authLoading && !userId) return <SignInPrompt message="Sign in first — your hero needs an account to live in." />;
 
   return (
     <div className="mx-auto max-w-xl">

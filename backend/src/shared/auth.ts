@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import { config } from "../config";
 import { UnauthorizedError } from "../shared/errors";
 
@@ -22,36 +23,71 @@ declare global {
  * Every private operation executes within authenticated user context.
  * Backend NEVER uses client-supplied userId as proof of ownership.
  *
- * Verifies Supabase Auth JWT (HS256 with SUPABASE_JWT_SECRET).
+ * Supabase signs access tokens asymmetrically (ES256, verified against the
+ * project's JWKS) on current projects; older projects use HS256 with
+ * SUPABASE_JWT_SECRET. We try JWKS first, then the legacy shared secret.
  * Dev bypass (DEV_AUTH_BYPASS=true) accepts X-Dev-User-Id for local tests only.
  */
-export function requireAuth(req: Request, _res: Response, next: NextFunction) {
-  try {
-    if (config.devAuthBypass) {
-      const devId = req.header("X-Dev-User-Id");
-      if (devId && devId.trim().length > 0) {
-        req.auth = { userId: devId.trim() };
-        return next();
-      }
-      // fall through to JWT check so misconfig surfaces clearly
-    }
-    const header = req.header("Authorization") ?? "";
-    const match = header.match(/^Bearer\s+(.+)$/i);
-    if (!match) throw new UnauthorizedError("Missing Bearer token");
-    const token = match[1].trim();
-    if (!config.supabaseJwtSecret) throw new UnauthorizedError("Server missing SUPABASE_JWT_SECRET");
 
-    const payload = jwt.verify(token, config.supabaseJwtSecret, { algorithms: ["HS256"] }) as {
-      sub?: string;
-      email?: string;
-    };
-    if (!payload.sub) throw new UnauthorizedError("Invalid token: missing sub");
-    req.auth = { userId: payload.sub, email: payload.email };
-    return next();
-  } catch (err) {
-    if (err instanceof UnauthorizedError) return next(err);
-    return next(new UnauthorizedError("Invalid or expired token"));
+// Cached remote key set (jose handles caching + rotation per Cache-Control).
+let remoteJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+function getRemoteJwks() {
+  if (remoteJwks) return remoteJwks;
+  if (!config.supabaseUrl) return null;
+  const url = new URL("/auth/v1/.well-known/jwks.json", config.supabaseUrl.replace(/\/$/, "") + "/");
+  remoteJwks = createRemoteJWKSet(url);
+  return remoteJwks;
+}
+
+async function verifyToken(token: string): Promise<{ sub?: string; email?: string }> {
+  // 1) Asymmetric (current Supabase default): ES256 via project JWKS.
+  const jwks = getRemoteJwks();
+  if (jwks) {
+    try {
+      const { payload } = await jwtVerify(token, jwks);
+      return extractIdentity(payload);
+    } catch {
+      // fall through to legacy check (e.g. older HS256 project tokens)
+    }
   }
+  // 2) Legacy shared-secret HS256.
+  if (!config.supabaseJwtSecret) throw new UnauthorizedError("Invalid or expired token");
+  const payload = jwt.verify(token, config.supabaseJwtSecret, { algorithms: ["HS256"] }) as {
+    sub?: string;
+    email?: string;
+  };
+  return payload;
+}
+
+function extractIdentity(payload: JWTPayload & { sub?: string; email?: string }) {
+  if (!payload.sub) throw new UnauthorizedError("Invalid token: missing sub");
+  return { sub: payload.sub, email: payload.email };
+}
+
+export function requireAuth(req: Request, _res: Response, next: NextFunction) {
+  if (config.devAuthBypass) {
+    const devId = req.header("X-Dev-User-Id");
+    if (devId && devId.trim().length > 0) {
+      req.auth = { userId: devId.trim() };
+      return next();
+    }
+    // fall through to JWT check so misconfig surfaces clearly
+  }
+  const header = req.header("Authorization") ?? "";
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match) return next(new UnauthorizedError("Missing Bearer token"));
+  const token = match[1].trim();
+
+  verifyToken(token)
+    .then((identity) => {
+      req.auth = { userId: identity.sub as string, email: identity.email };
+      next();
+    })
+    .catch((err) => {
+      if (err instanceof UnauthorizedError) return next(err);
+      return next(new UnauthorizedError("Invalid or expired token"));
+    });
 }
 
 export function currentUserId(req: Request): string {

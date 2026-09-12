@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { useApi } from "@/lib/utils";
 import { Field, SectionHeading, inputCls, useToast } from "@/components/ui";
-import { EmptyState, ErrorState, Skeleton } from "@/components/States";
+import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 import { cn } from "@/lib/cn";
 
 /** Settings — identity, theme composition, rest days. */
@@ -17,10 +17,13 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error, loading, retry } = useApi<any>(() => client.getProfile(authHeaders()), [userId]);
+  const { data, error, loading, retry } = useApi<any>(() => client.getProfile(authHeaders()), [userId], {
+    enabled: !authLoading && !!userId,
+  });
   const [restDate, setRestDate] = useState("");
 
-  if (loading) return <Skeleton label="Settings" />;
+  if (authLoading || loading) return <Skeleton label="Settings" />;
+  if (!userId) return <SignInPrompt message="Sign in to sync your hero, preferences and rest days across devices." />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
 
   const save = async (patch: Record<string, unknown>, msg: string) => {

@@ -8,15 +8,18 @@ import { useApi } from "@/lib/utils";
 import { HeroFigure, HeroScene, AchievementCard } from "@/components/world";
 import { AttributeStat, LevelBadge, RankBadge, Streak, XpBar } from "@/components/rpg";
 import { SectionHeading } from "@/components/ui";
-import { EmptyState, ErrorState, Skeleton } from "@/components/States";
+import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 /** Realm — premium character showcase, not a settings page. */
 export default function RealmPage() {
-  const { authHeaders, userId } = useAuth();
+  const { authHeaders, userId, loading: authLoading } = useAuth();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error, loading, retry } = useApi<any>(() => client.realm(authHeaders()), [userId]);
+  const { data, error, loading, retry } = useApi<any>(() => client.realm(authHeaders()), [userId], {
+    enabled: !authLoading && !!userId,
+  });
 
-  if (loading) return <Skeleton label="Realm" rows={4} />;
+  if (authLoading || loading) return <Skeleton label="Realm" rows={4} />;
+  if (!userId) return <SignInPrompt />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
   if (!data) return <EmptyState message="Your realm is unformed. Complete a quest to begin." />;
 

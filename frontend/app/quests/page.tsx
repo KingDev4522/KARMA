@@ -10,18 +10,21 @@ import type { CompletionResponse, Quest } from "@/lib/types";
 import { QuestCard, QuestCreator } from "@/components/quest";
 import { LevelUpOverlay } from "@/components/chronicle";
 import { SectionHeading } from "@/components/ui";
-import { EmptyState, ErrorState, Skeleton } from "@/components/States";
+import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 /** Quests — the work library, with mission-style creation. */
 export default function QuestsPage() {
-  const { authHeaders, userId } = useAuth();
-  const { data, error, loading, retry } = useApi(() => client.listQuests(authHeaders()), [userId]);
+  const { authHeaders, userId, loading: authLoading } = useAuth();
+  const { data, error, loading, retry } = useApi(() => client.listQuests(authHeaders()), [userId], {
+    enabled: !authLoading && !!userId,
+  });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, CompletionResponse>>({});
   const [ceremony, setCeremony] = useState<CompletionResponse | null>(null);
   const [creator, setCreator] = useState(false);
 
-  if (loading) return <Skeleton label="Quests" />;
+  if (authLoading || loading) return <Skeleton label="Quests" />;
+  if (!userId) return <SignInPrompt />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
 
   const complete = async (q: Quest) => {

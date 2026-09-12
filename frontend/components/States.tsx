@@ -1,9 +1,28 @@
 "use client";
 
+import Link from "next/link";
 import type { ApiErrorShape } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
-/** Loading (skeletal, layout-shaped) / Empty / Error(+retry) states. */
+/** Loading (skeletal, layout-shaped) / Empty / Error(+retry) / Signed-out states. */
+
+/** Signed-out door: shown instead of an error wall when there is no session. */
+export function SignInPrompt({ message }: { message?: string }) {
+  return (
+    <div className="pattern-asanoha rounded-panel border border-line bg-surface-elevated px-6 py-10 text-center shadow-card">
+      <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-[10px] bg-seal font-display text-lg font-bold text-white" aria-hidden>
+        命
+      </span>
+      <h1 className="mt-3 font-display text-2xl">The realm is sealed</h1>
+      <p className="mx-auto mt-1 max-w-[42ch] text-sm text-ink-secondary">
+        {message ?? "Sign in to open your quests, XP and identity — they persist across every device."}
+      </p>
+      <Link href="/login" className="mt-5 inline-block rounded-control bg-xp px-6 py-2.5 text-sm font-semibold text-white pressable">
+        Sign in with Google
+      </Link>
+    </div>
+  );
+}
 
 export function Skeleton({ label, rows = 3 }: { label: string; rows?: number }) {
   return (

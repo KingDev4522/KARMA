@@ -6,15 +6,16 @@ import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
 import { CalendarMonth, ChronicleTimeline, Heatmap } from "@/components/chronicle";
 import { SectionHeading } from "@/components/ui";
-import { EmptyState, ErrorState, Skeleton } from "@/components/States";
+import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 /** Chronicle — personal adventure history: timeline, heatmap, calendar, focus past. */
 export default function ChroniclePage() {
-  const { authHeaders, userId } = useAuth();
+  const { authHeaders, userId, loading: authLoading } = useAuth();
+  const gate = { enabled: !authLoading && !!userId };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: history, error: hErr, loading: hLoad, retry: hRetry } = useApi<any>(() => client.history(authHeaders()), [userId]);
+  const { data: history, error: hErr, loading: hLoad, retry: hRetry } = useApi<any>(() => client.history(authHeaders()), [userId], gate);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: analytics } = useApi<any>(() => client.analytics(authHeaders()), [userId]);
+  const { data: analytics } = useApi<any>(() => client.analytics(authHeaders()), [userId], gate);
   const now = new Date();
   const [cal, setCal] = useState({ y: now.getFullYear(), m: now.getMonth() });
 
@@ -47,7 +48,8 @@ export default function ChroniclePage() {
     return days;
   }, [markers]);
 
-  if (hLoad) return <Skeleton label="Chronicle" rows={4} />;
+  if (authLoading || hLoad) return <Skeleton label="Chronicle" rows={4} />;
+  if (!userId) return <SignInPrompt />;
   if (hErr) return <ErrorState error={hErr} onRetry={hRetry} />;
 
   return (

@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ApiErrorShape } from "./api";
 
-/** Data-fetch hook with Loading / Error(+retry per LRP-FE-001 §18) / Success states. */
-
-export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []) {
+/** Data-fetch hook with Loading / Error(+retry per LRP-FE-001 §18) / Success states.
+ * Pass `{ enabled: false }` to hold the request (e.g. while auth is resolving or
+ * signed out) so we never fire an unauthenticated call that 401s into an error wall.
+ */
+export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = [], opts: { enabled?: boolean } = {}) {
+  const enabled = opts.enabled ?? true;
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<ApiErrorShape | null>(null);
   const [loading, setLoading] = useState(true);
@@ -14,6 +17,10 @@ export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   const retry = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     let alive = true;
     setLoading(true);
     setError(null);
@@ -31,7 +38,7 @@ export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []) {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, nonce]);
+  }, [...deps, nonce, enabled]);
 
   return { data, error, loading, retry, setData };
 }

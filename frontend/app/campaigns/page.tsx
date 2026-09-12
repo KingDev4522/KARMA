@@ -7,18 +7,21 @@ import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
 import { CampaignPath } from "@/components/world";
 import { Field, SectionHeading, inputCls } from "@/components/ui";
-import { EmptyState, ErrorState, Skeleton } from "@/components/States";
+import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 import { XpBar } from "@/components/rpg";
 
 /** Campaigns — visual journeys, not card lists. The active milestone dominates. */
 export default function CampaignsPage() {
-  const { authHeaders, userId } = useAuth();
-  const { data, error, loading, retry } = useApi(() => client.listCampaigns(authHeaders()), [userId]);
+  const { authHeaders, userId, loading: authLoading } = useAuth();
+  const { data, error, loading, retry } = useApi(() => client.listCampaigns(authHeaders()), [userId], {
+    enabled: !authLoading && !!userId,
+  });
   const [title, setTitle] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [detail, setDetail] = useState<Record<string, { milestones: { id: string; title: string; status: string }[]; progressPct: number }>>({});
 
-  if (loading) return <Skeleton label="Campaigns" />;
+  if (authLoading || loading) return <Skeleton label="Campaigns" />;
+  if (!userId) return <SignInPrompt />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
 
   const create = async (e: React.FormEvent) => {

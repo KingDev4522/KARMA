@@ -8,18 +8,21 @@ import type { StoreItem } from "@/lib/types";
 import { StoreItemCard } from "@/components/world";
 import { CoinPurse } from "@/components/rpg";
 import { SectionHeading, useToast } from "@/components/ui";
-import { EmptyState, ErrorState, Skeleton } from "@/components/States";
+import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 /** Store — identity marketplace with inventory feel and instant confirmation. */
 const GROUPS = ["frame", "title", "nameplate", "realm", "effect", "companion_emote", "quest_skin", "badge_case", "hero_card"] as const;
 
 export default function StorePage() {
-  const { authHeaders, userId } = useAuth();
+  const { authHeaders, userId, loading: authLoading } = useAuth();
   const toast = useToast();
-  const { data, error, loading, retry } = useApi(() => client.store(authHeaders()), [userId]);
+  const { data, error, loading, retry } = useApi(() => client.store(authHeaders()), [userId], {
+    enabled: !authLoading && !!userId,
+  });
   const [busy, setBusy] = useState<string | null>(null);
 
-  if (loading) return <Skeleton label="Store" rows={4} />;
+  if (authLoading || loading) return <Skeleton label="Store" rows={4} />;
+  if (!userId) return <SignInPrompt />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
   if (!data) return <EmptyState message="The market is unreachable right now." />;
 

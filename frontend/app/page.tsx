@@ -12,7 +12,7 @@ import { CompanionBubble, HeroFigure, HeroScene } from "@/components/world";
 import { LevelUpOverlay } from "@/components/chronicle";
 import { CoinPurse, LevelBadge, RankBadge, Streak, XpBar } from "@/components/rpg";
 import { SectionHeading } from "@/components/ui";
-import { EmptyState, ErrorState, Skeleton } from "@/components/States";
+import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 /**
  * Today — the RPG command center. First viewport answers: who you are,
@@ -20,15 +20,17 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/States";
  */
 export default function TodayPage() {
   const { authHeaders, userId, loading: authLoading } = useAuth();
-  const { data, error, loading, retry } = useApi(() => client.getToday(authHeaders()), [userId, authLoading]);
+  const { data, error, loading, retry } = useApi(() => client.getToday(authHeaders()), [userId], {
+    enabled: !authLoading && !!userId,
+  });
   const [busyId, setBusyId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, CompletionResponse>>({});
   const [ceremony, setCeremony] = useState<CompletionResponse | null>(null);
   const [creator, setCreator] = useState(false);
 
   if (authLoading || loading) return <Skeleton label="Today" rows={4} />;
+  if (!userId) return <SignInPrompt />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
-  if (!userId) return <EmptyState message="Sign in (or enable dev bypass) to enter your realm." />;
   if (!data) return <EmptyState message="Your board is clear. Add your first Quest." />;
 
   const complete = async (q: Quest) => {
