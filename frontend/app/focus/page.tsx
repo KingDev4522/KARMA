@@ -18,6 +18,9 @@ export default function FocusPage() {
   const [questId, setQuestId] = useState("");
   const [minutes, setMinutes] = useState(25);
   const [custom, setCustom] = useState("");
+  // Sub-minute taps (accidental opens) stay in history but not in Recent.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recentSessions = ((sessions ?? []) as any[]).filter((s: any) => (s.actualSeconds ?? s.plannedSeconds ?? 0) >= 60);
 
   if (authLoading || loading) return <Skeleton label="Focus" rows={3} />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
@@ -101,7 +104,7 @@ export default function FocusPage() {
       <div className="sec-head" style={{ marginTop: 22 }}>
         <h3>Recent sessions</h3>
       </div>
-      {!sessions || sessions.length === 0 ? (
+      {!recentSessions || recentSessions.length === 0 ? (
         <div className="empty-state panel">
           <Icon id="i-focus" />
           <p>One quest, one timer. Starting focus quiets everything else.</p>
@@ -109,7 +112,7 @@ export default function FocusPage() {
       ) : (
         <div className="quest-list panel">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {sessions.map((s: any) => (
+          {recentSessions.map((s: any) => (
             <div className="session-row" key={s.id}>
               <Icon id="i-clock" style={{ color: "var(--text-3)" }} />
               <span style={{ flex: 1 }}>
