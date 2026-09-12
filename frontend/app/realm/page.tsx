@@ -1,67 +1,83 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight } from "@phosphor-icons/react";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { XpBar } from "@/components/XpBar";
+import { HeroFigure, HeroScene, AchievementCard } from "@/components/world";
+import { AttributeStat, LevelBadge, RankBadge, Streak, XpBar } from "@/components/rpg";
+import { SectionHeading } from "@/components/ui";
 import { EmptyState, ErrorState, Skeleton } from "@/components/States";
 
-/** Realm — identity/progression space (FE §12): hero, companion, level/rank, attrs, achievements, collection, Hero Card. */
+/** Realm — premium character showcase, not a settings page. */
 export default function RealmPage() {
   const { authHeaders, userId } = useAuth();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error, loading, retry } = useApi<any>(() => client.realm(authHeaders()), [userId]);
 
-  if (loading) return <Skeleton label="Realm" />;
+  if (loading) return <Skeleton label="Realm" rows={4} />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
   if (!data) return <EmptyState message="Your realm is unformed. Complete a quest to begin." />;
 
-  return (
-    <div className="space-y-4">
-      <header className="rounded-xl bg-surface-elevated p-4">
-        <h1 className="font-display text-2xl">{data.hero?.name ?? data.hero?.displayName ?? "Unnamed Hero"}</h1>
-        <p className="text-sm text-ink-secondary">
-          Level {data.progression?.level ?? 1} · {data.rank?.display ?? ""}
-        </p>
-        <div className="mt-2">
-          <XpBar pct={data.heroCard?.xpProgress?.pct ?? 0} label="Hero XP progress" />
-        </div>
-      </header>
+  const attrs = (data.attributes ?? []) as { key: string; xp: number; level: number }[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const unlocked = ((data.achievements?.unlocked ?? []) as any[]).slice(0, 6);
 
-      <section aria-label="Attributes" className="rounded-xl bg-surface-card p-4">
-        <h2 className="mb-2 font-display">Attributes</h2>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {(data.attributes ?? []).map((a: any) => (
-          <div key={a.key} className="py-1">
-            <div className="flex justify-between text-sm">
-              <span className="capitalize">{a.name}</span>
-              <span className="text-ink-secondary">Lv {a.level}</span>
+  return (
+    <div className="space-y-6">
+      <HeroScene timeOfDay="evening">
+        <div className="flex flex-col items-center gap-4 p-6 text-center md:flex-row md:text-left">
+          <HeroFigure assetId={data.hero?.heroAssetId} size={150} companion="companion" companionMood="idle" />
+          <div className="flex-1">
+            <h1 className="font-display text-3xl">{data.hero?.name ?? data.hero?.displayName ?? "Unnamed Hero"}</h1>
+            {data.hero?.bio && <p className="mt-1 max-w-[50ch] text-sm text-ink-secondary">{data.hero.bio}</p>}
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2 md:justify-start">
+              {data.rank && <RankBadge display={data.rank.display} />}
+              <Streak current={data.progression?.currentStreak ?? 0} best={data.progression?.bestStreak ?? 0} />
             </div>
-            <XpBar pct={Math.min(1, a.xp / 500)} label={`${a.name} progress`} />
           </div>
-        ))}
+          <div className="flex items-center gap-3 rounded-card border border-line/60 bg-surface-elevated/80 p-3 backdrop-blur">
+            <LevelBadge level={data.progression?.level ?? 1} />
+            <div className="w-36">
+              <XpBar pct={data.heroCard?.xpProgress?.pct ?? 0} label="Hero XP progress" glow />
+            </div>
+          </div>
+        </div>
+      </HeroScene>
+
+      <section aria-label="Attributes">
+        <SectionHeading title="Attribute constellation" />
+        <div className="grid gap-3 rounded-panel border border-line bg-surface-card p-5 shadow-card sm:grid-cols-2">
+          {attrs.map((a) => (
+            <AttributeStat key={a.key} attrKey={a.key} level={a.level} xp={a.xp} />
+          ))}
+        </div>
       </section>
 
-      <section aria-label="Achievements" className="rounded-xl bg-surface-card p-4">
-        <h2 className="mb-2 font-display">Achievements ({data.achievements?.count ?? 0})</h2>
-        {data.achievements?.count === 0 ? (
+      <section aria-label="Achievements">
+        <SectionHeading
+          title="Collections"
+          action={
+            <Link href="/chronicle" className="inline-flex items-center gap-1 text-sm font-medium text-xp">
+              Full chronicle <ArrowRight size={14} aria-hidden />
+            </Link>
+          }
+        />
+        {unlocked.length === 0 ? (
           <EmptyState message="Your first badge is one Quest away." />
         ) : (
-          <ul className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {(data.achievements?.unlocked ?? []).map((a: any) => (
-              <li key={a.key} className="rounded-lg bg-surface-elevated p-2 text-sm">
-                <strong>{a.name}</strong>
-                <p className="text-xs text-ink-secondary">{a.description}</p>
-              </li>
+            {unlocked.map((a: any) => (
+              <AchievementCard key={a.key} name={a.name} description={a.description} />
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
-      <Link href="/hero-card" className="block rounded-xl bg-xp p-4 text-center font-semibold text-surface-bg">
-        View Hero Card →
+      <Link href="/hero-card" className="block rounded-card bg-xp p-4 text-center font-semibold text-white pressable">
+        View collectible Hero Card
       </Link>
     </div>
   );

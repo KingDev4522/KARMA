@@ -11,3 +11,23 @@
 2026-09-12 13:58:30.544 IST [33396] LOG:  database system is ready to accept connections
 2026-09-12 13:58:34.042 IST [32264] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
 	
+2026-09-12 14:08:12.617 IST [32224] FATAL:  database "life_rpg" does not exist
+2026-09-12 14:08:12.680 IST [20308] FATAL:  database "life_rpg" does not exist
+2026-09-12 14:08:12.817 IST [31920] FATAL:  database "life_rpg" does not exist
+2026-09-12 14:08:12.867 IST [32652] FATAL:  database "life_rpg" does not exist
+2026-09-12 14:08:13.487 IST [10908] ERROR:  relation "_prisma_migrations" does not exist at character 126
+2026-09-12 14:08:13.487 IST [10908] STATEMENT:  SELECT "id", "checksum", "finished_at", "migration_name", "logs", "rolled_back_at", "started_at", "applied_steps_count" FROM "_prisma_migrations" ORDER BY "started_at" ASC
+2026-09-12 14:08:13.927 IST [31488] LOG:  checkpoint starting: immediate force wait
+2026-09-12 14:08:14.612 IST [31488] LOG:  checkpoint complete: wrote 972 buffers (5.9%); 1 WAL file(s) added, 0 removed, 0 recycled; write=0.182 s, sync=0.431 s, total=0.685 s; sync files=300, longest=0.042 s, average=0.002 s; distance=9194 kB, estimate=9194 kB; lsn=0/1EA06B8, redo lsn=0/1EA0680
+2026-09-12 14:08:15.216 IST [31488] LOG:  checkpoint starting: immediate force wait
+2026-09-12 14:08:15.258 IST [31488] LOG:  checkpoint complete: wrote 19 buffers (0.1%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.008 s, sync=0.013 s, total=0.042 s; sync files=7, longest=0.004 s, average=0.002 s; distance=4641 kB, estimate=8739 kB; lsn=0/2328B00, redo lsn=0/2328AC8
+2026-09-12 14:08:15.765 IST [31488] LOG:  checkpoint starting: immediate force wait
+2026-09-12 14:08:15.864 IST [31488] LOG:  checkpoint complete: wrote 49 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.027 s, sync=0.057 s, total=0.099 s; sync files=41, longest=0.003 s, average=0.002 s; distance=4762 kB, estimate=8341 kB; lsn=0/27CF478, redo lsn=0/27CF440
+2026-09-12 14:08:16.344 IST [31488] LOG:  checkpoint starting: immediate force wait
+2026-09-12 14:08:16.368 IST [31488] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.004 s, sync=0.007 s, total=0.024 s; sync files=4, longest=0.003 s, average=0.002 s; distance=4599 kB, estimate=7967 kB; lsn=0/2C4D2A0, redo lsn=0/2C4D268
+2026-09-12 14:08:16.710 IST [10908] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2026-09-12 14:13:16.371 IST [31488] LOG:  checkpoint starting: time
+2026-09-12 14:13:36.962 IST [31488] LOG:  checkpoint complete: wrote 191 buffers (1.2%); 0 WAL file(s) added, 0 removed, 0 recycled; write=20.315 s, sync=0.217 s, total=20.591 s; sync files=139, longest=0.049 s, average=0.002 s; distance=796 kB, estimate=7250 kB; lsn=0/2D16028, redo lsn=0/2D14488
+2026-09-12 14:18:16.983 IST [31488] LOG:  checkpoint starting: time
+2026-09-12 14:18:18.107 IST [31488] LOG:  checkpoint complete: wrote 10 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.983 s, sync=0.082 s, total=1.124 s; sync files=10, longest=0.048 s, average=0.009 s; distance=7 kB, estimate=6526 kB; lsn=0/2D16330, redo lsn=0/2D162F8

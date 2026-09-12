@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
-import { Nav } from "@/components/Nav";
+import { ThemeProvider } from "@/lib/theme";
+import { ToastProvider } from "@/components/ui";
+import { Shell } from "@/components/Shell";
 
 export const metadata: Metadata = {
   title: "LIFE RPG — Your life is the campaign",
@@ -10,19 +12,21 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="bg-surface-bg font-body text-ink-primary">
-        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:p-2 focus:bg-xp focus:text-surface-bg">
+    <html lang="en" className="dark">
+      <body className="bg-surface-bg font-body text-ink-primary antialiased">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[200] focus:rounded-control focus:bg-xp focus:px-3 focus:py-2 focus:text-white"
+        >
           Skip to main content
         </a>
-        <AuthProvider>
-          <div className="mx-auto flex min-h-screen max-w-6xl md:gap-4">
-            <Nav />
-            <main id="main" className="flex-1 p-4 pb-20 md:pb-8">
-              {children}
-            </main>
-          </div>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <Shell>{children}</Shell>
+            </ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

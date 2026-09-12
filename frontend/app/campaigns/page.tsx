@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "@phosphor-icons/react";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { XpBar } from "@/components/XpBar";
+import { CampaignPath } from "@/components/world";
+import { Field, SectionHeading, inputCls } from "@/components/ui";
 import { EmptyState, ErrorState, Skeleton } from "@/components/States";
+import { XpBar } from "@/components/rpg";
 
-/** Campaigns — destination + progress + next actionable milestone (FE §8). */
+/** Campaigns — visual journeys, not card lists. The active milestone dominates. */
 export default function CampaignsPage() {
   const { authHeaders, userId } = useAuth();
   const { data, error, loading, retry } = useApi(() => client.listCampaigns(authHeaders()), [userId]);
   const [title, setTitle] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Record<string, { milestones: { id: string; title: string; status: string }[]; progressPct: number }>>({});
 
   if (loading) return <Skeleton label="Campaigns" />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
@@ -33,35 +37,67 @@ export default function CampaignsPage() {
     }
   };
 
+  const openJourney = async (id: string) => {
+    if (detail[id]) {
+      setDetail((d) => {
+        const c = { ...d };
+        delete c[id];
+        return c;
+      });
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const c = (await client.getCampaign(authHeaders(), id)) as any;
+      setDetail((d) => ({ ...d, [id]: { milestones: c.milestones ?? [], progressPct: c.progressPct ?? 0 } }));
+    } catch {
+      /* journey stays folded on failure */
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <h1 className="font-display text-2xl">Campaigns</h1>
-      <form onSubmit={create} className="flex gap-2 rounded-xl bg-surface-elevated p-4" aria-label="Create campaign">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Build Portfolio"
-          className="flex-1 rounded-lg bg-surface-card px-3 py-2"
-        />
-        <button type="submit" className="rounded-lg bg-xp px-4 py-2 text-sm font-semibold text-surface-bg">Begin</button>
+    <div className="space-y-5">
+      <SectionHeading title="Long journeys" />
+      <form onSubmit={create} className="flex flex-col gap-2 rounded-card border border-line bg-surface-card p-4 shadow-card sm:flex-row" aria-label="Begin a campaign">
+        <div className="flex-1">
+          <Field label="Begin a new campaign" error={formError}>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Build Portfolio" className={inputCls} />
+          </Field>
+        </div>
+        <button type="submit" className="inline-flex items-center justify-center gap-1.5 self-end rounded-control bg-xp px-5 py-2 text-sm font-semibold text-white pressable">
+          <Plus size={15} weight="bold" aria-hidden /> Begin
+        </button>
       </form>
-      {formError && <p role="alert" className="text-sm text-danger">{formError}</p>}
 
       {!data || data.length === 0 ? (
         <EmptyState message="Choose something worth becoming." />
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="space-y-4">
           {data.map((c) => (
-            <article key={c.id} className="rounded-xl bg-surface-card p-4 shadow-card" aria-label={`Campaign: ${c.title}`}>
-              <h2 className="font-display uppercase tracking-wide">{c.title}</h2>
-              <p className="text-sm text-ink-secondary">{c.progressPct ?? 0}%</p>
-              <XpBar pct={(c.progressPct ?? 0) / 100} label={`${c.title} progress`} />
-              {c.nextMilestone ? (
-                <p className="mt-2 text-sm">Next: <strong>{c.nextMilestone.title}</strong></p>
-              ) : (
-                <p className="mt-2 text-sm text-ink-muted">No open milestones — add one to keep moving.</p>
+            <article key={c.id} className="overflow-hidden rounded-panel border border-line bg-surface-card shadow-card" aria-label={`Campaign: ${c.title}`}>
+              <button onClick={() => openJourney(c.id)} aria-expanded={!!detail[c.id]} className="w-full p-5 text-left">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="font-display text-xl uppercase tracking-wide">{c.title}</h2>
+                  <span className="font-display text-2xl text-xp">{c.progressPct ?? 0}%</span>
+                </div>
+                <div className="mt-2">
+                  <XpBar pct={(c.progressPct ?? 0) / 100} label={`${c.title} progress`} />
+                </div>
+                {c.nextMilestone ? (
+                  <p className="mt-2 text-sm">Next objective: <strong>{c.nextMilestone.title}</strong></p>
+                ) : (
+                  <p className="mt-2 text-sm text-ink-muted">Tap to view the journey.</p>
+                )}
+              </button>
+              {detail[c.id] && (
+                <div className="border-t border-line bg-surface-elevated/60 p-5">
+                  {detail[c.id].milestones.length === 0 ? (
+                    <p className="text-sm text-ink-muted">No milestones yet — the journey is unwritten.</p>
+                  ) : (
+                    <CampaignPath milestones={detail[c.id].milestones} />
+                  )}
+                </div>
               )}
-              {c.nextQuest && <p className="text-sm text-ink-secondary">Today&apos;s cut: {c.nextQuest.title}</p>}
             </article>
           ))}
         </div>

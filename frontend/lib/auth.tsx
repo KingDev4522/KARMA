@@ -1,10 +1,12 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { createClient, type Session } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
+import { createClient } from "./supabase/client";
 
 /**
- * Auth provider: Supabase session → Bearer JWT for the backend.
+ * Auth provider: Supabase session (cookie-backed via @supabase/ssr) → Bearer JWT.
+ * Public API is unchanged, so no page rewrites were needed.
  * Dev bypass (NEXT_PUBLIC_DEV_BYPASS=true) sends X-Dev-User-Id instead — local only.
  */
 
@@ -26,8 +28,6 @@ const AuthCtx = createContext<AuthValue>({
   authHeaders: () => ({}),
 });
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const devBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true";
 const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID ?? "";
 
@@ -40,23 +40,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    if (!supabaseUrl || !supabaseAnon) {
-      setLoading(false);
-      return;
-    }
-    const client = createClient(supabaseUrl, supabaseAnon);
-    client.auth.getSession().then(({ data }) => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
     });
-    const { data: sub } = client.auth.onAuthStateChange((_ev, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_ev, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
 
   const signOut = useCallback(async () => {
-    if (devBypass || !supabaseUrl || !supabaseAnon) return;
-    const client = createClient(supabaseUrl, supabaseAnon);
-    await client.auth.signOut();
+    if (devBypass) return;
+    const supabase = createClient();
+    await supabase.auth.signOut({ scope: "global" }).catch(() => supabase.auth.signOut({ scope: "local" }));
     setSession(null);
   }, []);
 

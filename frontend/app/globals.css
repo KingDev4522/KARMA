@@ -2,21 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * LIFE RPG visual tokens. :root = warm paper Light; .dark = moonlit charcoal Dark.
+ * Brief explicitly specifies this palette (warm ivory/paper + indigo + coral + sage),
+ * so the premium-consumer beige caution does not apply — executed with intent:
+ * one locked primary accent (indigo), coral reserved for energy/danger, amber for coin.
+ */
 :root {
+  color-scheme: light;
+  --surface-bg: 250 246 238;        /* warm ivory */
+  --surface-elevated: 255 253 247;  /* paper */
+  --surface-card: 255 255 255;      /* clean card paper */
+  --surface-overlay: 235 228 214;   /* warm hairline fill */
+  --ink-primary: 38 34 30;          /* charcoal sumi */
+  --ink-secondary: 92 84 72;
+  --ink-muted: 138 128 112;
+  --line: 226 216 196;
+  --xp: 67 56 202;                  /* deep indigo */
+  --coin: 176 128 20;               /* warm amber (AA on paper) */
+  --coral: 186 72 62;               /* muted coral/red */
+  --sage: 74 124 89;                /* sage */
+  --success: 74 124 89;
+  --warning: 176 128 20;
+  --danger: 186 72 62;
+  --info: 67 56 202;
+  --seal: 178 58 48;                /* hanko red */
+  --shadow: 74 60 40;
+  --grain-opacity: 0.05;
+  --scene-haze: 255 253 247;
+}
+
+.dark {
   color-scheme: dark;
+  --surface-bg: 19 17 28;           /* charcoal indigo night */
+  --surface-elevated: 27 24 42;
+  --surface-card: 34 30 54;
+  --surface-overlay: 48 42 76;
+  --ink-primary: 243 240 255;
+  --ink-secondary: 190 183 220;
+  --ink-muted: 130 122 160;
+  --line: 56 49 88;
+  --xp: 149 139 255;                /* luminous indigo */
+  --coin: 245 197 66;
+  --coral: 240 128 116;
+  --sage: 110 200 140;
+  --success: 110 200 140;
+  --warning: 245 197 66;
+  --danger: 240 128 116;
+  --info: 149 139 255;
+  --seal: 224 92 80;
+  --shadow: 0 0 0;
+  --grain-opacity: 0.07;
+  --scene-haze: 19 17 28;
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: rgb(var(--surface-bg));
+  color: rgb(var(--ink-primary));
 }
 
-/* Visible focus everywhere (LRP-FE-001 §20). */
+/* Paper/fabric micro-texture: fixed grain layer only (never on scrollers). */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+}
+
+/* Visible focus everywhere. */
 :focus-visible {
-  outline: 2px solid #8b7bff;
+  outline: 2px solid rgb(var(--xp));
   outline-offset: 2px;
 }
 
-/* Reduced motion: disable decorative animation, keep state info (FE §15). */
+/* Seigaiha-inspired subtle pattern utility for scene bands. */
+.pattern-waves {
+  background-image: radial-gradient(circle at 50% 130%, rgb(var(--xp) / 0.16) 0 18%, transparent 19%),
+    radial-gradient(circle at 50% 130%, rgb(var(--xp) / 0.1) 0 26%, transparent 27%);
+  background-size: 44px 22px;
+}
+
+.pattern-asanoha {
+  background-image: repeating-linear-gradient(60deg, rgb(var(--ink-muted) / 0.08) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(-60deg, rgb(var(--ink-muted) / 0.08) 0 1px, transparent 1px 14px);
+}
+
+/* Tactile press (motivated micro-interaction). */
+.pressable {
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+.pressable:active {
+  transform: scale(0.98);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

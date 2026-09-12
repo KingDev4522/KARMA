@@ -5,28 +5,32 @@ import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
 import type { StoreItem } from "@/lib/types";
+import { StoreItemCard } from "@/components/world";
+import { CoinPurse } from "@/components/rpg";
+import { SectionHeading, useToast } from "@/components/ui";
 import { EmptyState, ErrorState, Skeleton } from "@/components/States";
 
-/** Store — ownership + equip state obvious (FE §13). Purchase → immediate equip transition. */
+/** Store — identity marketplace with inventory feel and instant confirmation. */
+const GROUPS = ["frame", "title", "nameplate", "realm", "effect", "companion_emote", "quest_skin", "badge_case", "hero_card"] as const;
+
 export default function StorePage() {
   const { authHeaders, userId } = useAuth();
+  const toast = useToast();
   const { data, error, loading, retry } = useApi(() => client.store(authHeaders()), [userId]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
-  if (loading) return <Skeleton label="Store" />;
+  if (loading) return <Skeleton label="Store" rows={4} />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
-  if (!data) return <EmptyState message="The store is unreachable right now." />;
+  if (!data) return <EmptyState message="The market is unreachable right now." />;
 
   const buy = async (item: StoreItem) => {
     setBusy(item.id);
-    setNotice(null);
     try {
       await client.purchase(authHeaders(), item.id);
-      setNotice(`${item.name} acquired — equip it to change your identity.`);
+      toast({ title: `${item.name} acquired`, body: "Equip it to change your identity.", tone: "coin" });
       retry();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Purchase failed. Coins unchanged.");
+      toast({ title: "Purchase failed", body: e instanceof Error ? e.message : "Coins unchanged.", tone: "bad" });
     } finally {
       setBusy(null);
     }
@@ -36,49 +40,35 @@ export default function StorePage() {
     setBusy(item.id);
     try {
       await client.equip(authHeaders(), item.id);
-      setNotice(`${item.name} equipped.`);
+      toast({ title: `${item.name} equipped`, body: "Your realm already looks different.", tone: "xp" });
       retry();
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Couldn't equip.");
+      toast({ title: "Couldn't equip", body: e instanceof Error ? e.message : "", tone: "bad" });
     } finally {
       setBusy(null);
     }
   };
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-center justify-between">
-        <h1 className="font-display text-2xl">Store</h1>
-        <p className="text-lg text-coin" aria-label={`${data.coins} coins`}>◉ {data.coins}</p>
-      </header>
-      {notice && <p role="status" className="rounded-xl bg-surface-elevated p-3 text-sm">{notice}</p>}
-      <div className="grid gap-3 md:grid-cols-3">
-        {data.items.map((item) => (
-          <article key={item.id} className="rounded-xl bg-surface-card p-4 shadow-card" aria-label={`${item.name}, ${item.status}`}>
-            <h2 className="font-medium">{item.name}</h2>
-            <p className="text-xs text-ink-secondary">{item.description}</p>
-            <p className="mt-1 text-xs text-ink-muted">{item.rarity} · ◉ {item.price}</p>
-            <p className="mt-1 text-xs font-semibold">
-              {item.status === "equipped" ? "Equipped ✓" : item.status === "owned" ? "Owned" : item.status === "locked" ? "Locked — earn more coins" : "Available"}
-            </p>
-            <div className="mt-2 flex gap-2">
-              {!item.owned ? (
-                <button
-                  onClick={() => buy(item)}
-                  disabled={busy === item.id || item.status === "locked"}
-                  className="rounded-lg bg-xp px-3 py-1.5 text-sm font-semibold text-surface-bg disabled:opacity-50"
-                >
-                  {busy === item.id ? "…" : "Buy"}
-                </button>
-              ) : !item.equipped ? (
-                <button onClick={() => equip(item)} disabled={busy === item.id} className="rounded-lg border border-xp/50 px-3 py-1.5 text-sm">
-                  {busy === item.id ? "…" : "Equip"}
-                </button>
-              ) : null}
-            </div>
-          </article>
-        ))}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <SectionHeading title="Identity market" />
+        <CoinPurse coins={data.coins} />
       </div>
+      {GROUPS.map((g) => {
+        const items = data.items.filter((i) => i.itemType === g);
+        if (!items.length) return null;
+        return (
+          <section key={g} aria-label={g.replace(/_/g, " ")}>
+            <h2 className="mb-2 text-sm font-semibold capitalize text-ink-secondary">{g.replace(/_/g, " ")}</h2>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+              {items.map((item) => (
+                <StoreItemCard key={item.id} item={item} onBuy={() => buy(item)} onEquip={() => equip(item)} busy={busy === item.id} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
