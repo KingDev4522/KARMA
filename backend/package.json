@@ -12,6 +12,7 @@
     "test": "tsx tests/rpgEngine.test.ts && tsx tests/rewardFlow.test.ts && tsx tests/names.test.ts && tsx tests/routines.test.ts && tsx tests/penalties.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy && prisma db seed",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

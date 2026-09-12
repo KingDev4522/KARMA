@@ -1,0 +1,47 @@
+# Render blueprint — KARMA backend.
+#
+# Purpose: on every deployment, run Prisma migrations + seed BEFORE the app
+# starts. This makes "code ahead of database" impossible — the exact class of
+# outage we hit when new columns/enums were added but the live DB was never
+# migrated.
+#
+# DATABASE_URL must be the DIRECT (non-pooled) Supabase connection for
+# migrations. In the Render dashboard set:
+#   DATABASE_URL  = direct connection string (port 5432, ?sslmode=require)
+#   DIRECT_URL    = same direct string
+#   SUPABASE_URL  = https://<ref>.supabase.co
+#   SUPABASE_JWT_SECRET = your HS256 secret
+#   CORS_ORIGIN   = comma-separated allowed origins (e.g. your Vercel URL)
+#   NODE_ENV      = production
+#
+# Do not use the pooled URL for DATABASE_URL during migrate/seed — Prisma
+# migrations and psql's ALTER TYPE need a direct connection.
+
+services:
+  - type: web
+    name: karma-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: |-
+      npm ci
+      npx prisma generate
+      npm run build
+      npm run db:deploy
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
