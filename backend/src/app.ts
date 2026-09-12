@@ -13,6 +13,10 @@ import { apiRouter } from "./routes";
 export function createApp() {
   const app = express();
   app.disable("x-powered-by");
+  // Required behind Render's reverse proxy: without this, express-rate-limit
+  // sees X-Forwarded-For with an untrusted proxy and fails every request.
+  // Single proxy hop (Render) — trust exactly one.
+  app.set("trust proxy", 1);
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigin, credentials: true }));
   app.use(express.json({ limit: "256kb" }));
