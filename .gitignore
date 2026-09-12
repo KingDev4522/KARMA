@@ -1,7 +1,12 @@
 # ── LIFE RPG root ignore ──────────────────────────────────────────────
 # Agent / assistant workspaces (local-only tooling, skills, scratchpads)
 .agents/
+.agent/
+agent/
 .claude/
+
+# Skills installer lockfile (local install metadata)
+skills-lock.json
 
 # Local portable Postgres (binaries + cluster data + password file)
 .postgres/
