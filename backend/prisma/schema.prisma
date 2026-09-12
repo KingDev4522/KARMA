@@ -1,0 +1,358 @@
+// Prisma schema — LIFE RPG backend (LRP-BE-001 §2-§3, §20).
+// Database: PostgreSQL (Supabase-compatible). Relational + transactional.
+// datasource uses DATABASE_URL; DIRECT_URL for migrations via env.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum QuestType {
+  quick
+  focus
+  routine
+  campaign
+  challenge
+  recovery
+}
+
+enum QuestStatus {
+  draft
+  active
+  in_progress
+  completed
+  skipped
+  archived
+}
+
+enum ItemType {
+  frame
+  title
+  nameplate
+  realm
+  effect
+  companion_emote
+  quest_skin
+  badge_case
+  hero_card
+}
+
+enum FocusStatus {
+  running
+  paused
+  completed
+  cancelled
+}
+
+enum CampaignStatus {
+  active
+  paused
+  completed
+  archived
+}
+
+enum MilestoneStatus {
+  todo
+  in_progress
+  done
+  skipped
+}
+
+// Supabase Auth user id (auth.users.id) is the owner key. Backend never trusts client user_id.
+model Profile {
+  id               String   @id @db.Text // = auth user id
+  displayName      String?  @map("display_name") @db.Text
+  heroName         String?  @map("hero_name") @db.Text
+  bio              String?  @db.Text
+  heroAssetId      String?  @map("hero_asset_id") @db.Text
+  companionAssetId String?  @map("companion_asset_id") @db.Text
+  lifeDomains      String[] @default([]) @map("life_domains")
+  // UX prefs (LRP-FE-001 §15/§20): reduced-motion + theme. Authoritative here so
+  // prefs survive refresh/cross-device; localStorage is only non-authoritative cache.
+  reducedMotion    Boolean  @default(false) @map("reduced_motion")
+  theme            String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  progression ProfileProgression?
+  attributes  ProfileAttribute[]
+  loadout     UserLoadout?
+
+  @@map("profiles")
+}
+
+model ProfileProgression {
+  profileId     String    @id @map("profile_id") @db.Text
+  lifetimeXp    Int       @default(0) @map("lifetime_xp")
+  seasonXp      Int       @default(0) @map("season_xp")
+  level         Int       @default(1)
+  rankKey       String    @default("novice_i") @map("rank_key") @db.Text
+  coins         Int       @default(0)
+  currentStreak Int       @default(0) @map("current_streak")
+  bestStreak    Int       @default(0) @map("best_streak")
+  momentum      Int       @default(0)
+  lastActiveDay DateTime? @map("last_active_day") @db.Date
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("profile_progression")
+}
+
+model Attribute {
+  id          String @id @default(uuid()) @db.Uuid
+  key         String @unique @db.Text
+  name        String @db.Text
+  description String @db.Text
+
+  profiles ProfileAttribute[]
+
+  @@map("attributes")
+}
+
+model ProfileAttribute {
+  profileId   String   @map("profile_id") @db.Text
+  attributeId String   @map("attribute_id") @db.Uuid
+  xp          Int      @default(0)
+  level       Int      @default(1)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+
+  @@id([profileId, attributeId])
+  @@map("profile_attributes")
+}
+
+model ActivityType {
+  id                 String  @id @default(uuid()) @db.Uuid
+  key                String  @unique @db.Text
+  name               String  @db.Text
+  description        String  @db.Text
+  primaryAttribute   String  @map("primary_attribute") @db.Text
+  secondaryAttribute String  @map("secondary_attribute") @db.Text
+  primaryRatio       Float   @default(1) @map("primary_ratio")
+  secondaryRatio     Float   @default(0.35) @map("secondary_ratio")
+  active             Boolean @default(true)
+
+  quests Quest[]
+
+  @@map("activity_types")
+}
+
+model Quest {
+  id                String      @id @default(uuid()) @db.Uuid
+  userId            String      @map("user_id") @db.Text
+  title             String      @db.Text
+  description       String?     @db.Text
+  questType         QuestType   @map("quest_type")
+  activityTypeId    String?     @map("activity_type_id") @db.Uuid
+  difficulty        Int         @default(3)
+  estimatedMinutes  Int?        @map("estimated_minutes")
+  scheduledFor      DateTime?   @map("scheduled_for") @db.Date
+  dueAt             DateTime?   @map("due_at") @db.Timestamptz(6)
+  status            QuestStatus @default(active)
+  campaignId        String?     @map("campaign_id") @db.Uuid
+  milestoneId       String?     @map("milestone_id") @db.Uuid
+  isPinned          Boolean     @default(false) @map("is_pinned")
+  recurrenceRule    Json?       @map("recurrence_rule")
+  primaryOverride   String?     @map("primary_override") @db.Text
+  secondaryOverride String?     @map("secondary_override") @db.Text
+  deletedAt         DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  activityType  ActivityType?      @relation(fields: [activityTypeId], references: [id], onDelete: SetNull)
+  campaign      Campaign?          @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  milestone     CampaignMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  instances     QuestInstance[]
+  completions   QuestCompletion[]
+  focusSessions FocusSession[]
+
+  @@index([userId, status])
+  @@index([userId, scheduledFor])
+  @@index([userId, dueAt])
+  @@map("quests")
+}
+
+model QuestInstance {
+  id             String      @id @default(uuid()) @db.Uuid
+  questId        String      @map("quest_id") @db.Uuid
+  occurrenceDate DateTime    @map("occurrence_date") @db.Date
+  status         QuestStatus @default(active)
+  completedAt    DateTime?   @map("completed_at") @db.Timestamptz(6)
+
+  quest Quest @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([questId, occurrenceDate])
+  @@index([questId, occurrenceDate])
+  @@map("quest_instances")
+}
+
+model QuestCompletion {
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @map("user_id") @db.Text
+  questId              String   @map("quest_id") @db.Uuid
+  instanceId           String?  @map("instance_id") @db.Uuid
+  idempotencyKey       String   @map("idempotency_key") @db.Text
+  completedAt          DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+  baseXp               Int      @map("base_xp")
+  rewardXp             Int      @map("reward_xp")
+  rewardCoins          Int      @map("reward_coins")
+  activityKey          String?  @map("activity_key") @db.Text
+  primaryAttribute     String?  @map("primary_attribute") @db.Text
+  primaryAttributeXp   Int      @default(0) @map("primary_attribute_xp")
+  secondaryAttribute   String?  @map("secondary_attribute") @db.Text
+  secondaryAttributeXp Int      @default(0) @map("secondary_attribute_xp")
+
+  quest Quest @relation(fields: [questId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, completedAt])
+  @@map("quest_completions")
+}
+
+model Campaign {
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @map("user_id") @db.Text
+  title       String         @db.Text
+  description String?        @db.Text
+  status      CampaignStatus @default(active)
+  targetDate  DateTime?      @map("target_date") @db.Date
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  milestones CampaignMilestone[]
+  quests     Quest[]
+
+  @@index([userId, status])
+  @@map("campaigns")
+}
+
+model CampaignMilestone {
+  id          String          @id @default(uuid()) @db.Uuid
+  campaignId  String          @map("campaign_id") @db.Uuid
+  title       String          @db.Text
+  description String?         @db.Text
+  orderIndex  Int             @map("order_index")
+  targetDate  DateTime?       @map("target_date") @db.Date
+  status      MilestoneStatus @default(todo)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  quests   Quest[]
+
+  @@index([campaignId, orderIndex])
+  @@map("campaign_milestones")
+}
+
+model FocusSession {
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @map("user_id") @db.Text
+  questId        String?     @map("quest_id") @db.Uuid
+  startedAt      DateTime    @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt        DateTime?   @map("ended_at") @db.Timestamptz(6)
+  plannedSeconds Int         @map("planned_seconds")
+  actualSeconds  Int?        @map("actual_seconds")
+  status         FocusStatus @default(running)
+
+  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startedAt])
+  @@map("focus_sessions")
+}
+
+model RewardLedger {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Text
+  sourceType   String   @map("source_type") @db.Text // quest_completion | achievement | level_up | campaign_milestone | purchase | admin
+  sourceId     String   @map("source_id") @db.Text
+  currencyType String   @map("currency_type") @db.Text // xp | coins | attribute_xp
+  amount       Int
+  metadata     Json?    @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt])
+  @@map("reward_ledger")
+}
+
+model Item {
+  id          String   @id @default(uuid()) @db.Uuid
+  itemType    ItemType @map("item_type")
+  key         String   @unique @db.Text
+  name        String   @db.Text
+  description String   @db.Text
+  assetPath   String   @map("asset_path") @db.Text
+  price       Int
+  rarity      String   @default("common") @db.Text
+  metadata    Json?    @default("{}")
+  active      Boolean  @default(true)
+
+  @@map("items")
+}
+
+model Inventory {
+  userId     String   @map("user_id") @db.Text
+  itemId     String   @map("item_id") @db.Uuid
+  acquiredAt DateTime @default(now()) @map("acquired_at") @db.Timestamptz(6)
+  source     String   @default("purchase") @db.Text
+
+  @@id([userId, itemId])
+  @@index([userId])
+  @@map("inventory")
+}
+
+model UserLoadout {
+  userId               String  @id @map("user_id") @db.Text
+  frameItemId          String? @map("frame_item_id") @db.Uuid
+  titleItemId          String? @map("title_item_id") @db.Uuid
+  realmItemId          String? @map("realm_item_id") @db.Uuid
+  effectItemId         String? @map("effect_item_id") @db.Uuid
+  companionEmoteItemId String? @map("companion_emote_item_id") @db.Uuid
+  questSkinItemId      String? @map("quest_skin_item_id") @db.Uuid
+  badgeCaseItemId      String? @map("badge_case_item_id") @db.Uuid
+  heroCardItemId       String? @map("hero_card_item_id") @db.Uuid
+
+  profile Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_loadout")
+}
+
+model Achievement {
+  id          String @id @default(uuid()) @db.Uuid
+  key         String @unique @db.Text
+  name        String @db.Text
+  description String @db.Text
+  iconPath    String @map("icon_path") @db.Text
+  ruleKey     String @map("rule_key") @db.Text
+  rewardCoins Int    @default(0) @map("reward_coins")
+
+  unlocked UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  userId        String   @map("user_id") @db.Text
+  achievementId String   @map("achievement_id") @db.Uuid
+  unlockedAt    DateTime @default(now()) @map("unlocked_at") @db.Timestamptz(6)
+
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@id([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+model RestDay {
+  userId    String   @map("user_id") @db.Text
+  date      DateTime @db.Date
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([userId, date])
+  @@map("rest_days")
+}
