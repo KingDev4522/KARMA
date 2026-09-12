@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 /**
- * The visual system lives in app/globals.css (Manrope + data-theme
+ * The visual system lives in app/globals.css (Inter + data-theme
  * tokens + component classes). Tailwind is kept for utilities only.
  */
 const config: Config = {
@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Manrope", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
       },
     },
   },

@@ -153,21 +153,55 @@ export default function ChroniclePage() {
 
       <div className="chronicle-grid">
         <div className="timeline panel">
+          <div className="sec-head" style={{ margin: 0 }}>
+            <h3>Story</h3>
+          </div>
           {model.evs.length === 0 && <p style={{ fontSize: 13.5, color: "var(--text-3)" }}>No story yet — your first quest writes the opening line.</p>}
-          {model.evs.map((ev, i) => (
-            <div key={i} className={`tl-item t-${ev.kind}`}>
-              <span className="tl-dot">
-                <Icon id={ev.kind === "achievement" ? "i-trophy" : "i-check"} />
-              </span>
-              <div className="tl-body">
-                <strong>
-                  {ev.label}
-                  {typeof ev.xp === "number" && ev.xp > 0 && <span className="tl-xp">+{ev.xp} XP</span>}
-                </strong>
-                <time>{ev.time}</time>
+          {(() => {
+            const groups = new Map<string, typeof model.evs>();
+            for (const ev of model.evs) {
+              const date = new Date(ev.at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+              if (!groups.has(date)) groups.set(date, []);
+              groups.get(date)!.push(ev);
+            }
+            return Array.from(groups.entries()).map(([date, items]) => (
+              <div key={date}>
+                <div
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 650,
+                    letterSpacing: ".12em",
+                    textTransform: "uppercase",
+                    color: "var(--text-3)",
+                    margin: "12px 0 6px",
+                    paddingTop: 8,
+                    borderTop: "1px solid var(--border)",
+                  }}
+                >
+                  {date}
+                </div>
+                {items.map((ev, j) => (
+                  <div key={`${date}-${j}`} className={`tl-item t-${ev.kind}`}>
+                    <span className="tl-dot">
+                      <Icon id={ev.kind === "achievement" ? "i-trophy" : "i-check"} />
+                    </span>
+                    <div className="tl-body">
+                      <strong>
+                        {ev.label}
+                        {(ev.kind === "achievement" || ev.kind === "level") && (
+                          <span className="seal" style={{ width: 18, height: 18, fontSize: 9, marginLeft: 6 }}>
+                            <Icon id="i-trophy" />
+                          </span>
+                        )}
+                        {typeof ev.xp === "number" && ev.xp > 0 && <span className="tl-xp">+{ev.xp} XP</span>}
+                      </strong>
+                      <time>{ev.time}</time>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))}
+            ));
+          })()}
         </div>
         <div className="chart panel">
           <div className="sec-head" style={{ margin: 0 }}>

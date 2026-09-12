@@ -21,7 +21,7 @@ function QuestsInner() {
   const [status, setStatus] = useState("all");
   const [activity, setActivity] = useState("All");
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [creator, setCreator] = useState(false);
+  const [creator, setCreator] = useState(() => params.get("create") === "1");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, CompletionResponse>>({});
   const [ceremony, setCeremony] = useState<CompletionResponse | null>(null);

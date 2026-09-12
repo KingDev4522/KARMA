@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { CompletionResponse, Quest, RewardPreview } from "@/lib/types";
+import { motion, AnimatePresence } from "framer-motion";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/components/toast";
 import { useFocus } from "@/components/focus";
-import { Icon, type IconId } from "@/components/illustrations";
+import { Hero, Icon, type IconId } from "@/components/illustrations";
 
 /* ================= Backend → display mapping ================= */
 
@@ -46,13 +47,14 @@ export function questActivity(q: Quest): string {
 export function diffLabel(d: number): string {
   if (d <= 1) return "Easy";
   if (d === 2) return "Medium";
-  if (d <= 4) return "Hard";
+  if (d === 3) return "Hard";
+  if (d === 4) return "Major";
   return "Epic";
 }
 function diffCount(d: number): number {
   if (d <= 1) return 1;
   if (d === 2) return 2;
-  if (d <= 4) return 3;
+  if (d === 3) return 3;
   return 4;
 }
 export function dueLabel(q: Quest): string {
@@ -98,17 +100,22 @@ export function DiffDots({ level, title }: { level: number; title?: string }) {
   );
 }
 
-/** Fly XP particles from a source element to the coin pill. */
-export function burstAt(sourceEl: Element | null, n = 7) {
+/** Fly XP particles from a source element to coin pill + level ring (subtle RPG). */
+export function burstAt(sourceEl: Element | null, n = 9) {
   try {
     if (document.documentElement.dataset.motion === "off") return;
-    const to = document.getElementById("coinPill");
+    const toCoin = document.getElementById("coinPill");
+    const toRing = document.getElementById("lvlRing");
+    const to = toCoin ?? toRing;
     if (!sourceEl || !to) return;
     const f = sourceEl.getBoundingClientRect();
-    const t = to.getBoundingClientRect();
     for (let i = 0; i < n; i++) {
+      const useRing = !!toRing && i % 3 === 0;
+      const target = (useRing ? toRing : toCoin) as HTMLElement;
+      const tr = target.getBoundingClientRect();
       const p = document.createElement("i");
       p.className = "xp-particle";
+      if (i % 4 === 0) p.style.background = "var(--accent)";
       const sx = f.left + f.width / 2 + (Math.random() - 0.5) * 40;
       const sy = f.top + f.height / 2 + (Math.random() - 0.5) * 20;
       p.style.left = `${sx}px`;
@@ -118,7 +125,7 @@ export function burstAt(sourceEl: Element | null, n = 7) {
         [
           { transform: "translate(0,0) scale(1)", opacity: 1 },
           {
-            transform: `translate(${t.left + t.width / 2 - sx + (Math.random() - 0.5) * 30}px,${t.top + t.height / 2 - sy}px) scale(.3)`,
+            transform: `translate(${tr.left + tr.width / 2 - sx + (Math.random() - 0.5) * 30}px,${tr.top + tr.height / 2 - sy}px) scale(.3)`,
             opacity: 0.9,
           },
         ],
@@ -154,9 +161,9 @@ export function QuestPrimary({
   return (
     <article className="panel primary-quest" aria-label={`Primary quest: ${quest.title}`}>
       <div className="pq-top">
-        <span className="tag">Today&apos;s Quest</span>
-        <span className="tag tag--plain">{questActivity(quest)}</span>
-        <span className="tag tag--plain">{dueLabel(quest)}</span>
+        <span className="tag tag--accent">Today&apos;s Quest</span>
+        <span className="tag">{questActivity(quest)}</span>
+        <span className="tag">{dueLabel(quest)}</span>
       </div>
       <h3>{quest.title}</h3>
       {quest.description && <p className="desc">{quest.description}</p>}
@@ -181,7 +188,7 @@ export function QuestPrimary({
       </div>
       <div className="pq-actions">
         <button
-          className="btn btn--primary btn--lg"
+          className="btn btn--accent btn--lg"
           disabled={!!completing}
           onClick={(e) => onComplete(quest, e.currentTarget as HTMLElement)}
         >
@@ -306,6 +313,7 @@ export function QuestRow({
           <span>{dueLabel(quest)}</span>
           <span>{diffLabel(quest.difficulty ?? 3)}</span>
           <DiffDots level={quest.difficulty ?? 3} />
+          <span><Icon id="i-clock" />{quest.estimatedMinutes ? `${quest.estimatedMinutes}m` : "—"}</span>
         </div>
         {lastResult && (
           <p style={{ fontSize: 12, fontWeight: 700, color: "var(--tint-sage-d)", marginTop: 4 }}>
@@ -315,7 +323,7 @@ export function QuestRow({
           </p>
         )}
       </div>
-      {attr && <span className="tag tag--plain">{attr.name}</span>}
+      {attr && <span className="tag">{attr.name}</span>}
       <span className="qr-xp">+{lastResult ? lastResult.rewardXp : questXp(quest)} XP</span>
       <span className="qr-coin">
         <Icon id="i-coin" />+{lastResult ? lastResult.rewardCoins : questCoins(quest)}
@@ -419,7 +427,7 @@ const ACTIVITY_KEY: Record<string, string> = {
   Tidy: "life_admin",
 };
 const ACTIVITY_ATTR: Record<string, string> = {
-  Move: "vitality",
+  Move: "strength",
   Mind: "intellect",
   Create: "craft",
   Connect: "connection",
@@ -435,7 +443,7 @@ const DIFFS = [
   { label: "Major", num: 4 },
   { label: "Epic", num: 5 },
 ];
-const DURATIONS = [10, 15, 30, 45, 60, 90, 120];
+const DURATIONS = [2, 5, 10, 15, 30, 45, 60, 90, 120];
 const WHENS = ["Today", "Tomorrow", "This weekend", "Someday"] as const;
 const KINDS = [
   { v: "quick", hint: "1–15 min · fast win" },
@@ -606,8 +614,8 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
         {step === 1 && (
           <>
             <div className="field">
-              <label htmlFor="dqTitle">Quest title</label>
-              <input id="dqTitle" type="text" placeholder="e.g. Practice watercolor for 30 minutes" value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} autoFocus />
+              <label htmlFor="dqTitle">What are you working on?</label>
+              <input id="dqTitle" className="cmd-input" type="text" placeholder="Name the quest" value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} autoFocus />
             </div>
             <div className="field">
               <label htmlFor="dqDesc">Description (optional)</label>
@@ -642,7 +650,7 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
           <div className="chip-row" role="group" aria-label="Quest kind">
             {KINDS.map((k) => (
               <button key={k.v} className={`chip${kind === k.v ? " is-on" : ""}`} onClick={() => setKind(k.v)} aria-pressed={kind === k.v} title={k.hint}>
-                {k.v}
+                {k.v.charAt(0).toUpperCase() + k.v.slice(1)}
               </button>
             ))}
           </div>
@@ -743,7 +751,17 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
             Back
           </button>
           {step < 5 ? (
-            <button className="btn btn--primary" onClick={() => setStep((s) => s + 1)}>
+            <button
+              className="btn btn--primary"
+              disabled={step === 1 && !title.trim()}
+              onClick={() => {
+                if (step === 1 && !title.trim()) {
+                  toast("Give your quest a name first", "i-close");
+                  return;
+                }
+                setStep((s) => s + 1);
+              }}
+            >
               Continue
             </button>
           ) : (
@@ -757,50 +775,55 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
   );
 }
 
-/* ================= Level-up ================= */
+/* ================= Level-up — luxury minimal sequence ================= */
 
-const BURST_COLORS = ["#D4694A", "#E9B95C", "#93AC8E", "#B0A4E6", "#8FBCD4"];
+function CountUp({ to, duration = 700 }: { to: number; duration?: number }) {
+  const [n, setN] = useState(0);
+  const reduced = typeof document !== "undefined" && (document.documentElement.dataset.motion === "off" || window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    if (reduced) { setN(to); return; }
+    let raf = 0; const t0 = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setN(Math.round(eased * to));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [to, duration, reduced]);
+  return <>{n}</>;
+}
 
 export function LevelUpModal({ level, message, rankUp, onClose }: { level: number; message: string; rankUp?: { from: string; to: string; bonusCoins: number } | null; onClose: () => void }) {
-  const burstRef = useRef<HTMLDivElement>(null);
+  const reduced = typeof document !== "undefined" && (document.documentElement.dataset.motion === "off" || window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
-    const mount = burstRef.current;
-    if (!mount || document.documentElement.dataset.motion === "off") return;
-    for (let i = 0; i < 26; i++) {
-      const s = document.createElement("span");
-      s.style.background = BURST_COLORS[i % BURST_COLORS.length];
-      mount.appendChild(s);
-      const a = Math.random() * Math.PI * 2;
-      const d = 90 + Math.random() * 130;
-      s.animate(
-        [
-          { transform: "translate(-50%,-50%) scale(0)", opacity: 1 },
-          {
-            transform: `translate(${Math.cos(a) * d - 4}px,${Math.sin(a) * d - 4}px) scale(1) rotate(${Math.random() * 360}deg)`,
-            opacity: 0,
-          },
-        ],
-        { duration: 900 + Math.random() * 500, easing: "cubic-bezier(.2,.7,.3,1)", delay: i * 22 },
-      );
-    }
-  }, []);
-
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
-    <div className="modal-backdrop is-open" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal levelup-modal" role="dialog" aria-label={`Level ${level}`}>
-        <div className="burst" ref={burstRef} />
-        <h3 style={{ marginTop: 6 }}>Level up</h3>
-        <div className="lv-num">{level}</div>
-        <p>{message}</p>
-        {rankUp && (
-          <p role="status" style={{ fontWeight: 800, color: "var(--gold)", marginTop: 6 }}>
-            Rank up: {rankUp.from} → {rankUp.to} · +{rankUp.bonusCoins} chest
-          </p>
-        )}
-        <button className="btn btn--primary btn--lg" style={{ width: "100%", justifyContent: "center" }} onClick={onClose}>
-          Continue the journey
-        </button>
-      </div>
-    </div>
+    <AnimatePresence>
+      <motion.div className="modal-backdrop is-open" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : 0.22 }}>
+        <motion.div className="modal levelup-modal" role="dialog" aria-modal="true" aria-label={`Level ${level}`} initial={reduced ? false : { scale: 0.96, y: 12, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.98, y: 8, opacity: 0 }} transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 260, damping: 20 }}>
+          <div className="lv-ring" aria-hidden="true" />
+          <Hero width={120} className="lv-hero idle" />
+          <h3>Level up</h3>
+          <div className="lv-num"><CountUp to={level} /></div>
+          {rankUp && (
+            <motion.p className="lv-rank" role="status" initial={reduced ? false : { scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 18, delay: 0.18 }}>
+              <span className="seal" aria-hidden="true">
+                <Icon id="i-check" />
+              </span>
+              {rankUp.from} → {rankUp.to} · +{rankUp.bonusCoins} coins
+            </motion.p>
+          )}
+          <p>{message}</p>
+          <button className="btn btn--primary btn--lg" style={{ width: "100%", justifyContent: "center" }} onClick={onClose} autoFocus>
+            Continue
+          </button>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }

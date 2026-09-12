@@ -40,8 +40,9 @@ const TITLES: Record<string, string> = {
 /** Public routes that mint or need no session (hard auth gate allow-list). */
 const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/welcome"];
 
-/** App shell: brand sidebar, topbar (search/coins/theme/notifications/profile), mobile nav. */
-export function Shell({ children }: { children: React.ReactNode }) {
+// Optional right-panel slot prop — reserved for future detail/preview pane (e.g. quest inspector).
+// Not rendered yet; CSS for .right-panel will be added in P2 when the slot is used.
+export function Shell({ children, rightPanel }: { children: React.ReactNode; rightPanel?: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const { authHeaders, userId, signOut, email, loading: authLoading } = useAuth();
@@ -83,7 +84,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
     refreshIdentity();
   }, [refreshIdentity, path]);
   useEffect(() => {
-    const fn = () => refreshIdentity();
+    const fn = () => {
+      refreshIdentity();
+      const el = document.querySelector(".topbar__progress") as HTMLElement | null;
+      if (el && document.documentElement.dataset.motion !== "off" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        el.classList.remove("is-pulse");
+        void el.offsetWidth;
+        el.classList.add("is-pulse");
+        setTimeout(() => el.classList.remove("is-pulse"), 650);
+      }
+    };
     window.addEventListener("liferpg:refresh", fn);
     return () => window.removeEventListener("liferpg:refresh", fn);
   }, [refreshIdentity]);
@@ -121,6 +131,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }, [notifOpen, profileOpen, sideOpen]);
 
   // Navigating away always resets popups/menus.
+  // aria-hidden + inert for the drawer when closed (mobile a11y).
+  useEffect(() => {
+    const el = sideRef.current as unknown as HTMLElement & { inert?: boolean };
+    if (!el) return;
+    if (sideOpen) {
+      el.removeAttribute("inert");
+      if ("inert" in el) el.inert = false;
+    } else {
+      el.setAttribute("inert", "");
+      if ("inert" in el) el.inert = true;
+    }
+  }, [sideOpen]);
+
   useEffect(() => {
     setNotifOpen(false);
     setProfileOpen(false);
@@ -161,10 +184,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <IconSprite />
 
       {/* ============ SIDEBAR ============ */}
-      <aside ref={sideRef} className={`sidebar${sideOpen ? " is-open" : ""}`} aria-label="Primary">
+      <aside
+        ref={sideRef}
+        className={`sidebar${sideOpen ? " is-open" : ""}`}
+        aria-label="Primary"
+        aria-hidden={sideOpen ? "false" : "true"}
+      >
         <div className="sidebar__brand">
-          <span className="brand-mark">
-            <Icon id="i-spark" />
+          <span className="brand-mark" aria-hidden="true">
+            L
           </span>
           <span className="brand-name">
             LIFE<em>RPG</em>
@@ -200,6 +228,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
               Lv {identity.level} · {identity.rank}
             </span>
           </span>
+          <span className="rank-insignia" title={`Level ${identity.level}`}>
+            {identity.level}
+          </span>
         </Link>
       </aside>
       <div
@@ -212,9 +243,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <div className="app-main">
         <header className="topbar">
           <button className="icon-btn menu-btn" onClick={() => setSideOpen(true)} aria-label="Open menu">
-            <Icon id="i-campaigns" />
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
           </button>
           <h1 className="topbar__title">{TITLES[path] ?? "Today"}</h1>
+          <span className="topbar__progress" aria-label={"Level " + identity.level}>
+            {identity.level} · {identity.rank}
+          </span>
           <div className="topbar__search">
             <Icon id="i-search" style={{ width: 16, height: 16 }} />
             <input
@@ -232,7 +268,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="topbar__actions">
             <div className="coin-pill" id="coinPill" title="Your coins" aria-label={`${identity.coins} coins`}>
               <Icon id="i-coin" />
-              <span>{identity.coins.toLocaleString("en-US")}</span>
+              <span className="coin-val">{identity.coins.toLocaleString("en-US")}</span>
             </div>
             <button className="icon-btn" onClick={toggle} title="Toggle theme" aria-label="Toggle theme">
               <Icon id={theme === "dark" ? "i-sun" : "i-moon"} />
@@ -305,13 +341,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* ============ MOBILE NAV ============ */}
+      <Link href="/quests?create=1" className="fab" aria-label="Create quest">
+        <Icon id="i-plus" />
+      </Link>
       <nav className="mobile-nav" aria-label="Primary mobile">
         {[
           { id: "today", href: "/", label: "Today", icon: "i-today" as IconId },
           { id: "quests", href: "/quests", label: "Quests", icon: "i-quests" as IconId },
-          { id: "campaigns", href: "/campaigns", label: "Journeys", icon: "i-campaigns" as IconId },
+          { id: "campaigns", href: "/campaigns", label: "Campaigns", icon: "i-campaigns" as IconId },
           { id: "focus", href: "/focus", label: "Focus", icon: "i-focus" as IconId },
           { id: "realm", href: "/realm", label: "Realm", icon: "i-realm" as IconId },
+          { id: "chronicle", href: "/chronicle", label: "Chronicle", icon: "i-chronicle" as IconId },
         ].map((n) => (
           <Link key={n.id} href={n.href} className={isActive(n.href) ? "is-active" : ""} aria-current={isActive(n.href) ? "page" : undefined}>
             <Icon id={n.icon} />

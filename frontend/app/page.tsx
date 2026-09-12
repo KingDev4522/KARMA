@@ -9,12 +9,12 @@ import { clientTimeZone, useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { useFocus } from "@/components/focus";
 import type { Campaign, CompletionResponse, Quest } from "@/lib/types";
-import { Companion, EnvStack, Hero, Icon } from "@/components/illustrations";
-import { ATTR_META, LevelUpModal, QuestMasonryCard, QuestPrimary, burstAt } from "@/components/quests";
+import { Companion, Hero, Icon, variantFor } from "@/components/illustrations";
+import { ATTR_META, LevelUpModal, QuestPrimary, QuestRow, burstAt } from "@/components/quests";
 import { CampaignPreview } from "@/components/journey";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton, useNowDate } from "@/components/States";
 
-/** Today — hero display, primary quest, progression, masonry, campaign, growth. */
+/** Today — editorial command center: greeting, level, decisive quest, quiet ledger. */
 export default function TodayPage() {
   const { authHeaders, userId, loading: authLoading } = useAuth();
   const toast = useToast();
@@ -56,7 +56,18 @@ export default function TodayPage() {
     }
   };
 
-  const g = data.greeting;
+  const g = data.greeting as typeof data.greeting & { heroAssetId?: string | null; heroName?: string };
+  const heroAssetId: string | null =
+    ((data as any)?.hero?.heroAssetId as string | null | undefined) ??
+    ((data as any)?.hero?.assetId as string | null | undefined) ??
+    ((data as any)?.heroAssetId as string | null | undefined) ??
+    ((data as any)?.greeting?.heroAssetId as string | null | undefined) ??
+    ((data as any)?.greeting?.hero_asset_id as string | null | undefined) ??
+    ((data as any)?.profile?.heroAssetId as string | null | undefined) ??
+    ((g as any)?.heroAssetId as string | null | undefined) ??
+    null;
+  const heroVariant = variantFor(heroAssetId) ?? 0;
+  const heroName: string = (g as any)?.heroName ?? (data as any)?.hero?.heroName ?? (data as any)?.heroName ?? "hero";
   const seen = new Set<string>();
   const flat: Quest[] = [];
   for (const q of [...data.buckets.pinned, ...data.buckets.dueToday, ...data.buckets.routine, ...data.buckets.campaign, ...data.quests]) {
@@ -67,10 +78,9 @@ export default function TodayPage() {
   }
   if (data.spark && !seen.has(data.spark.id)) flat.push(data.spark);
   const primary = flat.find((q) => q.isPinned) ?? flat[0] ?? null;
-  const masonry = flat.filter((q) => q !== primary).slice(0, 6);
+  const upNext = flat.filter((q) => q !== primary).slice(0, 6);
 
   const pct = Math.min(100, Math.max(0, Math.round((g.xpProgress.intoLevel / Math.max(1, g.xpProgress.neededForNext)) * 100)));
-  const ringC = 2 * Math.PI * 16;
 
   const detail = (campaignDetail ?? null) as Campaign | null;
   const milestones = (detail?.milestones ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex);
@@ -87,30 +97,52 @@ export default function TodayPage() {
           />
       )}
 
-      {/* HERO */}
-      <div className="today-hero">
-        <div className="today-hero__text">
-          <p className="eyebrow">
-            <Icon id="i-flame" />
-            <span>
-              {todayDate} · {data.streak.current}-day streak
+      {/* EDITORIAL HEAD */}
+      <header className="ed-head" style={{ position: "relative" }}>
+        <div>
+          <p className="ed-eyebrow">
+            <span className="meta">{todayDate}</span>
+            <span className="meta" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <Icon id="i-flame" style={{ width: 13, height: 13 }} />
+              {data.streak.current}-day streak
             </span>
           </p>
-          <h2>
-            Good {g.timeOfDay}, {g.heroName}.
-          </h2>
-          <p className="sub">Your next quest is ready.</p>
-        </div>
-        <div className="today-hero__art">
-          <EnvStack />
-          <div className="companion-fig">
-            <Companion width="100%" />
+          <h1 className="ed-title">
+            Good {g.timeOfDay}, <span className="who">{heroName}.</span>
+          </h1>
+          <p className="ed-sub">
+            {g.rank.display} · {upNext.length + (primary ? 1 : 0)} open{" "}
+            {(upNext.length + (primary ? 1 : 0)) === 1 ? "quest" : "quests"} ·{" "}
+            {g.coins.toLocaleString("en-US")} coins in hand.
+          </p>
+          <div className="companion-note">
+            <Companion width={30} />
+            <p>{data.companion.message}</p>
           </div>
-          <div className="hero-fig">
-            <Hero width="100%" className="idle" />
-          </div>
         </div>
-      </div>
+        <div className="ed-side">
+          <div className="ed-level">
+            <div className="lvl-ring-wrap" id="lvlRing" aria-hidden="true">
+              <svg viewBox="0 0 92 92"><circle className="track" cx="46" cy="46" r="41"/><circle className="prog" cx="46" cy="46" r="41" strokeDasharray="257.61" strokeDashoffset={257.61 * (1 - pct/100)} /></svg>
+              <div className="lvl-huge">{g.heroLevel}</div>
+            </div>
+            <div className="lvl-cap">Level · {g.rank.display}</div>
+            <div className="xp-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progress to next level">
+              <i style={{ width: `${pct}%` }} />
+            </div>
+            <div className="xp-num">
+              {g.xpProgress.intoLevel} / {g.xpProgress.neededForNext} XP
+            </div>
+          </div>
+          <figure className="hero-portrait">
+            <Hero width="100%" variant={heroVariant} />
+            <figcaption className="hp-cap">{heroName}</figcaption>
+          </figure>
+        </div>
+        <span className="seal seal--line" title="Today" aria-hidden="true" style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, fontSize: 11, lineHeight: 1 }}>
+          今
+        </span>
+      </header>
 
       <div className="today-grid">
         <div className="today-main">
@@ -120,64 +152,18 @@ export default function TodayPage() {
             <EmptyState message={data.emptyHints.allClear ?? "Every quest is stamped. The page rests."} />
           )}
 
-          {/* PROGRESSION */}
-          <div className="progression panel">
-            <div className="prog-item">
-              <div className="prog-ring">
-                <svg width="44" height="44" viewBox="0 0 40 40" aria-hidden="true">
-                  <circle cx="20" cy="20" r="16" fill="none" stroke="var(--surface-3)" strokeWidth="4" />
-                  <circle
-                    cx="20" cy="20" r="16" fill="none" stroke="var(--accent)" strokeWidth="4" strokeLinecap="round"
-                    strokeDasharray={ringC} strokeDashoffset={ringC * (1 - pct / 100)} transform="rotate(-90 20 20)"
-                  />
-                </svg>
-                <span>{g.heroLevel}</span>
-              </div>
-              <div>
-                <div className="prog-label">Level</div>
-                <div className="prog-value">{g.rank.display}</div>
-              </div>
-            </div>
-            <div className="prog-sep" />
-            <div className="xp-bar-wrap">
-              <div className="prog-label">Experience</div>
-              <div className="xp-bar">
-                <i style={{ width: `${pct}%` }} />
-              </div>
-              <div className="xp-num">
-                {g.xpProgress.intoLevel} / {g.xpProgress.neededForNext} XP
-              </div>
-            </div>
-            <div className="prog-sep" />
-            <div className="prog-item">
-              <Icon id="i-flame" style={{ color: "var(--tint-yellow-d)" }} />
-              <div>
-                <div className="prog-label">Streak</div>
-                <div className="prog-value">{data.streak.current} days</div>
-              </div>
-            </div>
-            <div className="prog-sep" />
-            <div className="prog-item">
-              <Icon id="i-coin" style={{ color: "var(--gold)" }} />
-              <div>
-                <div className="prog-label">Coins</div>
-                <div className="prog-value">{g.coins.toLocaleString("en-US")}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* MASONRY */}
-          <section aria-label="Your quests">
+          {/* UP NEXT — compact numbered rows */}
+          <section aria-label="Up next">
             <div className="sec-head">
-              <h3>Your quests</h3>
+              <h3>Up next</h3>
               <Link className="link-btn" href="/quests">
                 All quests <Icon id="i-arrow-r" />
               </Link>
             </div>
-            {masonry.length > 0 ? (
-              <div className="quest-masonry">
-                {masonry.map((q, i) => (
-                  <QuestMasonryCard key={q.id} quest={q} index={i} onComplete={complete} />
+            {upNext.length > 0 ? (
+              <div className="quest-list panel upnext">
+                {upNext.map((q, i) => (
+                  <QuestRow key={q.id} quest={q} index={i} onComplete={complete} lastResult={results[q.id] ?? null} />
                 ))}
               </div>
             ) : (
@@ -200,7 +186,7 @@ export default function TodayPage() {
           )}
           <div className="growth panel">
             <div className="sec-head" style={{ margin: 0 }}>
-              <h3>Character Growth</h3>
+              <h3>Growth</h3>
             </div>
             <div className="attr-grid">
               {data.attributeSnapshot.map((a) => {
@@ -217,12 +203,8 @@ export default function TodayPage() {
                       </div>
                       <div className="attr-bar">
                         <i style={{ width: `${Math.min(100, Math.round(((a.xp % 500) / 500) * 100))}%` }} />
+                        <i className={`attr-dot${(a.level ?? 0) >= 5 ? " is-accent" : ""}`} aria-hidden />
                       </div>
-                      {a.recent && (
-                        <div className="name" style={{ fontWeight: 400, opacity: 0.75 }} title={a.recent.questTitle}>
-                          +{a.recent.gain} from {a.recent.questTitle.length > 22 ? `${a.recent.questTitle.slice(0, 22)}…` : a.recent.questTitle}
-                        </div>
-                      )}
                     </div>
                   </div>
                 );

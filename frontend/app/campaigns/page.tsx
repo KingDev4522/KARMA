@@ -87,6 +87,7 @@ export default function CampaignsPage() {
         theme={head.status === "active" ? "Active journey" : head.status}
         desc={head.description ?? undefined}
         milestones={miles.map((m) => ({ name: m.title, done: m.status === "done", current: m.id === nextId }))}
+        breadcrumb={[head.title, miles.find((m) => m.id === nextId)?.title].filter(Boolean) as string[]}
         nextText={
           headDetail.nextMilestone
             ? `Next milestone: ${headDetail.nextMilestone.title}`

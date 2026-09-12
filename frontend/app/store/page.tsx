@@ -19,7 +19,7 @@ const CAT_LABEL: Record<string, string> = {
   companion_emote: "Companion Emotes",
   quest_skin: "Quest Skins",
   badge_case: "Badge Cases",
-  hero_card: "Hero Cards",
+  hero_card: "Hero Card Themes",
 };
 
 function Preview({ item }: { item: StoreItem }) {
@@ -78,7 +78,7 @@ const PREVIEW_BG: Record<string, string> = {
   "XP Effects": "tint-lavender",
   "Companion Emotes": "tint-sage",
   "Quest Skins": "tint-sky",
-  "Hero Cards": "tint-yellow",
+  "Hero Card Themes": "tint-yellow",
   "Badge Cases": "tint-cream",
 };
 
@@ -180,6 +180,7 @@ export default function StorePage() {
                 <div className="si-body">
                   <div>
                     <strong>{it.name}</strong>
+                    <span className="si-rare" style={{ marginTop: 4 }}>{it.rarity}</span>
                     <div className="si-cat">{label}</div>
                   </div>
                   {it.equipped ? (

@@ -3,7 +3,7 @@
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { Companion, EnvStack, Hero, Icon } from "@/components/illustrations";
+import { EnvStack, Hero, Icon, variantFor } from "@/components/illustrations";
 import { ATTR_META } from "@/components/quests";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
@@ -26,7 +26,7 @@ export default function RealmPage() {
   if (error) return <ErrorState error={error} onRetry={retry} />;
   if (!data) return <EmptyState message="Your realm is unformed. Complete a quest to begin." />;
 
-  const heroName = data.hero?.name ?? data.hero?.displayName ?? "Unnamed Hero";
+  const heroName = data.hero?.name ?? data.hero?.displayName ?? data.hero?.heroAssetId ?? data.hero?.assetId ?? "Unnamed Hero";
   const level = data.progression?.level ?? 1;
   const rank = data.rank?.display ?? "";
   const coins = data.progression?.coins ?? 0;
@@ -41,11 +41,18 @@ export default function RealmPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const locked: any[] = (badgeBook?.locked ?? []).map((a: any) => ({ key: a.key, name: a.name, description: a.description, iconPath: a.iconPath }));
   const equipped = data.equipped ?? data.loadout ?? {};
-  const cosmeticTags = [
-    equipped?.frameItemId ?? equipped?.frame ? `Frame · ${equipped.frameItemId ?? equipped.frame}` : null,
-    equipped?.titleItemId ?? equipped?.title ? `Title · ${title}` : `Title · ${title}`,
-    equipped?.realmItemId ?? equipped?.realm ? `Realm · ${equipped.realmItemId ?? equipped.realm}` : null,
-  ].filter(Boolean) as string[];
+  const cosmeticTags: string[] = [];
+  if (equipped?.frameItemId || equipped?.frame) cosmeticTags.push(`Frame · ${equipped.frameItemId ?? equipped.frame}`);
+  if (title) cosmeticTags.push(`Title · ${title}`);
+  if (equipped?.realmItemId || equipped?.realm) cosmeticTags.push(`Realm · ${equipped.realmItemId ?? equipped.realm}`);
+  if (equipped?.effectItemId) cosmeticTags.push(`Effect · ${equipped.effectItemId}`);
+
+  // Always render 8 attribute placeholders at Lv0 if empty (editorial grid)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const displayAttrs: any[] =
+    attrs.length === 0
+      ? Object.entries(ATTR_META).map(([key, meta]) => ({ key, name: meta.name, level: 0, xp: 0 }))
+      : attrs;
 
   return (
     <div className="page is-active">
@@ -61,18 +68,15 @@ export default function RealmPage() {
           <EnvStack />
           <div className="nameplate">
             <span className="np-frame">
-              <Hero width={20} />
+              <Hero width={20} variant={variantFor(data.hero?.heroAssetId ?? data.hero?.assetId ?? null)} />
             </span>
             <div>
               <strong>{heroName}</strong>
               <span>{title}</span>
             </div>
           </div>
-          <div className="companion-fig">
-            <Companion width="100%" />
-          </div>
           <div className="hero-fig">
-            <Hero width="100%" className="idle" />
+            <Hero width="100%" className="idle" variant={variantFor(data.hero?.heroAssetId ?? data.hero?.assetId ?? null)} />
           </div>
         </div>
 
@@ -81,13 +85,11 @@ export default function RealmPage() {
             <div className="id-top">
               <div>
                 <h3>{heroName}</h3>
-                <p className="rank-line">
-                  Level <b>{level}</b> · <b>{rank}</b> rank ·{" "}
-                  <span>
-                    {xpInto} / {xpNeed} XP
-                  </span>{" "}
-                  · {coins.toLocaleString("en-US")} coins
-                </p>
+                <div style={{display:"flex", alignItems:"baseline", gap:16, flexWrap:"wrap"}}>
+                  <span className="lvl-huge" style={{fontSize:"clamp(56px,6vw,84px)", fontWeight:750, letterSpacing:"-.05em", lineHeight:.95}}>{level}</span>
+                  <span className="seal" title={rank} aria-label={rank}>{String(rank).slice(0,2).toUpperCase()}</span>
+                </div>
+                <p className="rank-line"><b>{rank}</b> rank · {xpInto} / {xpNeed} XP · {coins.toLocaleString("en-US")} coins</p>
               </div>
               <span className="streak-pill">
                 <Icon id="i-flame" />
@@ -104,8 +106,7 @@ export default function RealmPage() {
 
           <div className="panel">
             <div className="realm-attrs">
-              {attrs.length === 0 && <p style={{ fontSize: 13, color: "var(--text-3)" }}>No attributes yet — clear a quest to grow.</p>}
-              {attrs.map((a) => {
+              {displayAttrs.map((a) => {
                 const meta = ATTR_META[String(a.key ?? "").toLowerCase()] ?? { name: a.name, icon: "i-spark" as const };
                 return (
                   <div className="attr-stat" key={a.key ?? a.name}>
@@ -120,6 +121,7 @@ export default function RealmPage() {
                       <div className="attr-bar">
                         <i style={{ width: `${Math.min(100, Math.round(((Number(a.xp) || 0) % 500) / 5))}%` }} />
                       </div>
+                      <span style={{width:6,height:6,borderRadius:"50%",background:"var(--border-strong)", display:"inline-block", marginTop:6}} />
                     </div>
                   </div>
                 );

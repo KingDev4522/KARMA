@@ -4,7 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useAuth } from "@/lib/auth";
 import { client } from "@/lib/api";
 import { useToast } from "@/components/toast";
-import { Companion, EnvStack, Hero, Icon } from "@/components/illustrations";
+import { Icon } from "@/components/illustrations";
+import { ATTR_META, questAttrKey } from "@/components/quests";
 
 export interface FocusQuest {
   id?: string;
@@ -174,22 +175,11 @@ export function FocusProvider({ children }: { children: ReactNode }) {
     <FocusCtx.Provider value={{ openFocus, focusSeq: seq }}>
       {children}
       <div className={`focus-session${quest ? " is-open" : ""}`} role="dialog" aria-modal={!!quest} aria-label="Focus session">
-        <div className="focus-env">
-          <EnvStack />
-        </div>
         <button className="btn btn--ghost focus-exit" onClick={exit}>
           <Icon id="i-close" style={{ width: 15, height: 15 }} />
           Leave focus
         </button>
         <div className="focus-stage">
-          <div className="focus-figures">
-            <div className="companion-fig">
-              <Companion width="100%" />
-            </div>
-            <div className="hero-fig">
-              <Hero width="100%" className="idle" />
-            </div>
-          </div>
           <div className="focus-label">Focus session</div>
           <div className="focus-timer" role="timer" aria-label={`${mm} minutes ${ss} seconds left`}>
             <svg viewBox="0 0 230 230">
@@ -208,17 +198,18 @@ export function FocusProvider({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="focus-quest">{quest?.title ?? ""}</div>
+          {quest?.id ? (()=>{const k=questAttrKey({rewardPreview: null, questType: "focus", difficulty:3} as any); const m=ATTR_META[k]??{name:k, icon:"i-spark"}; return <span className="focus-attr"><Icon id={m.icon}/> {m.name}</span>})() : <span className="focus-attr"><Icon id="i-focusattr"/> Focus</span>}
           {error && (
             <p role="alert" style={{ fontSize: 13, color: "var(--accent-text)" }}>
               {error}
             </p>
           )}
           <div className="focus-actions">
-            <button className="btn btn--primary btn--lg" onClick={running ? pause : resume}>
+            <button className="btn btn--ghost btn--lg" onClick={running ? pause : resume}>
               <Icon id={running ? "i-pause" : "i-play"} style={{ width: 16, height: 16 }} />
               <span>{running ? "Pause" : "Resume"}</span>
             </button>
-            <button className="btn btn--ghost btn--lg" onClick={() => finish(true)}>
+            <button className="btn btn--primary" onClick={() => finish(true)}>
               <Icon id="i-check" style={{ width: 16, height: 16 }} />
               Finish
             </button>
