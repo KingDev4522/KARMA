@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { client } from "@/lib/api";
 import { Icon, IconSprite, BrandLogo, CoinImg, AvatarImg, type IconId } from "@/components/illustrations";
+import { useIdentity } from "@/lib/identity-context";
 import type { Notice } from "@/lib/types";
 
 const NAV: { id: string; href: string; label: string; icon: IconId }[] = [
@@ -50,10 +51,30 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   const router = useRouter();
   const { authHeaders, userId, signOut, email, loading: authLoading } = useAuth();
   const { theme, toggle } = useTheme();
-  const [identity, setIdentity] = useState({ heroName: "Aki", heroAssetId: null as string | null, avatarAssetId: null as string | null, level: 1, rank: "Drifter", coins: 0, active: 0, streak: 0 });
+  // Identity lives in shared context (populated by refreshIdentity below) so
+  // child pages never re-fetch /quests/today just for header info.
+  const identityCtx = useIdentity();
+  const identity = identityCtx;
+  const setIdentity = identityCtx.setIdentity;
   const [notices, setNotices] = useState<Notice[]>([]);
   const [query, setQuery] = useState("");
-  const [sideOpen, setSideOpen] = useState(false);
+  const [coinDelta, setCoinDelta] = useState<0 | 1 | -1>(0);
+  const prevCoins = useRef<number | null>(null);
+
+  // Coin delta arrow: green ▲ when coins arrive (quest/campaign rewards),
+  // red ▼ when coins leave (store purchases). Clears after a beat.
+  useEffect(() => {
+    if (prevCoins.current === null) {
+      prevCoins.current = identity.coins;
+      return;
+    }
+    if (identity.coins > prevCoins.current) setCoinDelta(1);
+    else if (identity.coins < prevCoins.current) setCoinDelta(-1);
+    else return;
+    prevCoins.current = identity.coins;
+    const id = setTimeout(() => setCoinDelta(0), 2200);
+    return () => clearTimeout(id);
+  }, [identity.coins]);  const [sideOpen, setSideOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -61,33 +82,41 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   const profileRef = useRef<HTMLDivElement>(null);
   const sideRef = useRef<HTMLElement>(null);
 
+  /** Fetch identity data and notifications in PARALLEL (was sequential). */
   const refreshIdentity = useCallback(() => {
     if (!userId) return;
-    client
-      .getToday(authHeaders())
-      .then((t) =>
+    // Both requests fire simultaneously — no waterfall.
+    Promise.all([
+      client.getToday(authHeaders()).catch(() => null),
+      client.notifications(authHeaders()).catch(() => null),
+    ]).then(([todayData, notifData]) => {
+      if (todayData) {
+        // Union: team's parallel fetch + safe access, plus avatar fields so
+        // the sidebar/profile show the real hero and profile picture.
+        const hero = (todayData as unknown as { hero?: { heroAssetId?: string | null; avatarAssetId?: string | null } }).hero;
         setIdentity({
-          heroName: t.greeting.heroName,
-          heroAssetId: (t as unknown as { hero?: { heroAssetId?: string | null; avatarAssetId?: string | null } }).hero?.heroAssetId ?? null,
-          avatarAssetId: (t as unknown as { hero?: { heroAssetId?: string | null; avatarAssetId?: string | null } }).hero?.avatarAssetId ?? null,
-          level: t.greeting.heroLevel,
-          rank: t.greeting.rank.display,
-          coins: t.greeting.coins,
-          active: t.counts.pinned + t.counts.due,
-          streak: t.streak.current,
-        }),
-      )
-      .catch(() => undefined);
-    client
-      .notifications(authHeaders())
-      .then((n) => setNotices(n.notifications))
-      .catch(() => undefined);
+          heroName: todayData.greeting?.heroName ?? "Aki",
+          heroAssetId: hero?.heroAssetId ?? null,
+          avatarAssetId: hero?.avatarAssetId ?? null,
+          level: todayData.greeting?.heroLevel ?? 1,
+          rank: todayData.greeting?.rank?.display ?? "Drifter",
+          coins: todayData.greeting?.coins ?? 0,
+          active: (todayData.counts?.pinned ?? 0) + (todayData.counts?.due ?? 0),
+          streak: todayData.streak?.current ?? 0,
+        });
+      }
+      if (notifData?.notifications) {
+        setNotices(notifData.notifications);
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, authHeaders]);
 
+  // Refresh identity on mount and when path changes.
   useEffect(() => {
     refreshIdentity();
   }, [refreshIdentity, path]);
+  // Listen for global refresh events (quest completion, etc.).
   useEffect(() => {
     const fn = () => {
       refreshIdentity();
@@ -160,6 +189,26 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
     router.push(`/quests${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ""}`);
   };
 
+  // Hover prefetch: warm the api() cache for a tab's primary endpoint before
+  // the click, so second (and often first) visits render instantly. GET-only,
+  // cache-deduped — hovering never causes duplicate network calls.
+  const prefetchRoute = (href: string) => {
+    if (!userId) return;
+    try {
+      const h = authHeaders();
+      if (href === "/") client.getToday(h).catch(() => undefined);
+      else if (href === "/quests") client.listQuests(h).catch(() => undefined);
+      else if (href === "/campaigns") client.listCampaigns(h).catch(() => undefined);
+      else if (href === "/store") client.store(h).catch(() => undefined);
+      else if (href === "/realm") client.realm(h).catch(() => undefined);
+      else if (href === "/chronicle") client.history(h, 30).catch(() => undefined);
+      else if (href === "/hero-card") client.heroCard(h).catch(() => undefined);
+      else if (href === "/personalize" || href === "/settings") client.getProfile(h).catch(() => undefined);
+    } catch {
+      /* best-effort */
+    }
+  };
+
   // Hard auth gate: signed-out visitors only ever see the login screen.
   // Auth callback/welcome stay public (they mint the session).
   const isPublic = PUBLIC_PATHS.some((p) => p === path);
@@ -198,13 +247,13 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
         <div className="sidebar__brand">
           <BrandLogo size={30} />
           <span className="brand-name">
-            LIFE<em>RPG</em>
+            KARMA
           </span>
         </div>
         <div className="sidebar__label">Workspace</div>
         <nav aria-label="Workspace">
           {NAV.map((n) => (
-            <Link key={n.id} href={n.href} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
+            <Link key={n.id} href={n.href} onMouseEnter={() => prefetchRoute(n.href)} onFocus={() => prefetchRoute(n.href)} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
               <Icon id={n.icon} />
               <span>{n.label}</span>
               {n.id === "quests" && identity.active > 0 && <em className="nav-badge">{identity.active}</em>}
@@ -214,7 +263,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
         <div className="sidebar__divider" />
         <nav aria-label="More">
           {MORE.map((n) => (
-            <Link key={n.id} href={n.href} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
+            <Link key={n.id} href={n.href} onMouseEnter={() => prefetchRoute(n.href)} onFocus={() => prefetchRoute(n.href)} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
               <Icon id={n.icon} />
               <span>{n.label}</span>
               {n.id === "store" && <em className="nav-dot" />}
@@ -272,6 +321,11 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
             <div className="coin-pill" id="coinPill" title="Your coins" aria-label={`${identity.coins} coins`}>
               <CoinImg size={16} />
               <span className="coin-val">{identity.coins.toLocaleString("en-US")}</span>
+              {coinDelta !== 0 && (
+                <span className={`coin-delta${coinDelta > 0 ? " up" : " down"}`} aria-hidden="true">
+                  {coinDelta > 0 ? "▲" : "▼"}
+                </span>
+              )}
             </div>
             <button className="icon-btn" onClick={toggle} title="Toggle theme" aria-label="Toggle theme">
               <Icon id={theme === "dark" ? "i-sun" : "i-moon"} />
@@ -316,6 +370,9 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
                 </div>
                 <Link href="/realm" className="dd-item" onClick={() => setProfileOpen(false)}>
                   <Icon id="i-realm" /> View Realm
+                </Link>
+                <Link href="/personalize" className="dd-item" onClick={() => setProfileOpen(false)}>
+                  <Icon id="i-spark" /> Edit profile
                 </Link>
                 <Link href="/settings" className="dd-item" onClick={() => setProfileOpen(false)}>
                   <Icon id="i-settings" /> Settings

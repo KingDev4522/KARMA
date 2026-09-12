@@ -52,7 +52,7 @@ export default function OnboardingPage() {
   const finish = async () => {
     setError(null);
     if (!heroName.trim()) {
-      setError("Name your hero to cross the threshold.");
+      setError("Name your character to cross the threshold.");
       return;
     }
     if (!firstQuest.trim()) {
@@ -110,36 +110,36 @@ export default function OnboardingPage() {
       </div>
 
       {step === 0 && (
-        <section className="panel" style={{ padding: 24 }} aria-label="Choose hero">
-          <h3 style={{ fontSize: 17, marginBottom: 4, textAlign: "center" }}>Choose your hero</h3>
+        <section className="panel" style={{ padding: 24 }} aria-label="Choose character">
+          <h3 style={{ fontSize: 17, marginBottom: 4, textAlign: "center" }}>Choose your character</h3>
           <p style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center", marginBottom: 12 }}>
-            Six travelers, traditional attire. Other looks are earned in the Store.
+            Six travelers in traditional attire. Other looks are earned in the Store.
           </p>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
             <div style={{ width: 150, borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)" }}>
-              <HeroImage assetId={heroAssetId(heroId, "traditional")} eager alt={hero.name} />
+              <HeroImage assetId={heroAssetId(heroId, "traditional")} eager alt={`${hero.region} traveler in traditional attire`} />
             </div>
           </div>
           <div className="option-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
             {HEROES.map((h) => (
               <button key={h.id} onClick={() => setHeroId(h.id)} aria-pressed={heroId === h.id} className={`option${heroId === h.id ? " is-on" : ""}`} title={`${h.region} — ${h.line}`}>
-                <strong>{h.name}</strong>
-                <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>{h.region}</span>
+                <strong>{h.region}</strong>
+                <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>{h.line}</span>
               </button>
             ))}
           </div>
-          <p style={{ fontSize: 12.5, color: "var(--text-3)", textAlign: "center", marginTop: 10 }}>{hero.line}</p>
+          <p style={{ fontSize: 12.5, color: "var(--text-3)", textAlign: "center", marginTop: 10 }}>You will name your character next — the name is yours to choose.</p>
         </section>
       )}
       {step === 1 && (
-        <section className="panel" style={{ padding: 24 }} aria-label="Name hero">
-          <h3 style={{ fontSize: 17, marginBottom: 4, textAlign: "center" }}>Name {hero.name}, define yourself</h3>
+        <section className="panel" style={{ padding: 24 }} aria-label="Name character">
+          <h3 style={{ fontSize: 17, marginBottom: 4, textAlign: "center" }}>Name your character</h3>
           <p style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center", marginBottom: 14 }}>
-            Give your hero a name and a one-line oath — a goal, a strength, a habit to break.
+            Give your character a name and a one-line oath — a goal, a strength, a habit to break.
           </p>
           <div className="field">
-            <label htmlFor="obName">Hero name</label>
-            <input id="obName" type="text" value={heroName} onChange={(e) => setHeroName(e.target.value)} placeholder={hero.name} maxLength={80} />
+            <label htmlFor="obName">Character name</label>
+            <input id="obName" type="text" value={heroName} onChange={(e) => setHeroName(e.target.value)} placeholder="Your character's name" maxLength={80} />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="obOath">Oath (shown on your Realm)</label>

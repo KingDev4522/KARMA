@@ -1,4 +1,4 @@
-# LIFE RPG — Frontend
+# KARMA — Frontend
 
 Next.js 14 + TypeScript + Tailwind + Framer Motion + Supabase Auth.
 Implements LRP-FE-001: Today, Quests, Campaigns, Focus, Realm, Chronicle, Store + onboarding, settings, Hero Card.

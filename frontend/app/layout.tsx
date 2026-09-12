@@ -5,10 +5,12 @@ import { ThemeProvider } from "@/lib/theme";
 import { ToastProvider } from "@/components/toast";
 import { FocusProvider } from "@/components/focus";
 import { TourProvider } from "@/components/tour";
+import { IdentityProvider } from "@/lib/identity-context";
 import { Shell } from "@/components/Shell";
+import { KeepAlivePing } from "@/components/KeepAlivePing";
 
 export const metadata: Metadata = {
-  title: "LIFE RPG — Quiet progress, kept score",
+  title: "KARMA — Quiet progress, kept score",
   description: "A minimal productivity practice with a discreet RPG progression system. Quests, focus, campaigns, and identity.",
   icons: {
     icon: "/brand/logo.png",
@@ -44,13 +46,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
         <ThemeProvider>
           <AuthProvider>
-            <ToastProvider>
-              <FocusProvider>
-                <TourProvider>
-                  <Shell>{children}</Shell>
-                </TourProvider>
-              </FocusProvider>
-            </ToastProvider>
+            <IdentityProvider>
+              <KeepAlivePing>
+                <ToastProvider>
+                  <FocusProvider>
+                    <TourProvider>
+                      <Shell>{children}</Shell>
+                    </TourProvider>
+                  </FocusProvider>
+                </ToastProvider>
+              </KeepAlivePing>
+            </IdentityProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

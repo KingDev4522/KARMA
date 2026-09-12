@@ -24,7 +24,7 @@ export function createApp() {
   app.use(mutationLimiter);
 
   app.get("/health", (_req, res) => {
-    res.json({ ok: true, service: "life-rpg-backend", version: "1.0.0", time: new Date().toISOString() });
+    res.json({ ok: true, service: "karma-backend", version: "1.0.0", time: new Date().toISOString() });
   });
 
   app.use("/api/v1", apiRouter);

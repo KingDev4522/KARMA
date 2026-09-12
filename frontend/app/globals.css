@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ============================================================
-   DESIGN TOKENS — LIFE RPG, monochrome editorial + vermilion
+   DESIGN TOKENS — KARMA, monochrome editorial + vermilion
    Premium productivity first, RPG second. Ink on paper.
    ============================================================ */
 :root{
@@ -896,4 +896,21 @@ button.cal-cell:hover{border-color:var(--border-strong)}
 @media (prefers-reduced-motion:reduce){
   .toast{animation:none}
   .tour-card{animation:none}
+}
+
+/* ============ KARMA LOADER ============ */
+.karma-loader{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+.karma-loader-coin{width:34px;height:34px;object-fit:contain;animation:coinSpin 1.6s ease-in-out infinite;filter:drop-shadow(0 2px 4px rgba(0,0,0,.2))}
+.karma-loader-line{font-size:13.5px;font-weight:600;color:var(--text-2);animation:loaderFade .5s var(--ease)}
+@keyframes coinSpin{0%{transform:rotateY(0) translateY(0)}25%{transform:rotateY(90deg) translateY(-3px)}50%{transform:rotateY(180deg) translateY(0)}75%{transform:rotateY(270deg) translateY(-3px)}100%{transform:rotateY(360deg) translateY(0)}}
+@keyframes loaderFade{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:none}}
+/* ============ COIN DELTA ARROWS ============ */
+.coin-delta{display:inline-flex;align-items:center;font-weight:800;font-size:13px;margin-left:2px;animation:deltaPop .5s var(--spring)}
+.coin-delta.up{color:#1E9E5A}
+.coin-delta.down{color:#D64545}
+@keyframes deltaPop{0%{opacity:0;transform:translateY(6px) scale(.7)}60%{opacity:1;transform:translateY(-2px) scale(1.1)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .karma-loader-coin{animation:none}
+  .karma-loader-line{animation:none}
+  .coin-delta{animation:none}
 }

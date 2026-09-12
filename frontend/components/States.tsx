@@ -7,9 +7,31 @@ import { Icon } from "@/components/illustrations";
 
 /** Loading / Empty / Error(+retry) states in the Live-deliberately skin. */
 
+const LOADER_LINES = [
+  "Polishing quest cards…",
+  "Feeding your companion…",
+  "Counting coins…",
+  "Unrolling the campaign map…",
+  "Sharpening focus…",
+  "Consulting the stars…",
+];
+
+/** KARMA loader — spinning coin, flavor line, shimmer rows. Same props as
+ *  the old skeleton so every call site stays untouched. */
 export function Skeleton({ label, rows = 3 }: { label: string; rows?: number }) {
+  const [line, setLine] = useState(0);
+  useEffect(() => {
+    if (document.documentElement.dataset.motion === "off") return;
+    const id = setInterval(() => setLine((l) => (l + 1) % LOADER_LINES.length), 1400);
+    return () => clearInterval(id);
+  }, []);
   return (
     <div aria-busy="true" aria-label={`Loading ${label}`} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="karma-loader" aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/coin.png" alt="" className="karma-loader-coin" width={34} height={34} />
+        <span className="karma-loader-line">{LOADER_LINES[line % LOADER_LINES.length]}</span>
+      </div>
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="skeleton-block" style={{ height: i === 0 ? 120 : 72 }} />
       ))}

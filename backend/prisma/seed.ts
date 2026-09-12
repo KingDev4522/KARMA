@@ -43,7 +43,7 @@ const ITEMS: { itemType: never; key: string; name: string; description: string; 
     { itemType: "frame" as never, key: `frame_no_${n}`, name: `Frame ${n}`, description: "Starter frame — yours from day one.", assetPath: `/frames/frame-${n}.jpeg`, price: 0, rarity: "common" }
   )),
   ...([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] as const).map((n) => (
-    { itemType: "frame" as never, key: `frame_no_${n}`, name: `Frame ${n}`, description: "Hand-drawn temple frame for your portrait.", assetPath: `/frames/frame-${n}.jpeg`, price: n <= 10 ? 120 : n <= 16 ? 220 : 350, rarity: n <= 10 ? "rare" : n <= 16 ? "epic" : "legendary" }
+    { itemType: "frame" as never, key: `frame_no_${n}`, name: `Frame ${n}`, description: "Hand-drawn temple frame for your portrait.", assetPath: `/frames/frame-${n}.jpeg`, price: n <= 10 ? 100 : n <= 16 ? 200 : 300, rarity: n <= 10 ? "rare" : n <= 16 ? "epic" : "legendary" }
   )),
   // Real title boxes (assessts/tilte box → public/frames). Boxes 1–4 are free;
   // 5–11 are earned. Your hero name is rendered inside the equipped box.
@@ -51,7 +51,7 @@ const ITEMS: { itemType: never; key: string; name: string; description: string; 
     { itemType: "title" as never, key: `title_box_${n}`, name: `Title Box ${n}`, description: "Starter title plate — your name, framed.", assetPath: `/frames/titlebox-${n}.jpeg`, price: 0, rarity: "common" }
   )),
   ...([5, 6, 7, 8, 9, 10, 11] as const).map((n) => (
-    { itemType: "title" as never, key: `title_box_${n}`, name: `Title Box ${n}`, description: "Ornate title plate for your name.", assetPath: `/frames/titlebox-${n}.jpeg`, price: n <= 7 ? 150 : 280, rarity: n <= 7 ? "rare" : "epic" }
+    { itemType: "title" as never, key: `title_box_${n}`, name: `Title Box ${n}`, description: "Ornate title plate for your name.", assetPath: `/frames/titlebox-${n}.jpeg`, price: n <= 7 ? 100 : 150, rarity: n <= 7 ? "rare" : "epic" }
   )),
 ];
 
