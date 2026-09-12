@@ -1,109 +1,94 @@
 "use client";
 
-import { useState } from "react";
-import { Plus } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { CampaignPath } from "@/components/world";
-import { Field, SectionHeading, inputCls } from "@/components/ui";
+import { useToast } from "@/components/toast";
+import { useFocus } from "@/components/focus";
+import type { Campaign } from "@/lib/types";
+import { WorldCard, WorldPanel } from "@/components/journey";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
-import { XpBar } from "@/components/rpg";
 
-/** Campaigns — visual journeys, not card lists. The active milestone dominates. */
+/** Campaigns — world panel for the frontier journey + cards for the rest. */
 export default function CampaignsPage() {
   const { authHeaders, userId, loading: authLoading } = useAuth();
+  const toast = useToast();
+  const router = useRouter();
+  const { openFocus } = useFocus();
   const { data, error, loading, retry } = useApi(() => client.listCampaigns(authHeaders()), [userId], {
     enabled: !authLoading && !!userId,
   });
-  const [title, setTitle] = useState("");
-  const [formError, setFormError] = useState<string | null>(null);
-  const [detail, setDetail] = useState<Record<string, { milestones: { id: string; title: string; status: string }[]; progressPct: number }>>({});
+  const firstId = data?.[0]?.id ?? null;
+  const { data: detail } = useApi(
+    () => (firstId ? client.getCampaign(authHeaders(), firstId) : Promise.resolve(null as unknown as Campaign)),
+    [firstId],
+    { enabled: !authLoading && !!userId && !!firstId },
+  );
 
-  if (authLoading || loading) return <Skeleton label="Campaigns" />;
+  if (authLoading || loading) return <Skeleton label="Campaigns" rows={3} />;
   if (!userId) return <SignInPrompt />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
+  if (!data || data.length === 0) return <EmptyState message="No journeys yet. Your first campaign begins with a single quest." />;
 
-  const create = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    if (!title.trim()) {
-      setFormError("Choose something worth becoming — give it a name.");
-      return;
-    }
-    try {
-      await client.createCampaign(authHeaders(), { title: title.trim() });
-      setTitle("");
-      retry();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Couldn't create campaign.");
-    }
-  };
+  const [head, ...rest] = data;
+  const headDetail = detail && detail.id === head.id ? detail : head;
+  const miles = (headDetail.milestones ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex);
+  const nextId = headDetail.nextMilestone?.id ?? miles.find((m) => m.status !== "done")?.id ?? null;
 
-  const openJourney = async (id: string) => {
-    if (detail[id]) {
-      setDetail((d) => {
-        const c = { ...d };
-        delete c[id];
-        return c;
-      });
-      return;
-    }
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const c = (await client.getCampaign(authHeaders(), id)) as any;
-      setDetail((d) => ({ ...d, [id]: { milestones: c.milestones ?? [], progressPct: c.progressPct ?? 0 } }));
-    } catch {
-      /* journey stays folded on failure */
+  const workOnThis = () => {
+    const nq = headDetail.nextQuest;
+    if (nq) {
+      openFocus({ id: nq.id, title: nq.title, minutes: Math.min(nq.estimatedMinutes ?? 25, 50) });
+    } else if (headDetail.nextMilestone) {
+      toast(`Next milestone: ${headDetail.nextMilestone.title}`, "i-spark");
+      router.push("/quests");
+    } else {
+      toast("Journey complete. Begin a new one from a quest.", "i-trophy");
     }
   };
 
   return (
-    <div className="space-y-5">
-      <SectionHeading title="Long journeys" />
-      <form onSubmit={create} className="flex flex-col gap-2 rounded-card border border-line bg-surface-card p-4 shadow-card sm:flex-row" aria-label="Begin a campaign">
-        <div className="flex-1">
-          <Field label="Begin a new campaign" error={formError}>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Build Portfolio" className={inputCls} />
-          </Field>
+    <div className="page is-active">
+      <div className="page-head">
+        <div>
+          <h2>Campaigns</h2>
+          <p className="sub">Long journeys, one milestone at a time.</p>
         </div>
-        <button type="submit" className="inline-flex items-center justify-center gap-1.5 self-end rounded-control bg-xp px-5 py-2 text-sm font-semibold text-white pressable">
-          <Plus size={15} weight="bold" aria-hidden /> Begin
-        </button>
-      </form>
+      </div>
 
-      {!data || data.length === 0 ? (
-        <EmptyState message="Choose something worth becoming." />
-      ) : (
-        <div className="space-y-4">
-          {data.map((c) => (
-            <article key={c.id} className="overflow-hidden rounded-panel border border-line bg-surface-card shadow-card" aria-label={`Campaign: ${c.title}`}>
-              <button onClick={() => openJourney(c.id)} aria-expanded={!!detail[c.id]} className="w-full p-5 text-left">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="font-display text-xl uppercase tracking-wide">{c.title}</h2>
-                  <span className="font-display text-2xl text-xp">{c.progressPct ?? 0}%</span>
-                </div>
-                <div className="mt-2">
-                  <XpBar pct={(c.progressPct ?? 0) / 100} label={`${c.title} progress`} />
-                </div>
-                {c.nextMilestone ? (
-                  <p className="mt-2 text-sm">Next objective: <strong>{c.nextMilestone.title}</strong></p>
-                ) : (
-                  <p className="mt-2 text-sm text-ink-muted">Tap to view the journey.</p>
-                )}
-              </button>
-              {detail[c.id] && (
-                <div className="border-t border-line bg-surface-elevated/60 p-5">
-                  {detail[c.id].milestones.length === 0 ? (
-                    <p className="text-sm text-ink-muted">No milestones yet — the journey is unwritten.</p>
-                  ) : (
-                    <CampaignPath milestones={detail[c.id].milestones} />
-                  )}
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
+      <WorldPanel
+        title={head.title}
+        theme={head.status === "active" ? "Active journey" : head.status}
+        desc={head.description ?? undefined}
+        milestones={miles.map((m) => ({ name: m.title, done: m.status === "done", current: m.id === nextId }))}
+        nextText={
+          headDetail.nextMilestone
+            ? `Next milestone: ${headDetail.nextMilestone.title}`
+            : headDetail.nextQuest
+              ? `Next quest: ${headDetail.nextQuest.title}`
+              : "Journey complete — well walked."
+        }
+        onWork={workOnThis}
+      />
+
+      {rest.length > 0 && (
+        <>
+          <div className="sec-head">
+            <h3>Other journeys</h3>
+          </div>
+          <div className="world-grid">
+            {rest.map((c) => (
+              <WorldCard
+                key={c.id}
+                title={c.title}
+                meta={`${c.status} · ${c.progressPct ?? 0}%`}
+                progressPct={c.progressPct ?? 0}
+                onOpen={() => router.push("/quests")}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

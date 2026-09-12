@@ -1,119 +1,101 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { useToast } from "@/components/ui";
-import { FocusTimer } from "@/components/chronicle";
-import { EmptyState } from "@/components/States";
+import { useApi } from "@/lib/utils";
+import { useFocus } from "@/components/focus";
+import { Icon } from "@/components/illustrations";
+import { EmptyState, ErrorState, Skeleton } from "@/components/States";
 
-/** Focus — a different world: no nav noise, ambient timer, clear controls. */
+/** Focus — pick a quest, set minutes, enter the session overlay. */
 export default function FocusPage() {
-  const { authHeaders } = useAuth();
-  const toast = useToast();
-  const router = useRouter();
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [planned, setPlanned] = useState(25 * 60);
-  const [left, setLeft] = useState(25 * 60);
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { authHeaders, userId, loading: authLoading } = useAuth();
+  const { openFocus, focusSeq } = useFocus();
+  const { data: quests } = useApi(() => client.listQuests(authHeaders(), "status=active,in_progress&preview=false&limit=30").catch(() => []), [userId]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: sessions, error, loading, retry } = useApi<any>(() => client.listFocus(authHeaders(), 10), [userId, authLoading, focusSeq]);
+  const [questId, setQuestId] = useState("");
+  const [minutes, setMinutes] = useState(25);
 
-  useEffect(() => () => {
-    if (timer.current) clearInterval(timer.current);
-  }, []);
+  if (authLoading || loading) return <Skeleton label="Focus" rows={3} />;
+  if (error) return <ErrorState error={error} onRetry={retry} />;
+  if (!userId) return <EmptyState message="Sign in (or enable dev bypass) to enter focus." />;
 
-  const tick = () => setLeft((s) => (s > 0 ? s - 1 : 0));
-  const arm = () => {
-    if (timer.current) clearInterval(timer.current);
-    timer.current = setInterval(tick, 1000);
-  };
-
-  const start = async () => {
-    setError(null);
-    try {
-      const s = await client.startFocus(authHeaders(), { plannedSeconds: planned });
-      setSessionId(s.id);
-      setLeft(planned);
-      setStatus("running");
-      arm();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't start focus.");
-    }
-  };
-  const pause = async () => {
-    if (!sessionId) return;
-    try {
-      await client.pauseFocus(authHeaders(), sessionId);
-      setStatus("paused");
-      if (timer.current) clearInterval(timer.current);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't pause.");
-    }
-  };
-  const resume = async () => {
-    if (!sessionId) return;
-    try {
-      await client.resumeFocus(authHeaders(), sessionId);
-      setStatus("running");
-      arm();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't resume.");
-    }
-  };
-  const finish = async (done: boolean) => {
-    if (!sessionId) return;
-    try {
-      await client.finishFocus(authHeaders(), sessionId, { status: done ? "completed" : "cancelled", actualSeconds: planned - left });
-      if (timer.current) clearInterval(timer.current);
-      if (done) {
-        toast({ title: "Session complete", body: "Now complete the quest to claim the reward.", tone: "xp" });
-        router.push("/quests");
-      } else {
-        setStatus("cancelled");
-        setSessionId(null);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't finish session.");
-    }
+  const start = () => {
+    const q = (quests ?? []).find((t) => t.id === questId);
+    openFocus({
+      id: q?.id,
+      title: q?.title ?? "Free focus session",
+      minutes: q ? Math.min(q.estimatedMinutes ?? minutes, 120) : minutes,
+    });
   };
 
   return (
-    <div className="mx-auto max-w-xl space-y-4">
-      <div className="flex items-end justify-between">
-        <h1 className="font-display text-2xl">Focus room</h1>
-        {!started(sessionId, status) && (
-          <label className="text-sm text-ink-secondary">
-            Minutes
-            <input
-              type="number" min={1} max={480} value={Math.round(planned / 60)}
-              onChange={(e) => { const m = Math.max(1, Math.min(480, Number(e.target.value || 25))); setPlanned(m * 60); setLeft(m * 60); }}
-              className="ml-2 w-20 rounded-control border border-line bg-surface-card px-2 py-1.5"
-            />
-          </label>
-        )}
+    <div className="page is-active">
+      <div className="page-head">
+        <div>
+          <h2>Focus</h2>
+          <p className="sub">One quest, one timer, no noise.</p>
+        </div>
       </div>
 
-      <FocusTimer
-        secondsLeft={left}
-        total={planned}
-        status={status}
-        onStart={start}
-        onPause={pause}
-        onResume={resume}
-        onFinish={() => finish(true)}
-        onCancel={() => finish(false)}
-        started={!!sessionId && status !== "cancelled"}
-      />
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      {!sessionId && (
-        <EmptyState message="One quest, one timer. Starting focus quiets everything else." />
+      <div className="panel focus-launch">
+        <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="focusQuestPick">Quest</label>
+            <select id="focusQuestPick" value={questId} onChange={(e) => setQuestId(e.target.value)}>
+              <option value="">Free session — no quest linked</option>
+              {(quests ?? []).map((q) => (
+                <option key={q.id} value={q.id}>
+                  {q.title.slice(0, 60)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="focusMinutes">Minutes</label>
+            <select id="focusMinutes" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+              {[15, 25, 45, 60, 90].map((m) => (
+                <option key={m} value={m}>
+                  {m} min
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button className="btn btn--primary btn--lg" onClick={start} style={{ alignSelf: "flex-end" }}>
+          <Icon id="i-play" style={{ width: 16, height: 16 }} />
+          Enter focus
+        </button>
+      </div>
+
+      <div className="sec-head" style={{ marginTop: 22 }}>
+        <h3>Recent sessions</h3>
+      </div>
+      {!sessions || sessions.length === 0 ? (
+        <div className="empty-state panel">
+          <Icon id="i-focus" />
+          <p>One quest, one timer. Starting focus quiets everything else.</p>
+        </div>
+      ) : (
+        <div className="quest-list panel">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          {sessions.map((s: any) => (
+            <div className="session-row" key={s.id}>
+              <Icon id="i-clock" style={{ color: "var(--text-3)" }} />
+              <span style={{ flex: 1 }}>
+                {s.quest?.title ?? s.questId ?? "Free session"}
+              </span>
+              <span style={{ color: "var(--text-3)", fontWeight: 700, fontSize: 12 }}>
+                {Math.round((s.actualSeconds ?? s.plannedSeconds ?? 0) / 60)}m · {s.status}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
-}
-
-function started(id: string | null, status: string | null) {
-  return !!id && status !== "cancelled";
 }

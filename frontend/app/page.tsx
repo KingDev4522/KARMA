@@ -1,177 +1,230 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence } from "framer-motion";
-import { Plus } from "@phosphor-icons/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import type { CompletionResponse, Quest } from "@/lib/types";
-import { QuestCard, QuestCreator } from "@/components/quest";
-import { CompanionBubble, HeroFigure, HeroScene } from "@/components/world";
-import { LevelUpOverlay } from "@/components/chronicle";
-import { CoinPurse, LevelBadge, RankBadge, Streak, XpBar } from "@/components/rpg";
-import { SectionHeading } from "@/components/ui";
-import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
+import { useToast } from "@/components/toast";
+import { useFocus } from "@/components/focus";
+import type { Campaign, CompletionResponse, Quest } from "@/lib/types";
+import { Companion, EnvStack, Hero, Icon } from "@/components/illustrations";
+import { ATTR_META, LevelUpModal, QuestMasonryCard, QuestPrimary, burstAt } from "@/components/quests";
+import { CampaignPreview } from "@/components/journey";
+import { EmptyState, ErrorState, SignInPrompt, Skeleton, useNowDate } from "@/components/States";
 
-/**
- * Today — the RPG command center. First viewport answers: who you are,
- * your hero/companion/level/rank/XP/coins/streak, and what to do now.
- */
+/** Today — hero display, primary quest, progression, masonry, campaign, growth. */
 export default function TodayPage() {
   const { authHeaders, userId, loading: authLoading } = useAuth();
-  const { data, error, loading, retry } = useApi(() => client.getToday(authHeaders()), [userId], {
+  const toast = useToast();
+  const router = useRouter();
+  const { focusSeq } = useFocus();
+  const { data, error, loading, retry } = useApi(() => client.getToday(authHeaders()), [userId, focusSeq], {
     enabled: !authLoading && !!userId,
   });
+  const summaryId = data?.campaignSummary?.id ?? null;
+  const { data: campaignDetail } = useApi(
+    () => (summaryId ? client.getCampaign(authHeaders(), summaryId) : Promise.resolve(null as unknown as Campaign)),
+    [summaryId],
+  );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, CompletionResponse>>({});
   const [ceremony, setCeremony] = useState<CompletionResponse | null>(null);
-  const [creator, setCreator] = useState(false);
+  const todayDate = useNowDate();
 
   if (authLoading || loading) return <Skeleton label="Today" rows={4} />;
   if (!userId) return <SignInPrompt />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
   if (!data) return <EmptyState message="Your board is clear. Add your first Quest." />;
 
-  const complete = async (q: Quest) => {
+  const complete = async (q: Quest, el: HTMLElement | null) => {
+    if (busyId) return;
     setBusyId(q.id);
     try {
       const r = await client.completeQuest(authHeaders(), q.id, crypto.randomUUID());
       setResults((m) => ({ ...m, [q.id]: r }));
+      burstAt(el);
+      toast(`“${q.title.length > 32 ? `${q.title.slice(0, 32)}…` : q.title}” complete · +${r.rewardXp} XP`, "i-check");
       if (r.leveledUp) setCeremony(r);
       retry();
+      window.dispatchEvent(new CustomEvent("liferpg:refresh"));
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Quest couldn't be completed. Your progress was not changed.");
+      toast(e instanceof Error ? e.message : "Quest couldn't be completed. Your progress was not changed.", "i-close");
     } finally {
       setBusyId(null);
     }
   };
 
   const g = data.greeting;
-  const buckets: { key: string; title: string; quests: Quest[] }[] = [
-    { key: "pinned", title: "Today's Quests", quests: data.buckets.pinned },
-    { key: "due", title: "Due today", quests: data.buckets.dueToday },
-    { key: "routine", title: "Routines", quests: data.buckets.routine },
-    { key: "campaign", title: "Campaign steps", quests: data.buckets.campaign },
-  ];
+  const seen = new Set<string>();
+  const flat: Quest[] = [];
+  for (const q of [...data.buckets.pinned, ...data.buckets.dueToday, ...data.buckets.routine, ...data.buckets.campaign, ...data.quests]) {
+    if (!seen.has(q.id) && q.status !== "completed") {
+      seen.add(q.id);
+      flat.push(q);
+    }
+  }
+  if (data.spark && !seen.has(data.spark.id)) flat.push(data.spark);
+  const primary = flat.find((q) => q.isPinned) ?? flat[0] ?? null;
+  const masonry = flat.filter((q) => q !== primary).slice(0, 6);
+
+  const pct = Math.min(100, Math.max(0, Math.round((g.xpProgress.intoLevel / Math.max(1, g.xpProgress.neededForNext)) * 100)));
+  const ringC = 2 * Math.PI * 16;
+
+  const detail = (campaignDetail ?? null) as Campaign | null;
+  const milestones = (detail?.milestones ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex);
+  const nextId = detail?.nextMilestone?.id ?? milestones.find((m) => m.status !== "done")?.id ?? null;
 
   return (
-    <div className="space-y-6">
-      <AnimatePresence>
-        {ceremony && (
-          <LevelUpOverlay
-            level={ceremony.newLevel}
-            rankDisplay={ceremony.newRankDisplay}
-            coins={ceremony.rewardCoins}
-            onDone={() => setCeremony(null)}
-          />
-        )}
-      </AnimatePresence>
+    <div className="page is-active">
+      {ceremony && (
+        <LevelUpModal
+          level={ceremony.newLevel}
+          message={`${ceremony.companion.message} A new rank: ${ceremony.newRankDisplay}.`}
+          onClose={() => setCeremony(null)}
+        />
+      )}
 
-      {/* Hero environment — character as first-class visual, time-of-day atmosphere */}
-      <HeroScene timeOfDay={g.timeOfDay}>
-        <div className="flex flex-col gap-4 p-5 md:flex-row md:items-end md:justify-between md:p-7">
-          <div className="flex items-end gap-4">
-            <HeroFigure size={104} />
-            <div className="pb-1">
-              <p className="text-xs text-ink-secondary">Good {g.timeOfDay},</p>
-              <h1 className="font-display text-3xl leading-tight">{g.heroName}</h1>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <RankBadge display={g.rank.display} />
-                <Streak current={data.streak.current} best={data.streak.best} />
+      {/* HERO */}
+      <div className="today-hero">
+        <div className="today-hero__text">
+          <p className="eyebrow">
+            <Icon id="i-flame" />
+            <span>
+              {todayDate} · {data.streak.current}-day streak
+            </span>
+          </p>
+          <h2>
+            Good {g.timeOfDay}, {g.heroName}.
+          </h2>
+          <p className="sub">Your next quest is ready.</p>
+        </div>
+        <div className="today-hero__art">
+          <EnvStack />
+          <div className="companion-fig">
+            <Companion width="100%" />
+          </div>
+          <div className="hero-fig">
+            <Hero width="100%" className="idle" />
+          </div>
+        </div>
+      </div>
+
+      <div className="today-grid">
+        <div className="today-main">
+          {primary ? (
+            <QuestPrimary quest={primary} onComplete={complete} completing={busyId === primary.id} />
+          ) : (
+            <EmptyState message={data.emptyHints.allClear ?? "Every quest is stamped. The page rests."} />
+          )}
+
+          {/* PROGRESSION */}
+          <div className="progression panel">
+            <div className="prog-item">
+              <div className="prog-ring">
+                <svg width="44" height="44" viewBox="0 0 40 40" aria-hidden="true">
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="var(--surface-3)" strokeWidth="4" />
+                  <circle
+                    cx="20" cy="20" r="16" fill="none" stroke="var(--accent)" strokeWidth="4" strokeLinecap="round"
+                    strokeDasharray={ringC} strokeDashoffset={ringC * (1 - pct / 100)} transform="rotate(-90 20 20)"
+                  />
+                </svg>
+                <span>{g.heroLevel}</span>
+              </div>
+              <div>
+                <div className="prog-label">Level</div>
+                <div className="prog-value">{g.rank.display}</div>
+              </div>
+            </div>
+            <div className="prog-sep" />
+            <div className="xp-bar-wrap">
+              <div className="prog-label">Experience</div>
+              <div className="xp-bar">
+                <i style={{ width: `${pct}%` }} />
+              </div>
+              <div className="xp-num">
+                {g.xpProgress.intoLevel} / {g.xpProgress.neededForNext} XP
+              </div>
+            </div>
+            <div className="prog-sep" />
+            <div className="prog-item">
+              <Icon id="i-flame" style={{ color: "var(--tint-yellow-d)" }} />
+              <div>
+                <div className="prog-label">Streak</div>
+                <div className="prog-value">{data.streak.current} days</div>
+              </div>
+            </div>
+            <div className="prog-sep" />
+            <div className="prog-item">
+              <Icon id="i-coin" style={{ color: "var(--gold)" }} />
+              <div>
+                <div className="prog-label">Coins</div>
+                <div className="prog-value">{g.coins.toLocaleString("en-US")}</div>
               </div>
             </div>
           </div>
-          <div className="w-full max-w-xs space-y-2 rounded-card border border-line/60 bg-surface-elevated/80 p-3 backdrop-blur">
-            <div className="flex items-center justify-between">
-              <LevelBadge level={g.heroLevel} size="sm" />
-              <CoinPurse coins={g.coins} />
+
+          {/* MASONRY */}
+          <section aria-label="Your quests">
+            <div className="sec-head">
+              <h3>Your quests</h3>
+              <Link className="link-btn" href="/quests">
+                All quests <Icon id="i-arrow-r" />
+              </Link>
             </div>
-            <XpBar pct={g.xpProgress.pct} label="Hero XP toward next level" glow />
-            <p className="text-right text-[11px] text-ink-muted">
-              {g.xpProgress.intoLevel} / {g.xpProgress.neededForNext} XP
-            </p>
-          </div>
-        </div>
-      </HeroScene>
-
-      <CompanionBubble mood={data.companion.mood} message={data.companion.message} />
-
-      {/* Dominant Today experience */}
-      <section aria-labelledby="today-heading">
-        <SectionHeading
-          title="Today's Quest"
-          action={
-            <button onClick={() => setCreator(true)} className="inline-flex items-center gap-1.5 rounded-control bg-xp px-4 py-2 text-sm font-semibold text-white pressable">
-              <Plus size={15} weight="bold" aria-hidden /> New quest
-            </button>
-          }
-        />
-        <div id="today-heading" className="sr-only">Today&apos;s quests</div>
-        {data.quests.length === 0 ? (
-          <EmptyState
-            message={data.emptyHints.allClear ?? "Your board is clear. Add your first Quest."}
-            action={
-              <button onClick={() => setCreator(true)} className="rounded-control bg-xp px-4 py-2 text-sm font-semibold text-white">
-                Accept your first mission
-              </button>
-            }
-          />
-        ) : (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {data.quests.slice(0, 2).map((q) => (
-              <QuestCard key={q.id} quest={q} onComplete={complete} completing={busyId === q.id} lastResult={results[q.id] ?? null} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Secondary rhythms */}
-      {buckets.map((b) =>
-        b.quests.length > 0 ? (
-          <section key={b.key} aria-label={b.title}>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-[0.12em] text-ink-muted">{b.title}</h2>
-            <div className="grid gap-3 md:grid-cols-2">
-              {(b.key === "pinned" ? b.quests.slice(2) : b.quests).map((q) => (
-                <QuestCard key={q.id} quest={q} onComplete={complete} completing={busyId === q.id} lastResult={results[q.id] ?? null} />
-              ))}
-            </div>
+            {masonry.length > 0 ? (
+              <div className="quest-masonry">
+                {masonry.map((q, i) => (
+                  <QuestMasonryCard key={q.id} quest={q} index={i} onComplete={complete} />
+                ))}
+              </div>
+            ) : (
+              !primary && <EmptyState message="No open quests. Create one to begin." />
+            )}
           </section>
-        ) : null,
-      )}
-
-      {data.spark && (
-        <section aria-label="Suggestion">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-[0.12em] text-ink-muted">A small spark</h2>
-          <QuestCard quest={data.spark} onComplete={complete} completing={busyId === data.spark.id} lastResult={results[data.spark.id] ?? null} />
-        </section>
-      )}
-
-      {data.campaignSummary && (
-        <section aria-label="Active campaign" className="rounded-card border border-line bg-surface-card p-4 shadow-card">
-          <div className="flex items-baseline justify-between">
-            <h2 className="font-display text-lg">{data.campaignSummary.title}</h2>
-            <span className="text-sm font-semibold text-xp">{data.campaignSummary.progressPct}%</span>
-          </div>
-          <div className="mt-2">
-            <XpBar pct={data.campaignSummary.progressPct / 100} label="Campaign progress" />
-          </div>
-        </section>
-      )}
-
-      <section aria-label="Attributes" className="rounded-card border border-line bg-surface-card p-4 shadow-card">
-        <h2 className="mb-3 font-display text-lg">Attributes</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {data.attributeSnapshot.map((a) => (
-            <div key={a.key} className="flex items-center justify-between gap-2 text-sm">
-              <span className="capitalize text-ink-secondary">{a.name}</span>
-              <span className="font-semibold">Lv {a.level}</span>
-            </div>
-          ))}
         </div>
-      </section>
 
-      <QuestCreator open={creator} onOpenChange={setCreator} onCreated={retry} authHeaders={authHeaders} />
+        <aside className="today-side">
+          {data.campaignSummary ? (
+            <CampaignPreview
+              title={data.campaignSummary.title}
+              progressPct={data.campaignSummary.progressPct}
+              milestones={milestones.map((m) => ({ name: m.title, done: m.status === "done", current: m.id === nextId }))}
+              nextText={detail?.nextMilestone ? `Next: ${detail.nextMilestone.title}` : "Keep walking — the path unfolds."}
+              onOpen={() => router.push("/campaigns")}
+            />
+          ) : (
+            <EmptyState message={data.emptyHints.noCampaign ?? "No campaign yet."} />
+          )}
+          <div className="growth panel">
+            <div className="sec-head" style={{ margin: 0 }}>
+              <h3>Character Growth</h3>
+            </div>
+            <div className="attr-grid">
+              {data.attributeSnapshot.map((a) => {
+                const meta = ATTR_META[a.key] ?? { name: a.name, icon: "i-spark" as const };
+                return (
+                  <div className="attr-stat" key={a.key}>
+                    <span className="attr-icon">
+                      <Icon id={meta.icon} />
+                    </span>
+                    <div className="info">
+                      <div className="name">
+                        {a.name}
+                        <em>Lv {a.level}</em>
+                      </div>
+                      <div className="attr-bar">
+                        <i style={{ width: `${Math.min(100, Math.round(((a.xp % 500) / 500) * 100))}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

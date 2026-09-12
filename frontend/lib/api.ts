@@ -112,6 +112,7 @@ export const client = {
   patchMilestone: (h: H, mid: string, body: any) => api<unknown>(`/api/v1/campaigns/milestones/${mid}`, { method: "PATCH", headers: h, body: JSON.stringify(body) }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   startFocus: (h: H, body: any) => api<{ id: string; status: string }>(`/api/v1/focus/start`, { method: "POST", headers: h, body: JSON.stringify(body) }),
+  listFocus: (h: H, limit = 20) => api<unknown[]>(`/api/v1/focus?limit=${limit}`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   finishFocus: (h: H, id: string, body: any) => api<unknown>(`/api/v1/focus/${id}/finish`, { method: "POST", headers: h, body: JSON.stringify(body) }),
   pauseFocus: (h: H, id: string) => api<unknown>(`/api/v1/focus/${id}/pause`, { method: "POST", headers: h }),
@@ -128,7 +129,7 @@ export const client = {
   achievements: (h: H) => api<{ unlocked: unknown[] }>(`/api/v1/achievements`, { headers: h }),
   companion: (h: H, event = "app_open") => api<{ mood: string; message: string }>(`/api/v1/companion?event=${event}`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  history: (h: H) => api<any>(`/api/v1/chronicle/history?limit=20`, { headers: h }),
+  history: (h: H, limit = 20) => api<any>(`/api/v1/chronicle/history?limit=${limit}`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   analytics: (h: H) => api<any>(`/api/v1/chronicle/analytics`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

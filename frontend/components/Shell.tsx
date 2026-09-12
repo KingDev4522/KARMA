@@ -1,65 +1,286 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
 import { client } from "@/lib/api";
-import { Nav } from "@/components/Nav";
+import { Hero, Icon, IconSprite, type IconId } from "@/components/illustrations";
 
-/**
- * App shell with a hard auth gate.
- *
- * Signed out → the ONLY thing that exists is the dedicated login screen.
- * No nav, no pages, no content — blank until the session resolves, then
- * /login for strangers. Auth callback/welcome stay public (they mint the session).
- * Signed in → full shell: nav, identity, command palette, everything.
- */
+const NAV: { id: string; href: string; label: string; icon: IconId }[] = [
+  { id: "today", href: "/", label: "Today", icon: "i-today" },
+  { id: "quests", href: "/quests", label: "Quests", icon: "i-quests" },
+  { id: "campaigns", href: "/campaigns", label: "Campaigns", icon: "i-campaigns" },
+  { id: "focus", href: "/focus", label: "Focus", icon: "i-focus" },
+  { id: "realm", href: "/realm", label: "Realm", icon: "i-realm" },
+  { id: "chronicle", href: "/chronicle", label: "Chronicle", icon: "i-chronicle" },
+];
+
+const MORE: { id: string; href: string; label: string; icon: IconId }[] = [
+  { id: "store", href: "/store", label: "Store", icon: "i-store" },
+  { id: "settings", href: "/settings", label: "Settings", icon: "i-settings" },
+];
+
+const TITLES: Record<string, string> = {
+  "/": "Today",
+  "/quests": "Quests",
+  "/campaigns": "Campaigns",
+  "/focus": "Focus",
+  "/realm": "Realm",
+  "/chronicle": "Chronicle",
+  "/store": "Store",
+  "/settings": "Settings",
+  "/hero-card": "Hero Card",
+  "/onboarding": "Onboarding",
+  "/login": "Sign in",
+};
+
+/** Public routes that mint or need no session (hard auth gate allow-list). */
 const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/welcome"];
 
-function isPublic(path: string) {
-  return PUBLIC_PATHS.some((p) => path === p);
-}
-
+/** App shell: brand sidebar, topbar (search/coins/theme/notifications/profile), mobile nav. */
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { authHeaders, userId, loading: authLoading } = useAuth();
-  const pathname = usePathname();
+  const path = usePathname();
   const router = useRouter();
-  const [identity, setIdentity] = useState<{ heroName?: string; level?: number; coins?: number }>({});
+  const { authHeaders, userId, signOut, email, loading: authLoading } = useAuth();
+  const { theme, toggle } = useTheme();
+  const [identity, setIdentity] = useState({ heroName: "Aki", level: 1, rank: "Drifter", coins: 0, active: 0, streak: 0 });
+  const [query, setQuery] = useState("");
+  const [sideOpen, setSideOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const signedOut = !authLoading && !userId;
-
-  useEffect(() => {
-    if (signedOut && !isPublic(pathname)) {
-      router.replace("/login");
-    }
-  }, [signedOut, pathname, router]);
-
-  useEffect(() => {
+  const refreshIdentity = useCallback(() => {
     if (!userId) return;
     client
       .getToday(authHeaders())
-      .then((t) => setIdentity({ heroName: t.greeting.heroName, level: t.greeting.heroLevel, coins: t.greeting.coins }))
+      .then((t) =>
+        setIdentity({
+          heroName: t.greeting.heroName,
+          level: t.greeting.heroLevel,
+          rank: t.greeting.rank.display,
+          coins: t.greeting.coins,
+          active: t.counts.pinned + t.counts.due,
+          streak: t.streak.current,
+        }),
+      )
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  useEffect(() => {
+    refreshIdentity();
+  }, [refreshIdentity, path]);
+  useEffect(() => {
+    const fn = () => refreshIdentity();
+    window.addEventListener("liferpg:refresh", fn);
+    return () => window.removeEventListener("liferpg:refresh", fn);
+  }, [refreshIdentity]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (e.key === "Escape") {
+        setNotifOpen(false);
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  const submitSearch = () => {
+    router.push(`/quests${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ""}`);
+  };
+
+  // Hard auth gate: signed-out visitors only ever see the login screen.
+  // Auth callback/welcome stay public (they mint the session).
+  const isPublic = PUBLIC_PATHS.some((p) => p === path);
+  const signedOut = !authLoading && !userId;
+  useEffect(() => {
+    if (signedOut && !isPublic) router.replace("/login");
+  }, [signedOut, isPublic, router]);
+
   // Blank while resolving, blank gate while redirecting — nothing leaks.
   if (authLoading) return null;
   if (signedOut) {
-    if (!isPublic(pathname)) return null;
+    if (!isPublic) return null;
     return (
-      <main id="main" className="mx-auto min-h-dvh w-full max-w-shell px-4 pb-10 pt-10 md:pt-16">
-        {children}
-      </main>
+      <div className="app-shell">
+        <IconSprite />
+        <div className="app-main">
+          <main className="app-content" id="main">
+            {children}
+          </main>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-shell md:gap-5">
-      <Nav heroName={identity.heroName} level={identity.level} coins={identity.coins} />
-      <main id="main" className="min-w-0 flex-1 px-4 pb-24 pt-4 md:px-2 md:pb-10 md:pt-6">
-        {children}
-      </main>
+    <div className="app-shell">
+      <IconSprite />
+
+      {/* ============ SIDEBAR ============ */}
+      <aside className={`sidebar${sideOpen ? " is-open" : ""}`} aria-label="Primary">
+        <div className="sidebar__brand">
+          <span className="brand-mark">
+            <Icon id="i-spark" />
+          </span>
+          <span className="brand-name">
+            LIFE<em>RPG</em>
+          </span>
+        </div>
+        <div className="sidebar__label">Workspace</div>
+        <nav aria-label="Workspace">
+          {NAV.map((n) => (
+            <Link key={n.id} href={n.href} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
+              <Icon id={n.icon} />
+              <span>{n.label}</span>
+              {n.id === "quests" && identity.active > 0 && <em className="nav-badge">{identity.active}</em>}
+            </Link>
+          ))}
+        </nav>
+        <div className="sidebar__divider" />
+        <nav aria-label="More">
+          {MORE.map((n) => (
+            <Link key={n.id} href={n.href} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
+              <Icon id={n.icon} />
+              <span>{n.label}</span>
+              {n.id === "store" && <em className="nav-dot" />}
+            </Link>
+          ))}
+        </nav>
+        <Link href="/realm" className="sidebar__user">
+          <span className="avatar">
+            <Hero width={26} />
+          </span>
+          <span>
+            <strong>{identity.heroName}</strong>
+            <span>
+              Lv {identity.level} · {identity.rank}
+            </span>
+          </span>
+        </Link>
+      </aside>
+      <div
+        className={`sidebar-backdrop${sideOpen ? " is-open" : ""}`}
+        onClick={() => setSideOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* ============ MAIN ============ */}
+      <div className="app-main">
+        <header className="topbar">
+          <button className="icon-btn menu-btn" onClick={() => setSideOpen(true)} aria-label="Open menu">
+            <Icon id="i-campaigns" />
+          </button>
+          <h1 className="topbar__title">{TITLES[path] ?? "Today"}</h1>
+          <div className="topbar__search">
+            <Icon id="i-search" style={{ width: 16, height: 16 }} />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitSearch();
+              }}
+              placeholder="Search quests, campaigns, or type a command…"
+              aria-label="Search quests"
+            />
+            <kbd>⌘K</kbd>
+          </div>
+          <div className="topbar__actions">
+            <div className="coin-pill" id="coinPill" title="Your coins" aria-label={`${identity.coins} coins`}>
+              <Icon id="i-coin" />
+              <span>{identity.coins.toLocaleString("en-US")}</span>
+            </div>
+            <button className="icon-btn" onClick={toggle} title="Toggle theme" aria-label="Toggle theme">
+              <Icon id={theme === "dark" ? "i-sun" : "i-moon"} />
+            </button>
+            <div className="notif-wrap">
+              <button className="icon-btn" onClick={() => { setNotifOpen((o) => !o); setProfileOpen(false); }} aria-label="Notifications" aria-expanded={notifOpen}>
+                <Icon id="i-bell" />
+                <em className="ping" />
+              </button>
+              <div className={`dropdown${notifOpen ? " is-open" : ""}`} role="menu" aria-label="Notifications">
+                <div className="dd-head">Notifications</div>
+                <div className="dd-item">
+                  <Icon id="i-flame" style={{ color: "var(--accent)" }} />
+                  {identity.streak}-day streak — keep it alive tonight
+                </div>
+                <div className="dd-item">
+                  <Icon id="i-campaigns" style={{ color: "var(--tint-sky-d)" }} />
+                  {identity.active} open quests on your board
+                </div>
+                <div className="dd-item">
+                  <Icon id="i-trophy" style={{ color: "var(--gold)" }} />
+                  Complete quests to earn coins for the store
+                </div>
+              </div>
+            </div>
+            <div className="profile-wrap">
+              <button
+                className="icon-btn"
+                style={{ padding: 0 }}
+                onClick={() => { setProfileOpen((o) => !o); setNotifOpen(false); }}
+                aria-label="Profile menu"
+                aria-expanded={profileOpen}
+              >
+                <span className="avatar" style={{ width: 32, height: 32 }}>
+                  <Hero width={24} />
+                </span>
+              </button>
+              <div className={`dropdown${profileOpen ? " is-open" : ""}`} role="menu" aria-label="Profile">
+                <div className="dd-head">
+                  {identity.heroName} · {identity.rank}
+                </div>
+                <Link href="/realm" className="dd-item" onClick={() => setProfileOpen(false)}>
+                  <Icon id="i-realm" /> View Realm
+                </Link>
+                <Link href="/settings" className="dd-item" onClick={() => setProfileOpen(false)}>
+                  <Icon id="i-settings" /> Settings
+                </Link>
+                <button
+                  className="dd-item"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    signOut();
+                  }}
+                >
+                  <Icon id="i-arrow-r" /> Sign out{email ? ` (${email})` : ""}
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="app-content" id="main">
+          {children}
+        </main>
+      </div>
+
+      {/* ============ MOBILE NAV ============ */}
+      <nav className="mobile-nav" aria-label="Primary mobile">
+        {[
+          { id: "today", href: "/", label: "Today", icon: "i-today" as IconId },
+          { id: "quests", href: "/quests", label: "Quests", icon: "i-quests" as IconId },
+          { id: "campaigns", href: "/campaigns", label: "Journeys", icon: "i-campaigns" as IconId },
+          { id: "focus", href: "/focus", label: "Focus", icon: "i-focus" as IconId },
+          { id: "realm", href: "/realm", label: "Realm", icon: "i-realm" as IconId },
+        ].map((n) => (
+          <Link key={n.id} href={n.href} className={isActive(n.href) ? "is-active" : ""} aria-current={isActive(n.href) ? "page" : undefined}>
+            <Icon id={n.icon} />
+            {n.label}
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }

@@ -2,11 +2,11 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { GoogleLogo } from "@phosphor-icons/react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { Hero, Icon } from "@/components/illustrations";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { EmptyState } from "@/components/States";
+import { EmptyState, Skeleton } from "@/components/States";
 
 const ERROR_COPY: Record<string, string> = {
   denied: "Google sign-in was cancelled. Nothing changed — try again whenever you're ready.",
@@ -14,7 +14,7 @@ const ERROR_COPY: Record<string, string> = {
   session: "No session found. Please sign in.",
 };
 
-/** Login — professional OAuth entry. Google only; no passwords ever touch this app. */
+/** Login — Google OAuth entry. No passwords ever touch this app. */
 function LoginInner() {
   const params = useSearchParams();
   const { userId, loading } = useAuth();
@@ -32,57 +32,53 @@ function LoginInner() {
         options: { redirectTo: `${window.location.origin}/auth/callback?next=/auth/welcome` },
       });
       if (error) throw error;
-      // Browser navigates to Google; nothing more to do here.
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't start Google sign-in.");
       setBusy(false);
     }
   };
 
+  if (loading) return <Skeleton label="Sign in" rows={2} />;
   if (!loading && userId) {
     window.location.replace("/");
     return null;
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <div className="mb-3 flex justify-end">
-        <ThemeToggle className="border border-line bg-surface-elevated shadow-card" />
-      </div>
-      <div className="pattern-asanoha overflow-hidden rounded-panel border border-line bg-surface-elevated p-6 text-center shadow-card md:p-8">
-        <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-[10px] bg-seal font-display text-lg font-bold text-white" aria-hidden>
-          命
-        </span>
-        <h1 className="mt-3 font-display text-2xl">Enter the realm</h1>
-        <p className="mx-auto mt-1 max-w-[36ch] text-sm text-ink-secondary">
-          One account across every device. Your quests, XP and identity persist.
-        </p>
-
-        {error && (
-          <p role="alert" className="mt-4 rounded-card border border-danger/40 bg-surface-card p-3 text-sm text-danger">
-            {error}
-          </p>
-        )}
-
-        {!isSupabaseConfigured() && !devBypass ? (
-          <div className="mt-4">
-            <EmptyState message="Sign-in isn't configured yet — add your Supabase URL and anon key to .env.local, allow-list the callback URL in Supabase, and reload." />
+    <div className="page is-active">
+      <div className="auth-wrap">
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <ThemeToggle />
+        </div>
+        <div className="auth-card panel">
+          <span className="brand-mark" style={{ margin: "0 auto" }}>
+            <Icon id="i-spark" />
+          </span>
+          <h1>Enter the realm</h1>
+          <p>One account across every device. Your quests, XP and identity persist.</p>
+          <div style={{ display: "flex", justifyContent: "center", margin: "14px 0 4px" }}>
+            <Hero width={110} />
           </div>
-        ) : (
-          <button
-            onClick={signInWithGoogle}
-            disabled={busy}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2.5 rounded-control border border-line bg-surface-card px-4 py-3 text-sm font-semibold shadow-card pressable hover:border-xp/50 disabled:opacity-60"
-          >
-            <GoogleLogo size={19} weight="bold" aria-hidden />
-            {busy ? "Opening Google…" : "Sign in with Google"}
-          </button>
-        )}
 
-        {devBypass && (
-          <p className="mt-3 text-xs text-ink-muted">Local preview mode is on — you&apos;re already signed in as the dev hero.</p>
-        )}
-        <p className="mt-3 text-[11px] text-ink-muted">Google handles the password. This app never sees it.</p>
+          {error && (
+            <p role="alert" style={{ marginTop: 12, fontSize: 13.5, color: "var(--accent-text)" }}>
+              {error}
+            </p>
+          )}
+
+          {!isSupabaseConfigured() && !devBypass ? (
+            <div style={{ marginTop: 16 }}>
+              <EmptyState message="Sign-in isn't configured yet — add your Supabase URL and anon key to .env.local, allow-list the callback URL in Supabase, and reload." />
+            </div>
+          ) : (
+            <button onClick={signInWithGoogle} disabled={busy} className="btn btn--primary" style={{ width: "100%", justifyContent: "center", marginTop: 16 }}>
+              {busy ? "Opening Google…" : "Sign in with Google"}
+            </button>
+          )}
+
+          {devBypass && <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-3)" }}>Local preview mode is on — you&apos;re already signed in as the dev hero.</p>}
+          <p style={{ marginTop: 10, fontSize: 11, color: "var(--text-3)" }}>Google handles the password. This app never sees it.</p>
+        </div>
       </div>
     </div>
   );

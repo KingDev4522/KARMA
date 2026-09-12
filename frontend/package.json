@@ -12,7 +12,6 @@
     "test": "tsx tests/contract.test.ts"
   },
   "dependencies": {
-    "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-dialog": "^1.1.23",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
