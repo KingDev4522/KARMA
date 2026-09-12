@@ -495,6 +495,21 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.015em}
 .chart-bars .bar.best i{opacity:1;box-shadow:0 4px 12px rgba(212,105,74,.35)}
 .chart-bars .bar span{font-size:10.5px;font-weight:700;color:var(--text-3)}
 .chart-bars .bar b{font-size:11px;font-weight:800;color:var(--text-2)}
+.chart.panel{min-width:0}
+.cal-panel{margin-top:22px;padding:22px 24px}
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;min-width:0}
+.cal-title{font-size:17px;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto}
+.cal-nav{display:inline-flex;gap:4px;flex:none}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-dow{text-align:center;font-size:11px;color:var(--text-3);font-weight:700}
+.cal-cell{min-height:44px;border-radius:10px;border:1px solid transparent;background:var(--surface);padding:4px 5px;min-width:0;overflow:hidden}
+.cal-cell.is-today{border:1.5px solid var(--accent)}
+.cal-num{font-size:11px;font-weight:400}
+.cal-cell.is-today .cal-num{font-weight:800}
+.cal-dots{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap}
+.cal-dots i{width:6px;height:6px;border-radius:3px;flex:none}
+.cal-legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--text-3)}
+.cal-legend i{display:inline-block;width:6px;height:6px;border-radius:3px;margin-right:4px}
 
 /* ============================================================
    STORE
@@ -677,6 +692,10 @@ h1,h2,h3,h4{font-weight:700;letter-spacing:-.015em}
   .achieve-grid{grid-template-columns:1fr 1fr}
   .stats-row{grid-template-columns:1fr 1fr}
   .chronicle-grid{grid-template-columns:1fr}
+.cal-panel{margin-top:18px;padding:18px 16px}
+.cal-title{font-size:15px}
+.cal-cell{min-height:36px;padding:3px 4px}
+.cal-num{font-size:10px}
   .store-grid{grid-template-columns:1fr}
   .world-grid{grid-template-columns:1fr}
   .quest-row{flex-wrap:wrap}

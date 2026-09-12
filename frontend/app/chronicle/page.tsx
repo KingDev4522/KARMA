@@ -222,20 +222,20 @@ function MonthCalendar({
     { k: "f", c: "var(--tint-coral-d)", l: "focus" },
   ];
   return (
-    <section aria-label="Planning calendar" className="panel">
-      <div className="sec-head" style={{ margin: 0 }}>
-        <h3>{first.toLocaleString(undefined, { month: "long", year: "numeric" })}</h3>
-        <span style={{ display: "inline-flex", gap: 4 }}>
+    <section aria-label="Planning calendar" className="panel cal-panel">
+      <div className="cal-head">
+        <h3 className="cal-title">{first.toLocaleString(undefined, { month: "long", year: "numeric" })}</h3>
+        <span className="cal-nav">
           <button className="icon-btn" onClick={onPrev} aria-label="Previous month">‹</button>
           <button className="icon-btn" onClick={onNext} aria-label="Next month">›</button>
         </span>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginTop: 8 }} role="grid" aria-label="Month calendar">
+      <div className="cal-grid" role="grid" aria-label="Month calendar">
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <span key={i} style={{ textAlign: "center", fontSize: 11, color: "var(--text-3)", fontWeight: 700 }}>{d}</span>
+          <span key={i} className="cal-dow">{d}</span>
         ))}
         {cells.map((d, i) => {
-          if (!d) return <span key={i} />;
+          if (!d) return <span key={i} aria-hidden />;
           const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const mk = marks[key];
           return (
@@ -243,27 +243,21 @@ function MonthCalendar({
               key={i}
               role="gridcell"
               aria-label={key + (mk ? `: ${mk.q} quests, ${mk.r} routines, ${mk.m} milestones, ${mk.f} focus` : "")}
-              style={{
-                minHeight: 40,
-                borderRadius: 10,
-                border: key === todayKey ? "1.5px solid var(--accent)" : "1px solid transparent",
-                background: "var(--surface)",
-                padding: 4,
-              }}
+              className={`cal-cell${key === todayKey ? " is-today" : ""}`}
             >
-              <span style={{ fontSize: 11, fontWeight: key === todayKey ? 800 : 400 }}>{d}</span>
+              <span className="cal-num">{d}</span>
               {mk && (
-                <span style={{ display: "flex", gap: 3, marginTop: 2 }} aria-hidden>
-                  {dots.map((t) => (mk[t.k] > 0 ? <i key={t.k} style={{ width: 6, height: 6, borderRadius: 3, background: t.c }} /> : null))}
+                <span className="cal-dots" aria-hidden>
+                  {dots.map((t) => (mk[t.k] > 0 ? <i key={t.k} style={{ background: t.c }} /> : null))}
                 </span>
               )}
             </div>
           );
         })}
       </div>
-      <p style={{ display: "flex", gap: 10, marginTop: 8, fontSize: 11, color: "var(--text-3)" }}>
+      <p className="cal-legend">
         {dots.map((t) => (
-          <span key={t.k}><i style={{ display: "inline-block", width: 6, height: 6, borderRadius: 3, background: t.c, marginRight: 4 }} />{t.l}</span>
+          <span key={t.k}><i style={{ background: t.c }} />{t.l}</span>
         ))}
       </p>
     </section>
