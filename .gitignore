@@ -1,0 +1,38 @@
+# ── LIFE RPG root ignore ──────────────────────────────────────────────
+# Agent / assistant workspaces (local-only tooling, skills, scratchpads)
+.agents/
+.claude/
+
+# Local portable Postgres (binaries + cluster data + password file)
+.postgres/
+
+# Secrets & local env (never commit; see .env.example templates)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+pw.txt
+
+# Dependencies & build output
+node_modules/
+dist/
+.next/
+out/
+coverage/
+
+# Runtime logs & strays
+*.log
+server.log
+STDOUT
+
+# TypeScript artifacts
+*.tsbuildinfo
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+skills-lock.json
