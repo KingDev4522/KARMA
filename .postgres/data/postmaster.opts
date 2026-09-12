@@ -1,0 +1,1 @@
+F:/PROJECTS/Karma/.postgres/bin/bin/postgres.exe "-D" "F:\PROJECTS\Karma\.postgres\data" "-p" "5432"

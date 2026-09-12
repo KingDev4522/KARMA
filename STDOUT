@@ -1,0 +1,13 @@
+2026-09-12 13:58:29.503 IST [33396] LOG:  starting PostgreSQL 16.15, compiled by Visual C++ build 1944, 64-bit
+2026-09-12 13:58:29.512 IST [33396] LOG:  listening on IPv6 address "::1", port 5432
+2026-09-12 13:58:29.514 IST [33396] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2026-09-12 13:58:29.602 IST [14340] LOG:  database system was interrupted; last known up at 2026-09-12 13:43:48 IST
+2026-09-12 13:58:30.448 IST [14340] LOG:  database system was not properly shut down; automatic recovery in progress
+2026-09-12 13:58:30.453 IST [14340] LOG:  redo starts at 0/15A5A78
+2026-09-12 13:58:30.454 IST [14340] LOG:  invalid record length at 0/15A5AB0: expected at least 24, got 0
+2026-09-12 13:58:30.456 IST [14340] LOG:  redo done at 0/15A5A78 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+2026-09-12 13:58:30.466 IST [31488] LOG:  checkpoint starting: end-of-recovery immediate wait
+2026-09-12 13:58:30.495 IST [31488] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.004 s, sync=0.004 s, total=0.035 s; sync files=2, longest=0.002 s, average=0.002 s; distance=0 kB, estimate=0 kB; lsn=0/15A5AB0, redo lsn=0/15A5AB0
+2026-09-12 13:58:30.544 IST [33396] LOG:  database system is ready to accept connections
+2026-09-12 13:58:34.042 IST [32264] LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
