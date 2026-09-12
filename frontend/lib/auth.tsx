@@ -1,0 +1,93 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createClient, type Session } from "@supabase/supabase-js";
+
+/**
+ * Auth provider: Supabase session → Bearer JWT for the backend.
+ * Dev bypass (NEXT_PUBLIC_DEV_BYPASS=true) sends X-Dev-User-Id instead — local only.
+ */
+
+interface AuthValue {
+  token: string | null;
+  userId: string | null;
+  email: string | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+  authHeaders: () => Record<string, string>;
+}
+
+const AuthCtx = createContext<AuthValue>({
+  token: null,
+  userId: null,
+  email: null,
+  loading: true,
+  signOut: async () => undefined,
+  authHeaders: () => ({}),
+});
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const devBypass = process.env.NEXT_PUBLIC_DEV_BYPASS === "true";
+const devUserId = process.env.NEXT_PUBLIC_DEV_USER_ID ?? "";
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (devBypass) {
+      setLoading(false);
+      return;
+    }
+    if (!supabaseUrl || !supabaseAnon) {
+      setLoading(false);
+      return;
+    }
+    const client = createClient(supabaseUrl, supabaseAnon);
+    client.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setLoading(false);
+    });
+    const { data: sub } = client.auth.onAuthStateChange((_ev, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const signOut = useCallback(async () => {
+    if (devBypass || !supabaseUrl || !supabaseAnon) return;
+    const client = createClient(supabaseUrl, supabaseAnon);
+    await client.auth.signOut();
+    setSession(null);
+  }, []);
+
+  const value = useMemo<AuthValue>(() => {
+    if (devBypass) {
+      return {
+        token: null,
+        userId: devUserId || null,
+        email: "dev@localhost",
+        loading,
+        signOut,
+        authHeaders: () => ({ "X-Dev-User-Id": devUserId }),
+      };
+    }
+    return {
+      token: session?.access_token ?? null,
+      userId: session?.user?.id ?? null,
+      email: session?.user?.email ?? null,
+      loading,
+      signOut,
+      authHeaders: () => {
+        const h: Record<string, string> = {};
+        if (session?.access_token) h.Authorization = `Bearer ${session.access_token}`;
+        return h;
+      },
+    };
+  }, [session, loading, signOut]);
+
+  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
+}
+
+export function useAuth() {
+  return useContext(AuthCtx);
+}

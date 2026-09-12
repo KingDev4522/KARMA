@@ -1,0 +1,35 @@
+{
+  "name": "life-rpg-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LIFE RPG frontend — premium fantasy-modern progression UI. Per LRP-FE-001, MASTER PRD, PRD v2, BLUEPRINT v2.",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
+    "test": "tsx tests/contract.test.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.44.4",
+    "framer-motion": "^11.3.19",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.40",
+    "tailwindcss": "^3.4.7",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

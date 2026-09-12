@@ -89,7 +89,42 @@ export async function createQuest(userId: string, input: CreateQuestInput) {
   });
 }
 
-export async function listQuests(userId: string, q: { status?: string; questType?: string; limit?: number; cursor?: string; includeDeleted?: boolean }) {
+type QuestRow = {
+  difficulty: number;
+  questType: string;
+  activityType?: { key: string } | null;
+  primaryOverride?: string | null;
+  secondaryOverride?: string | null;
+};
+
+/**
+ * Attach deterministic reward previews to quest rows (LRP-FE-001 §6 Quest Card:
+ * every card shows +XP / +coins + primary/secondary attrs BEFORE action).
+ * One extra query per call (streak + today's micro count), shared across rows.
+ */
+export async function withRewardPreviews<T extends QuestRow>(userId: string, rows: T[]): Promise<(T & { rewardPreview: ReturnType<typeof resolveRewards> })[]> {
+  if (rows.length === 0) return [];
+  const todayKey = toDayKey();
+  const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
+  const [prog, microCountToday] = await Promise.all([
+    prisma.profileProgression.findUnique({ where: { profileId: userId } }),
+    prisma.questCompletion.count({ where: { userId, completedAt: { gte: dayStart }, rewardXp: { lte: 10 } } }),
+  ]);
+  return rows.map((r) => ({
+    ...r,
+    rewardPreview: resolveRewards({
+      difficulty: r.difficulty,
+      questType: r.questType,
+      activityKey: r.activityType?.key ?? null,
+      primaryOverride: r.primaryOverride ?? null,
+      secondaryOverride: r.secondaryOverride ?? null,
+      microCountToday,
+      currentStreak: prog?.currentStreak ?? 0,
+    }),
+  }));
+}
+
+export async function listQuests(userId: string, q: { status?: string; questType?: string; limit?: number; cursor?: string; includeDeleted?: boolean; preview?: boolean }) {
   const where: Prisma.QuestWhereInput = { userId };
   if (!q.includeDeleted) where.deletedAt = null;
   if (q.status) {
@@ -100,13 +135,15 @@ export async function listQuests(userId: string, q: { status?: string; questType
     const list = q.questType.split(",").map((s) => s.trim()).filter(Boolean);
     where.questType = list.length === 1 ? (list[0] as never) : { in: list as never };
   }
-  return prisma.quest.findMany({
+  const rows = await prisma.quest.findMany({
     where,
     orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
     take: Math.min(100, Math.max(1, q.limit ?? 20)),
     ...(q.cursor ? { cursor: { id: q.cursor }, skip: 1 } : {}),
     include: { activityType: true },
   });
+  if (q.preview) return withRewardPreviews(userId, rows);
+  return rows;
 }
 
 export async function getQuest(userId: string, id: string) {
@@ -568,6 +605,13 @@ export async function getToday(userId: string, dateKey = toDayKey()) {
     ? Math.round((campaignSummary.milestones.filter((m) => (m.status as string) === "done").length / campaignSummary.milestones.length) * 100)
     : 0;
 
+  // Reward previews for every visible quest (FE §6: each card shows its reward).
+  const toPreview = [...pick, ...(spark && !pick.find((q) => q.id === spark.id) ? [spark] : [])];
+  const previewed = await withRewardPreviews(userId, toPreview);
+  const byId = new Map(previewed.map((q) => [q.id, q]));
+  const withPv = <T extends { id: string }>(row: T): T & { rewardPreview: ReturnType<typeof resolveRewards> } =>
+    (byId.get(row.id) ?? { ...row, rewardPreview: resolveRewards({ difficulty: 3, questType: "quick" }) }) as T & { rewardPreview: ReturnType<typeof resolveRewards> };
+
   return {
     date: dateKey,
     // FE §4 header
@@ -588,10 +632,16 @@ export async function getToday(userId: string, dateKey = toDayKey()) {
         campaignPct,
       }),
     },
-    // FE §5 buckets (explicit) + combined list for convenience
-    buckets: { pinned, dueToday: due, routine: routines, campaign: campaignNext, spark },
-    quests: pick,
-    spark,
+    // FE §5 buckets (explicit) + combined list for convenience — all with rewardPreview.
+    buckets: {
+      pinned: pinned.map(withPv),
+      dueToday: due.map(withPv),
+      routine: routines.map(withPv),
+      campaign: campaignNext.map(withPv),
+      spark: spark ? withPv(spark) : null,
+    },
+    quests: pick.map(withPv),
+    spark: spark ? withPv(spark) : null,
     progression,
     campaignSummary: campaignSummary ? { ...campaignSummary, progressPct: campaignPct } : null,
     attributeSnapshot: attrRows.map((a) => ({ key: a.attribute.key, name: a.attribute.name, xp: a.xp, level: a.level })),

@@ -32,6 +32,7 @@ questRouter.get(
         limit: q.limit ? Number(q.limit) : 20,
         cursor: q.cursor,
         includeDeleted: q.includeDeleted === "true",
+        preview: q.preview === "true" || q.preview === "1",
       }),
     );
   }),
