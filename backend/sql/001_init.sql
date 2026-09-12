@@ -1,4 +1,4 @@
--- LIFE RPG initial migration — PostgreSQL / Supabase (LRP-BE-001 §3, §20).
+-- KARMA initial migration — PostgreSQL / Supabase (LRP-BE-001 §3, §20).
 -- Apply via Supabase SQL editor or `psql $DATABASE_URL -f sql/001_init.sql`.
 -- Prisma is the app ORM; this file is the reviewable SQL baseline with RLS.
 
