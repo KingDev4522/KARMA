@@ -739,6 +739,10 @@ p{max-width:65ch}
 .diff-name{display:flex;align-items:center;gap:8px}
 .diff-dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--text-3)}
 .option.is-on .diff-dot{background:var(--text)}
+/* Activity option label — ported from remote for merged quest creator (monochrome adaptation) */
+.act-name{display:flex;align-items:center;gap:8px}
+.act-dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--text-3)}
+.option.is-on .act-dot{background:var(--text)}
 .chip-row{display:flex;gap:7px;flex-wrap:wrap}
 .modal-foot{display:flex;justify-content:space-between;gap:10px;margin-top:26px}
 .reward-preview{border-radius:10px;padding:20px;background:var(--surface-2);border:1px solid var(--border)}

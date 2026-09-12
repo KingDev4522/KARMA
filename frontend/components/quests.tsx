@@ -840,8 +840,9 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
             {ACTIVITIES.map((a) => {
               const at = ATTR_META[ACTIVITY_ATTR[a]];
               return (
-                <button key={a} className={`option${activity === a ? " is-on" : ""}`} onClick={() => setActivity(a)} aria-pressed={activity === a}>
-                  <strong style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button key={a} data-act={a} className={`option${activity === a ? " is-on" : ""}`} onClick={() => setActivity(a)} aria-pressed={activity === a}>
+                  <strong className="act-name">
+                    <span className="act-dot" aria-hidden />
                     <Icon id={at.icon} style={{ width: 16, height: 16 }} />
                     {a}
                   </strong>
