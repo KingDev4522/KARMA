@@ -65,8 +65,8 @@ export async function updateIdentity(
   return prisma.profile.update({
     where: { id: userId },
     data: {
-      displayName: data.displayName,
-      heroName: data.heroName,
+      displayName: data.displayName?.trim(),
+      heroName: data.heroName?.trim(),
       bio: data.bio,
       heroAssetId: data.heroAssetId,
       companionAssetId: data.companionAssetId,

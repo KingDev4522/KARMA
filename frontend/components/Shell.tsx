@@ -261,7 +261,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     signOut();
                   }}
                 >
-                  <Icon id="i-arrow-r" /> Sign out{email ? ` (${email})` : ""}
+                  <Icon id="i-arrow-r" />{" "}
+                  <span className="dd-label">
+                    <span className="dd-title">Sign out</span>
+                    {email ? <span className="dd-sub">{email}</span> : null}
+                  </span>
                 </button>
               </div>
             </div>

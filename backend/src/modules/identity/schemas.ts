@@ -1,8 +1,18 @@
 import { z } from "zod";
+import { nameError } from "./names";
+
+const heroNameField = z
+  .string()
+  .min(1)
+  .max(80)
+  .optional()
+  .refine((v) => v === undefined || nameError(v) === null, (v) => ({
+    message: nameError(v as string) ?? "Name not allowed.",
+  }));
 
 export const UpdateIdentitySchema = z.object({
-  displayName: z.string().min(1).max(80).optional(),
-  heroName: z.string().min(1).max(80).optional(),
+  displayName: heroNameField,
+  heroName: heroNameField,
   bio: z.string().max(500).optional(),
   heroAssetId: z.string().max(120).optional(),
   companionAssetId: z.string().max(120).optional(),
