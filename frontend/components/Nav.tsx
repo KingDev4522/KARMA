@@ -10,15 +10,13 @@ import {
   House,
   MagnifyingGlass,
   Medal,
-  Moon,
   Scroll,
   Storefront,
-  Sun,
   Timer,
   type Icon,
 } from "@phosphor-icons/react";
-import { useTheme } from "@/lib/theme";
 import { CoinPurse } from "./rpg";
+import { ThemeToggle } from "./ThemeToggle";
 import { CommandPalette } from "./CommandPalette";
 import { cn } from "@/lib/cn";
 
@@ -42,7 +40,6 @@ const SECONDARY: { href: string; label: string; icon: Icon }[] = [
  */
 export function Nav({ heroName, level, coins }: { heroName?: string; level?: number; coins?: number }) {
   const path = usePathname();
-  const { theme, toggle } = useTheme();
   const [palette, setPalette] = useState(false);
   const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
@@ -109,14 +106,10 @@ export function Nav({ heroName, level, coins }: { heroName?: string; level?: num
         {SECONDARY.map(item)}
 
         <div className="mt-auto space-y-2 border-t border-line pt-3">
-          {typeof coins === "number" && (
-            <div className="flex items-center justify-between px-1">
-              <CoinPurse coins={coins} />
-              <button onClick={toggle} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} className="rounded-control p-2 hover:bg-surface-overlay pressable">
-                {theme === "dark" ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}
-              </button>
-            </div>
-          )}
+          <div className="flex items-center justify-between px-1">
+            {typeof coins === "number" ? <CoinPurse coins={coins} /> : <span />}
+            <ThemeToggle />
+          </div>
         </div>
       </nav>
 

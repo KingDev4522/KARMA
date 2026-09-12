@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { GoogleLogo } from "@phosphor-icons/react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { EmptyState } from "@/components/States";
 
 const ERROR_COPY: Record<string, string> = {
@@ -45,6 +46,9 @@ function LoginInner() {
 
   return (
     <div className="mx-auto max-w-sm">
+      <div className="mb-3 flex justify-end">
+        <ThemeToggle className="border border-line bg-surface-elevated shadow-card" />
+      </div>
       <div className="pattern-asanoha overflow-hidden rounded-panel border border-line bg-surface-elevated p-6 text-center shadow-card md:p-8">
         <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-[10px] bg-seal font-display text-lg font-bold text-white" aria-hidden>
           命
