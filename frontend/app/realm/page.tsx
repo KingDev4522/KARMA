@@ -80,21 +80,27 @@ export default function RealmPage() {
       </div>
 
       <div className="realm-grid">
-        <div className="realm-hero-card">
+        <div className="realm-hero-card realm-hero-card--flow">
           <EnvStack />
-          <div className="nameplate">
+          <div className="nameplate nameplate--flow">
             <span className="np-frame" style={{ overflow: "hidden" }}>
               <HeroImage assetId={heroAssetId} width={20} alt={heroName} />
             </span>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <TitleBox boxSrc={titleBoxAsset} name={heroName} sub={title} />
             </div>
           </div>
-          <div className="hero-fig">
+          <div className="hero-fig hero-fig--flow">
             <FrameWrap frameSrc={frameAsset} label={`${heroName}'s frame`}>
               <HeroImage assetId={heroAssetId} eager alt={heroName} />
             </FrameWrap>
           </div>
+          {companionAssetId && (
+            <div className="realm-companion">
+              <CompanionImage assetId={companionAssetId} width={52} alt={companionName ?? "Companion"} />
+              <span>{companionName ? <strong>{companionName}</strong> : "Companion"}</span>
+            </div>
+          )}
         </div>
 
         <div className="realm-detail">

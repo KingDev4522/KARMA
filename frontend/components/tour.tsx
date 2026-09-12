@@ -77,7 +77,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const { authHeaders, userId, loading: authLoading } = useAuth();
   const [active, setActive] = useState(false);
   const [step, setStep] = useState(0);
-  const [who, setWho] = useState({ hero: "hero", comp: "friend", compId: null as string | null });
+  const [who, setWho] = useState({ hero: "traveler", comp: "friend", compId: null as string | null });
 
   const refresh = useCallback(() => {
     setActive(tourState() === "ready");
@@ -100,7 +100,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     client.getProfile(authHeaders()).then((me: any) => {
       const p = me?.profile ?? {};
       setWho({
-        hero: p.heroName ?? p.displayName ?? "hero",
+        hero: p.heroName ?? p.displayName ?? "traveler",
         comp: p.companionName ?? "friend",
         compId: p.companionAssetId ?? null,
       });

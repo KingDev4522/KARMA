@@ -51,7 +51,7 @@ export interface TodayResponse {
     timeOfDay: string;
   };
   companion: { mood: string; message: string };
-  buckets: { pinned: Quest[]; dueToday: Quest[]; routine: Quest[]; campaign: Quest[]; spark: Quest | null };
+  buckets: { pinned: Quest[]; dueToday: Quest[]; routine: Quest[]; campaign: Quest[]; unscheduled?: Quest[]; spark: Quest | null };
   quests: Quest[];
   spark: Quest | null;
   progression: { level: number; coins: number; currentStreak: number; bestStreak: number; momentum: number } | null;
@@ -84,7 +84,7 @@ export interface CompletionResponse {
   campaignProgress: { campaignId: string; progressPct: number } | null;
   capped: boolean;
   choreography: { step: string; label: string }[];
-  companion: { mood: string; message: string };
+  companion: { mood: string; message: string; companionAssetId?: string | null; companionName?: string | null; heroName?: string | null };
 }
 
 export interface AbandonResponse {

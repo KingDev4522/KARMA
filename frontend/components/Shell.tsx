@@ -22,7 +22,7 @@ const NAV: { id: string; href: string; label: string; icon: IconId }[] = [
 const MORE: { id: string; href: string; label: string; icon: IconId }[] = [
   { id: "store", href: "/store", label: "Store", icon: "i-store" },
   { id: "personalize", href: "/personalize", label: "Personalize", icon: "i-spark" },
-  { id: "hero-card", href: "/hero-card", label: "Hero Card", icon: "i-level" },
+  { id: "hero-card", href: "/hero-card", label: "Character Card", icon: "i-level" },
   { id: "settings", href: "/settings", label: "Settings", icon: "i-settings" },
 ];
 
@@ -36,7 +36,7 @@ const TITLES: Record<string, string> = {
   "/store": "Store",
   "/personalize": "Personalize",
   "/settings": "Settings",
-  "/hero-card": "Hero Card",
+  "/hero-card": "Character Card",
   "/onboarding": "Onboarding",
   "/login": "Sign in",
 };
@@ -270,7 +270,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
             </Link>
           ))}
         </nav>
-        <Link href="/realm" className="sidebar__user" title="Open your Realm">
+        <Link href="/personalize" className="sidebar__user" title="Open Personalize">
           <span className="avatar" style={{ overflow: "hidden" }}>
             <AvatarImg avatarAssetId={identity.avatarAssetId} heroAssetId={identity.heroAssetId} width={26} alt={identity.heroName} />
           </span>

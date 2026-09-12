@@ -7,6 +7,7 @@ import type { CompletionResponse } from "@/lib/types";
 import { useToast } from "@/components/toast";
 import { Icon } from "@/components/illustrations";
 import { ATTR_META, LevelUpModal, announceAchievements, questAttrKey } from "@/components/quests";
+import { Celebration, celebrationFrom, type CelebrationData } from "@/components/celebration";
 
 export interface FocusQuest {
   id?: string;
@@ -28,7 +29,7 @@ export function useFocus() {
 const RING_C = 2 * Math.PI * 104;
 
 export function FocusProvider({ children }: { children: ReactNode }) {
-  const { authHeaders } = useAuth();
+  const { authHeaders, userId, loading: authLoading } = useAuth();
   const toast = useToast();
   const [quest, setQuest] = useState<FocusQuest | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -38,6 +39,8 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const [seq, setSeq] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [ceremony, setCeremony] = useState<CompletionResponse | null>(null);
+  const [celebration, setCelebration] = useState<CelebrationData | null>(null);
+  const [recovered, setRecovered] = useState<{ id: string; questId?: string; title: string; remaining: number; planned: number } | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopTick = () => {
@@ -45,6 +48,93 @@ export function FocusProvider({ children }: { children: ReactNode }) {
     timer.current = null;
   };
   useEffect(() => stopTick, []);
+
+  const startTick = useCallback(() => {
+    stopTick();
+    timer.current = setInterval(() => {
+      setLeft((v) => {
+        if (v <= 1) {
+          stopTick();
+          return 0;
+        }
+        return v - 1;
+      });
+    }, 1000);
+  }, []);
+
+  // Recovery: a refresh must never eat a live session. If the server holds a
+  // running/paused session, offer to resume it (remaining recomputed from the
+  // server clock) or discard it.
+  useEffect(() => {
+    if (authLoading || !userId || quest) return;
+    let alive = true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    client.listFocus(authHeaders(), 5).then((ss: any[]) => {
+      if (!alive) return;
+      const s = (ss ?? []).find((x) => x.status === "running" || x.status === "paused");
+      if (!s) return;
+      const planned = s.plannedSeconds ?? 1500;
+      const elapsed = Math.max(0, Math.round((Date.now() - new Date(s.startedAt).getTime()) / 1000));
+      setRecovered({
+        id: s.id,
+        questId: s.questId ?? s.quest?.id ?? undefined,
+        title: s.quest?.title ?? "Focus session",
+        remaining: Math.max(0, planned - elapsed),
+        planned,
+      });
+    }).catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, authLoading]);
+
+  const resumeRecovered = useCallback(async () => {
+    if (!recovered) return;
+    setError(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sessions = (await client.listFocus(authHeaders(), 5).catch(() => [])) as any[];
+      const s = sessions.find((x) => x.id === recovered.id);
+      if (s?.status === "paused") {
+        await client.resumeFocus(authHeaders(), recovered.id);
+      } else if (!s || (s.status !== "running" && s.status !== "paused")) {
+        setRecovered(null);
+        return;
+      }
+      if (recovered.remaining <= 0) {
+        await client.finishFocus(authHeaders(), recovered.id, { status: "completed", actualSeconds: recovered.planned });
+        setRecovered(null);
+        setSeq((n) => n + 1);
+        window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+        return;
+      }
+      setQuest({ id: recovered.questId, title: recovered.title, minutes: Math.ceil(recovered.planned / 60) });
+      setTotal(recovered.planned);
+      setLeft(recovered.remaining);
+      setSessionId(recovered.id);
+      setRunning(true);
+      startTick();
+      setRecovered(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't resume the session.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recovered]);
+
+  const discardRecovered = useCallback(async () => {
+    if (!recovered) return;
+    try {
+      const res = (await client.finishFocus(authHeaders(), recovered.id, { status: "cancelled" })) as { penaltyXp?: number };
+      if ((res?.penaltyXp ?? 0) > 0) toast(`Left early · −${res.penaltyXp} XP`, "i-close");
+    } catch {
+      /* discarding anyway */
+    }
+    setRecovered(null);
+    setSeq((n) => n + 1);
+    window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recovered]);
 
   const openFocus = useCallback(
     async (q: FocusQuest) => {
@@ -90,6 +180,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
         void import("@/lib/sound").then((s) => s.playCoin()).catch(() => undefined);
         toast(`“${quest?.title ?? "Quest"}” complete · +${r.rewardXp} XP · +${r.rewardCoins} coins`, "i-check");
         announceAchievements(r, toast);
+        setCelebration(celebrationFrom(r));
         if (r.leveledUp) setCeremony(r);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "";
@@ -215,6 +306,19 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   return (
     <FocusCtx.Provider value={{ openFocus, focusSeq: seq }}>
       {children}
+      <Celebration data={celebration} onClose={() => setCelebration(null)} />
+      {recovered && !quest && (
+        <div className="focus-recover" role="dialog" aria-label="Unfinished focus session">
+          <div>
+            <strong>Unfinished session</strong>
+            <p>“{recovered.title}” still has ~{Math.max(1, Math.round(recovered.remaining / 60))} min on its timer.</p>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn--primary" onClick={resumeRecovered}>Resume</button>
+            <button className="btn btn--ghost" onClick={discardRecovered}>Discard</button>
+          </div>
+        </div>
+      )}
       {ceremony && (
         <LevelUpModal
           level={ceremony.newLevel}

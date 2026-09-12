@@ -561,6 +561,15 @@ export async function completeQuest(
       choreography: choreographyFor({ leveledUp, hasAchievements: unlockedAchievements.length > 0 }),
       companion: companionForCompletion({ leveledUp, newLevel: progress.level, achievements: unlockedAchievements }),
     };
+    // Celebration identity: the exact companion face + names the frontend
+    // bubble needs, so cheers always come from YOUR companion, by name.
+    const prof = await tx.profile.findUnique({ where: { id: userId } });
+    if (prof) {
+      const p = prof as unknown as { companionAssetId?: string | null; companionName?: string | null; heroName?: string | null; displayName?: string | null };
+      (result.companion as Record<string, unknown>).companionAssetId = p.companionAssetId ?? null;
+      (result.companion as Record<string, unknown>).companionName = p.companionName ?? null;
+      (result.companion as Record<string, unknown>).heroName = p.heroName ?? p.displayName ?? null;
+    }
     return result;
   });
 }
@@ -692,6 +701,30 @@ export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: 
     if (candidate) spark = candidate;
   }
 
+  // Also-on-board fill: active quests with no date at all still belong to
+  // Today as an overview — a quest must never exist yet be visible nowhere.
+  let unscheduled: (typeof pick)[number][] = [];
+  if (pick.length < 7) {
+    unscheduled = await prisma.quest.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        status: { in: ["active", "in_progress", "draft"] },
+        scheduledFor: null,
+        dueAt: null,
+        id: { notIn: [...seen] },
+      },
+      orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
+      take: 7 - pick.length,
+      include: { activityType: true },
+    });
+    for (const q of unscheduled) {
+      if (seen.has(q.id)) continue;
+      seen.add(q.id);
+      pick.push(q);
+    }
+  }
+
   const [profile, progression, campaignSummary, attrRows, recentCompletion, loadout] = await Promise.all([
     prisma.profile.findUnique({ where: { id: userId } }),
     prisma.profileProgression.findUnique({ where: { profileId: userId } }),
@@ -774,6 +807,7 @@ export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: 
       dueToday: due.map(withPv),
       routine: routines.map(withPv),
       campaign: campaignNext.map(withPv),
+      unscheduled: unscheduled.map(withPv),
       spark: spark ? withPv(spark) : null,
     },
     quests: pick.map(withPv),

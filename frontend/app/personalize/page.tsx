@@ -92,15 +92,35 @@ export default function PersonalizePage() {
   const titleBoxAsset = titleItem?.assetPath?.endsWith(".jpeg") ? titleItem.assetPath : null;
   const skins = owned("hero_skin");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ownedPremiumCompanions: any[] = owned("companion");
-  const ownedPremiumIds = new Set(ownedPremiumCompanions.map((i) => i?.metadata?.companionAssetId).filter(Boolean));
+  const companionItems: any[] = owned("companion");
+  const ownedCompanionIds = new Set(companionItems.map((i) => i?.metadata?.companionAssetId).filter(Boolean));
+  const ownedPremiumIds = ownedCompanionIds;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ownedTradSkins = new Set(skins.map((s: any) => s?.metadata?.heroAssetId).filter((v: unknown): v is string => typeof v === "string" && v.endsWith("-traditional")));
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  const uploadPhoto = async (file: File | undefined) => {
+    if (!file || !userId) return;
+    setPhotoBusy(true);
+    try {
+      const { uploadAvatarPhoto } = await import("@/lib/avatar-upload");
+      const url = await uploadAvatarPhoto(userId, file);
+      await client.patchProfile(authHeaders(), { avatarAssetId: url });
+      toast("Profile picture updated", "i-check");
+      refresh();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't upload photo.", "i-close");
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
 
   return (
     <div className="page is-active">
       <div className="page-head">
         <div>
           <h2>Personalize</h2>
-          <p className="sub">Your dressing room — picture, hero, companion, frames, names. All saved server-side.</p>
+          <p className="sub">Your dressing room — picture, character, companion, frames, names. All saved server-side.</p>
         </div>
         <Link className="link-btn" href="/store">Store</Link>
       </div>
@@ -123,17 +143,41 @@ export default function PersonalizePage() {
       {/* Profile picture */}
       <section className="panel" aria-label="Profile picture">
         <div className="sec-head" style={{ margin: 0 }}><h3>Profile picture</h3></div>
+        <p style={{ fontSize: 12.5, color: "var(--text-3)", marginBottom: 8 }}>
+          Your face across the realm — follow your character, pick a friend, or upload your own photo.
+        </p>
         <div className="option-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(86px, 1fr))" }}>
+          <label
+            className="option"
+            title="Upload your own photo (max 2 MB)"
+            style={{ cursor: photoBusy ? "wait" : "pointer", opacity: photoBusy ? 0.6 : 1 }}
+          >
+            <span style={{ display: "grid", placeItems: "center", width: 56, height: 56, borderRadius: 12, border: "1px dashed var(--border-strong)", fontSize: 22 }} aria-hidden>
+              {photoBusy ? "…" : "+"}
+            </span>
+            <strong style={{ marginTop: 6 }}>{photoBusy ? "Uploading…" : "Your photo"}</strong>
+            <input
+              type="file"
+              accept="image/*"
+              aria-label="Upload your own profile photo"
+              style={{ display: "none" }}
+              disabled={photoBusy}
+              onChange={(e) => {
+                void uploadPhoto(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+          </label>
           <button
             className={`option${curAvatar === null ? " is-on" : ""}`}
             disabled={busy === "avatar-follow"}
-            onClick={() => run("avatar-follow", () => client.patchProfile(authHeaders(), { avatarAssetId: null }), "Picture follows your hero")}
-            title="Use your hero portrait"
+            onClick={() => run("avatar-follow", () => client.patchProfile(authHeaders(), { avatarAssetId: null }), "Picture follows your character")}
+            title="Use your character portrait"
           >
             <span style={{ display: "block", width: 56, borderRadius: 12, overflow: "hidden" }}>
               <HeroImage assetId={curHeroId} width="100%" alt={name} />
             </span>
-            <strong style={{ marginTop: 6 }}>Hero</strong>
+            <strong style={{ marginTop: 6 }}>Character</strong>
           </button>
           {FREE_COMPANIONS.map((c) => {
             const key = avatarAssetIdFor("companion", c.id);
@@ -169,24 +213,39 @@ export default function PersonalizePage() {
       </section>
 
       {/* Hero + attire */}
-      <section className="panel" aria-label="Hero and attire">
-        <div className="sec-head" style={{ margin: 0 }}><h3>Hero & attire</h3></div>
-        <p style={{ fontSize: 12.5, color: "var(--text-3)", marginBottom: 8 }}>Base hero — always in traditional dress.</p>
+      <section className="panel" aria-label="Character and attire">
+        <div className="sec-head" style={{ margin: 0 }}><h3>Character & attire</h3></div>
+        <p style={{ fontSize: 12.5, color: "var(--text-3)", marginBottom: 8 }}>Base character — always in traditional dress. Others unlock in the Store.</p>
         <div className="option-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(86px, 1fr))", marginBottom: 12 }}>
-          {HEROES.map((h) => (
-            <button
-              key={h.id}
-              className={`option${curBase === h.id ? " is-on" : ""}`}
-              disabled={busy === `hero-${h.id}`}
-              onClick={() => run(`hero-${h.id}`, () => client.patchProfile(authHeaders(), { heroAssetId: heroAssetId(h.id, "traditional") }), `${h.name} leads your story`)}
-              title={`${h.name} · ${h.region}`}
-            >
-              <span style={{ display: "block", width: 56, borderRadius: 12, overflow: "hidden" }}>
-                <HeroImage assetId={heroAssetId(h.id, "traditional")} width="100%" alt={h.name} />
-              </span>
-              <strong style={{ marginTop: 6 }}>{h.name}</strong>
-            </button>
-          ))}
+          {HEROES.map((h) => {
+            const tradId = heroAssetId(h.id, "traditional");
+            const unlocked = curBase === h.id || ownedTradSkins.has(tradId);
+            if (!unlocked) {
+              return (
+                <Link key={h.id} href="/store" className="option" title={`${h.name} · unlock in the Store for 60 coins`}>
+                  <span style={{ display: "block", width: 56, borderRadius: 12, overflow: "hidden", filter: "grayscale(1)", opacity: 0.75 }}>
+                    <HeroImage assetId={tradId} width="100%" alt={`${h.name} (locked)`} />
+                  </span>
+                  <strong style={{ marginTop: 6 }}>{h.name}</strong>
+                  <span style={{ fontSize: 11.5, color: "var(--gold)", fontWeight: 700 }}>Unlock · 60</span>
+                </Link>
+              );
+            }
+            return (
+              <button
+                key={h.id}
+                className={`option${curBase === h.id ? " is-on" : ""}`}
+                disabled={busy === `hero-${h.id}`}
+                onClick={() => run(`hero-${h.id}`, () => client.patchProfile(authHeaders(), { heroAssetId: tradId }), `${h.name} leads your story`)}
+                title={`${h.name} · ${h.region}`}
+              >
+                <span style={{ display: "block", width: 56, borderRadius: 12, overflow: "hidden" }}>
+                  <HeroImage assetId={tradId} width="100%" alt={h.name} />
+                </span>
+                <strong style={{ marginTop: 6 }}>{h.name}</strong>
+              </button>
+            );
+          })}
         </div>
         <p style={{ fontSize: 12.5, color: "var(--text-3)", marginBottom: 8 }}>Owned attire — earned in the Store, worn everywhere instantly.</p>
         {skins.length === 0 ? (
@@ -215,24 +274,43 @@ export default function PersonalizePage() {
 
       {/* Companion */}
       <section className="panel" aria-label="Companion">
-        <div className="sec-head" style={{ margin: 0 }}><h3>Companion</h3></div>
+        <div className="sec-head" style={{ margin: 0 }}>
+          <h3>Companion</h3>
+          <Link className="link-btn" href="/store">More in Store</Link>
+        </div>
+        <p style={{ fontSize: 12.5, color: "var(--text-3)", marginBottom: 8 }}>Your first friend is free. Others unlock in the Store.</p>
         <div className="option-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(86px, 1fr))" }}>
-          {FREE_COMPANIONS.map((c) => (
-            <button
-              key={c.id}
-              className={`option${curCompanion === c.id ? " is-on" : ""}`}
-              disabled={busy === `comp-${c.id}`}
-              onClick={() => run(`comp-${c.id}`, () => client.patchProfile(authHeaders(), { companionAssetId: c.id }), `${c.name} walks with you`)}
-              title={`${c.name} — free`}
-            >
-              <CompanionImage assetId={c.id} width={56} alt={c.name} />
-              <strong style={{ marginTop: 6 }}>{c.name}</strong>
-            </button>
-          ))}
+          {FREE_COMPANIONS.map((c) => {
+            const unlocked = curCompanion === c.id || ownedCompanionIds.has(c.id);
+            if (!unlocked) {
+              return (
+                <Link key={c.id} href="/store" className="option" title={`${c.name} · unlock in the Store for 30 coins`}>
+                  <span style={{ filter: "grayscale(1)", opacity: 0.75 }}>
+                    <CompanionImage assetId={c.id} width={56} alt={`${c.name} (locked)`} />
+                  </span>
+                  <strong style={{ marginTop: 6 }}>{c.name}</strong>
+                  <span style={{ fontSize: 11.5, color: "var(--gold)", fontWeight: 700 }}>Unlock · 30</span>
+                </Link>
+              );
+            }
+            return (
+              <button
+                key={c.id}
+                className={`option${curCompanion === c.id ? " is-on" : ""}`}
+                disabled={busy === `comp-${c.id}`}
+                onClick={() => run(`comp-${c.id}`, () => client.patchProfile(authHeaders(), { companionAssetId: c.id }), `${c.name} walks with you`)}
+                title={`${c.name} — yours`}
+              >
+                <CompanionImage assetId={c.id} width={56} alt={c.name} />
+                <strong style={{ marginTop: 6 }}>{c.name}</strong>
+              </button>
+            );
+          })}
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {ownedPremiumCompanions.map((i: any) => {
+          {companionItems.filter((i: any) => !FREE_COMPANIONS.some((c) => c.id === i?.metadata?.companionAssetId)).map((i: any) => {
             const cid = i?.metadata?.companionAssetId;
             if (!cid) return null;
+            const premium = !FREE_COMPANIONS.some((c) => c.id === cid);
             return (
               <button
                 key={i.id}
@@ -242,7 +320,7 @@ export default function PersonalizePage() {
                 title={i.description ?? i.name}
               >
                 <CompanionImage assetId={cid} width={56} alt={i.name} />
-                <strong style={{ marginTop: 6 }}>{i.name} ★</strong>
+                <strong style={{ marginTop: 6 }}>{i.name}{premium ? " ★" : ""}</strong>
               </button>
             );
           })}
@@ -337,7 +415,7 @@ export default function PersonalizePage() {
           style={{ display: "grid", gap: 8 }}
         >
           <div className="field" style={{ margin: 0 }}>
-            <label htmlFor="pzHero">Hero name</label>
+            <label htmlFor="pzHero">Character name</label>
             <input id="pzHero" type="text" defaultValue={profile.heroName ?? ""} onChange={(e) => setHeroName(e.target.value)} maxLength={80} />
           </div>
           <div className="field" style={{ margin: 0 }}>

@@ -205,6 +205,21 @@ export function AvatarImg({
   eager?: boolean;
 }) {
   const a = resolveAvatar(avatarAssetId, heroAssetId);
+  const [photoGone, setPhotoGone] = useState(false);
+  if (a.kind === "photo" && a.photoUrl && !photoGone) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={a.photoUrl}
+        alt={alt}
+        width={typeof width === "number" ? width : undefined}
+        style={typeof width === "number" ? { height: "auto", borderRadius: 12, objectFit: "cover" } : { width: width as string, height: "auto", display: "block", borderRadius: 12, objectFit: "cover" }}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        onError={() => setPhotoGone(true)}
+      />
+    );
+  }
   if (a.kind === "companion") return <CompanionImage assetId={a.companion.id} width={width} alt={alt} eager={eager} />;
   return <HeroImage assetId={`${a.hero.id}-${a.variant}`} width={width} alt={alt} eager={eager} />;
 }

@@ -189,6 +189,16 @@ export function QuestPrimary({
 }) {
   const { openFocus } = useFocus();
   const attr = ATTR_META[questAttrKey(quest)] ?? { name: questAttrKey(quest), icon: "i-spark" as IconId };
+  // Per-quest timer: the player sets the length for THIS quest, any size.
+  const [focusMins, setFocusMins] = useState<number | "custom">(quest.estimatedMinutes ?? 25);
+  const [focusCustom, setFocusCustom] = useState("");
+  const resolvedMins = (() => {
+    if (focusMins === "custom") {
+      const c = Math.floor(Number(focusCustom));
+      return Number.isFinite(c) ? Math.min(240, Math.max(1, c)) : 25;
+    }
+    return focusMins;
+  })();
   return (
     <article className="panel primary-quest" aria-label={`Primary quest: ${quest.title}`}>
       <div className="pq-top">
@@ -228,11 +238,41 @@ export function QuestPrimary({
         </button>
         <button
           className="btn btn--ghost btn--lg"
-          onClick={() => openFocus({ id: quest.id, title: quest.title, minutes: Math.min(quest.estimatedMinutes ?? 25, 50) })}
+          onClick={() => openFocus({ id: quest.id, title: quest.title, minutes: resolvedMins })}
+          title={`Focus for ${resolvedMins} min`}
         >
           <Icon id="i-play" style={{ width: 16, height: 16 }} />
-          Focus
+          Focus · {resolvedMins}m
         </button>
+      </div>
+      <div className="pq-timer" style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
+        <label htmlFor={`pq-mins-${quest.id}`} style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600 }}>
+          Timer
+        </label>
+        <select
+          id={`pq-mins-${quest.id}`}
+          value={focusMins}
+          onChange={(e) => setFocusMins(e.target.value === "custom" ? "custom" : Number(e.target.value))}
+          aria-label="Focus length for this quest"
+          style={{ fontSize: 12.5 }}
+        >
+          {[5, 15, 25, 45, 60, 90, 120].map((m) => (
+            <option key={m} value={m}>{m} min</option>
+          ))}
+          <option value="custom">Custom…</option>
+        </select>
+        {focusMins === "custom" && (
+          <input
+            type="number"
+            min={1}
+            max={240}
+            value={focusCustom}
+            onChange={(e) => setFocusCustom(e.target.value)}
+            placeholder="Minutes"
+            aria-label="Custom focus minutes"
+            style={{ width: 90, fontSize: 12.5 }}
+          />
+        )}
       </div>
     </article>
   );
@@ -289,12 +329,14 @@ export function QuestRow({
   onComplete,
   lastResult,
   onChanged,
+  checkDisabled,
 }: {
   quest: Quest;
   index?: number;
   onComplete: (q: Quest, el: HTMLElement | null) => void;
   lastResult?: CompletionResponse | null;
   onChanged?: () => void;
+  checkDisabled?: boolean;
 }) {
   const { authHeaders } = useAuth();
   const toast = useToast();
@@ -356,9 +398,9 @@ export function QuestRow({
     >
       <button
         className="quest-check"
-        disabled={done}
+        disabled={done || checkDisabled}
         onClick={(e) => onComplete(quest, e.currentTarget as HTMLElement)}
-        title={done ? "Completed" : "Complete quest"}
+        title={done ? "Completed" : checkDisabled ? "Working…" : "Complete quest"}
         aria-label={done ? "Completed" : `Complete quest ${quest.title}`}
       >
         <Icon id="i-check" />
@@ -1092,7 +1134,7 @@ export function LevelUpModal({ level, message, rankUp, onClose, heroAssetId }: {
           <div className="lv-ring" aria-hidden="true" />
           {heroAssetId ? (
             <div style={{ width: 120, margin: "0 auto", borderRadius: 16, overflow: "hidden" }}>
-              <HeroImage assetId={heroAssetId} variant="warrior" eager alt="Hero, victorious" />
+              <HeroImage assetId={heroAssetId} variant="warrior" eager alt="Character, victorious" />
             </div>
           ) : (
             <Hero width={120} className="lv-hero idle" />

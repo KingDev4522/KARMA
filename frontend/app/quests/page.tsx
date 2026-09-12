@@ -9,6 +9,7 @@ import { useToast } from "@/components/toast";
 import { useFocus } from "@/components/focus";
 import type { CompletionResponse, Quest } from "@/lib/types";
 import { LevelUpModal, QuestCreator, QuestRow, announceAchievements, burstAt, questActivity } from "@/components/quests";
+import { Celebration, celebrationFrom, type CelebrationData } from "@/components/celebration";
 import { Icon } from "@/components/illustrations";
 import { ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
@@ -35,7 +36,7 @@ function QuestsInner() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, CompletionResponse>>({});
   const [ceremony, setCeremony] = useState<CompletionResponse | null>(null);
-
+  const [celebration, setCelebration] = useState<CelebrationData | null>(null);
   const qs =
     status === "done"
       ? "status=completed&preview=true&limit=50"
@@ -72,6 +73,7 @@ function QuestsInner() {
       void import("@/lib/sound").then((s) => s.playCoin()).catch(() => undefined);
       toast(`“${t.title.length > 32 ? `${t.title.slice(0, 32)}…` : t.title}” complete · +${r.rewardXp} XP`, "i-check");
       announceAchievements(r, toast);
+      setCelebration(celebrationFrom(r));
       if (r.leveledUp) setCeremony(r);
       retry();
       window.dispatchEvent(new CustomEvent("liferpg:refresh"));
@@ -86,6 +88,7 @@ function QuestsInner() {
 
   return (
     <div className="page is-active">
+      <Celebration data={celebration} onClose={() => setCelebration(null)} />
       {ceremony && (
           <LevelUpModal
             level={ceremony.newLevel}
@@ -117,12 +120,15 @@ function QuestsInner() {
             </button>
           ))}
         </div>
-        <div className="chip-row">
-          {chips.map((a) => (
-            <button key={a} className={`chip${activity === a ? " is-on" : ""}`} onClick={() => setActivity(a)} aria-pressed={activity === a}>
-              {a}
-            </button>
-          ))}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <label htmlFor="activityFilter" style={{ fontSize: 12, color: "var(--text-3)", fontWeight: 600 }}>
+            Activity
+          </label>
+          <select id="activityFilter" value={activity} onChange={(e) => setActivity(e.target.value)} aria-label="Filter by activity">
+            {chips.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -148,6 +154,7 @@ function QuestsInner() {
                       index={i}
                       onReward={(q, r) => {
                         setResults((m) => ({ ...m, [q.id]: r }));
+                        setCelebration(celebrationFrom(r));
                         if (r.leveledUp) setCeremony(r);
                       }}
                       onChanged={() => { retry(); window.dispatchEvent(new CustomEvent("liferpg:refresh")); }}
@@ -160,7 +167,7 @@ function QuestsInner() {
             {list
               .filter((t) => t.questType !== "routine")
               .map((t, i) => (
-                <QuestRow key={t.id} quest={t} index={i} onComplete={complete} lastResult={results[t.id] ?? null} onChanged={() => { retry(); window.dispatchEvent(new CustomEvent("liferpg:refresh")); }} />
+                <QuestRow key={t.id} quest={t} index={i} onComplete={complete} lastResult={results[t.id] ?? null} checkDisabled={busyId === t.id} onChanged={() => { retry(); window.dispatchEvent(new CustomEvent("liferpg:refresh")); }} />
               ))}
           </div>
         </>

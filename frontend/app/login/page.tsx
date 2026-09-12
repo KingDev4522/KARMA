@@ -80,7 +80,7 @@ function LoginInner() {
             </button>
           )}
 
-          {devBypass && <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-3)" }}>Local preview mode is on — you&apos;re already signed in as the dev hero.</p>}
+          {devBypass && <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-3)" }}>Local preview mode is on — you&apos;re already signed in as the dev character.</p>}
           <p style={{ marginTop: 10, fontSize: 11, color: "var(--text-3)" }}>Google handles the password. This app never sees it.</p>
           <p style={{ marginTop: 6, fontSize: 11 }}>
             <Link href="/privacy" style={{ color: "var(--text-3)", textDecoration: "underline" }}>

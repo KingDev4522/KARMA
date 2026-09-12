@@ -111,20 +111,24 @@ export function attrProgress(level: number, xp: number): number {
 
 /* ---------- Profile picture (Personalize) ---------- */
 
-/** Stored avatarAssetId forms: null (follow hero) · "<hero>-<variant>" · "companion:<id>". */
+/** Stored avatarAssetId forms: null (follow hero) · "<hero>-<variant>" · "companion:<id>" · "http(s)://…" (player photo). */
 export function avatarAssetIdFor(kind: "hero" | "companion", id: string, variant: HeroVariant = "traditional"): string {
   return kind === "companion" ? `companion:${id}` : heroAssetId(id, variant);
 }
 
 export interface ResolvedAvatar {
-  kind: "hero" | "companion";
+  kind: "hero" | "companion" | "photo";
   hero: HeroDef;
   variant: HeroVariant;
   companion: CompanionDef;
+  photoUrl?: string;
 }
 
 /** Resolve the profile picture: explicit choice wins, otherwise the hero. */
 export function resolveAvatar(avatarAssetId?: string | null, heroAssetIdFallback?: string | null): ResolvedAvatar {
+  if (avatarAssetId?.startsWith("http://") || avatarAssetId?.startsWith("https://")) {
+    return { kind: "photo", hero: HEROES[0], variant: "traditional", companion: COMPANIONS[0], photoUrl: avatarAssetId };
+  }
   if (avatarAssetId?.startsWith("companion:")) {
     const c = resolveCompanion(avatarAssetId.slice("companion:".length));
     return { kind: "companion", hero: HEROES[0], variant: "traditional", companion: c };

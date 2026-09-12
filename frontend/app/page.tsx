@@ -11,6 +11,7 @@ import { useFocus } from "@/components/focus";
 import type { Campaign, CompletionResponse, Quest } from "@/lib/types";
 import { CompanionImage, FrameWrap, HeroImage, Icon, TitleBox } from "@/components/illustrations";
 import { ATTR_META, LevelUpModal, QuestPrimary, QuestRow, announceAchievements, burstAt } from "@/components/quests";
+import { Celebration, celebrationFrom, type CelebrationData } from "@/components/celebration";
 import { CampaignPreview } from "@/components/journey";
 import { attrProgress } from "@/lib/identity";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton, useNowDate } from "@/components/States";
@@ -32,6 +33,7 @@ export default function TodayPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, CompletionResponse>>({});
   const [ceremony, setCeremony] = useState<CompletionResponse | null>(null);
+  const [celebration, setCelebration] = useState<CelebrationData | null>(null);
   const todayDate = useNowDate();
 
   if (authLoading || loading) return <Skeleton label="Today" rows={4} />;
@@ -49,6 +51,7 @@ export default function TodayPage() {
       void import("@/lib/sound").then((s) => s.playCoin()).catch(() => undefined);
       toast(`“${q.title.length > 32 ? `${q.title.slice(0, 32)}…` : q.title}” complete · +${r.rewardXp} XP`, "i-check");
       announceAchievements(r, toast);
+      setCelebration(celebrationFrom(r, { companionAssetId, companionName }));
       if (r.leveledUp) setCeremony(r);
       retry();
       window.dispatchEvent(new CustomEvent("liferpg:refresh"));
@@ -86,7 +89,8 @@ export default function TodayPage() {
   const titleBoxAsset: string | null = heroObj?.titleBoxAsset ?? null;
   const seen = new Set<string>();
   const flat: Quest[] = [];
-  for (const q of [...data.buckets.pinned, ...data.buckets.dueToday, ...data.buckets.routine, ...data.buckets.campaign, ...data.quests]) {
+  const buckets = data.buckets as typeof data.buckets & { unscheduled?: Quest[] };
+  for (const q of [...buckets.pinned, ...buckets.dueToday, ...buckets.routine, ...buckets.campaign, ...(buckets.unscheduled ?? []), ...data.quests]) {
     if (!seen.has(q.id) && q.status !== "completed") {
       seen.add(q.id);
       flat.push(q);
@@ -104,6 +108,7 @@ export default function TodayPage() {
 
   return (
     <div className="page is-active">
+      <Celebration data={celebration} onClose={() => setCelebration(null)} />
       {ceremony && (
           <LevelUpModal
             level={ceremony.newLevel}
@@ -173,7 +178,14 @@ export default function TodayPage() {
           {primary ? (
             <QuestPrimary quest={primary} onComplete={complete} completing={busyId === primary.id} />
           ) : (
-            <EmptyState message={data.emptyHints.allClear ?? "Every quest is stamped. The page rests."} />
+            <EmptyState
+              message={data.emptyHints.allClear ?? "Every quest is stamped. The page rests."}
+              action={(
+                <Link href="/quests?create=1" className="btn btn--primary">
+                  Create quest
+                </Link>
+              )}
+            />
           )}
 
           {/* UP NEXT — compact numbered rows */}
@@ -187,11 +199,20 @@ export default function TodayPage() {
             {upNext.length > 0 ? (
               <div className="quest-list panel upnext">
                 {upNext.map((q, i) => (
-                  <QuestRow key={q.id} quest={q} index={i} onComplete={complete} lastResult={results[q.id] ?? null} />
+                  <QuestRow key={q.id} quest={q} index={i} onComplete={complete} lastResult={results[q.id] ?? null} checkDisabled={busyId === q.id} />
                 ))}
               </div>
             ) : (
-              !primary && <EmptyState message="No open quests. Create one to begin." />
+              !primary && (
+                <EmptyState
+                  message="No open quests. Create one to begin."
+                  action={(
+                    <Link href="/quests?create=1" className="btn btn--primary">
+                      Create quest
+                    </Link>
+                  )}
+                />
+              )
             )}
           </section>
         </div>
@@ -206,7 +227,14 @@ export default function TodayPage() {
               onOpen={() => router.push("/campaigns")}
             />
           ) : (
-            <EmptyState message={data.emptyHints.noCampaign ?? "No campaign yet."} />
+            <EmptyState
+              message={data.emptyHints.noCampaign ?? "No campaign yet."}
+              action={(
+                <Link href="/campaigns" className="btn btn--ghost">
+                  Begin a journey
+                </Link>
+              )}
+            />
           )}
           <div className="growth panel">
             <div className="sec-head" style={{ margin: 0 }}>

@@ -11,7 +11,7 @@ import { burstAt, shakeCoins } from "@/components/quests";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 const CAT_LABEL: Record<string, string> = {
-  hero_skin: "Hero Skins",
+  hero_skin: "Character Skins",
   companion: "Companions",
   frame: "Frames",
   title: "Titles",

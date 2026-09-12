@@ -924,3 +924,31 @@ button.cal-cell:hover{border-color:var(--border-strong)}
 @media (prefers-reduced-motion:reduce){
   .chip--danger{transition:none}
 }
+
+/* ============ REALM FLOW CARD (no absolute overlap) ============ */
+.realm-hero-card--flow{display:flex;flex-direction:column;gap:14px;padding:18px;min-height:0}
+.realm-hero-card--flow .env-stack{position:absolute;inset:0;opacity:.35;pointer-events:none}
+.realm-hero-card--flow .nameplate--flow{position:static}
+.realm-hero-card--flow .hero-fig--flow{position:static;transform:none;width:min(250px,72%);margin:0 auto}
+.realm-hero-card--flow .hero-fig--flow img{width:100%;height:auto;display:block}
+.realm-companion{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;color:var(--text-2)}
+
+/* ============ COMPANION CELEBRATION ============ */
+.celebration{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:140;display:flex;gap:12px;align-items:center;max-width:min(440px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;padding:12px 14px;box-shadow:0 12px 40px rgba(0,0,0,.22);animation:celebrateIn .45s var(--spring)}
+.celebration img{flex:none;border-radius:12px}
+.celebration-bubble{flex:1;font-size:13.5px}
+.celebration-bubble strong{display:block;font-size:12.5px;margin-bottom:2px}
+.celebration-bubble p{margin:0;color:var(--text-2)}
+.celebration-close{flex:none}
+@keyframes celebrateIn{0%{opacity:0;transform:translate(-50%,16px) scale(.96)}60%{opacity:1;transform:translate(-50%,-3px) scale(1.01)}100%{opacity:1;transform:translate(-50%,0) scale(1)}}
+@media (prefers-reduced-motion:reduce){
+  .celebration{animation:none}
+}
+
+/* ============ FOCUS RECOVERY ============ */
+.focus-recover{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:145;display:flex;gap:14px;align-items:center;max-width:min(460px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.22);animation:celebrateIn .45s var(--spring)}
+.focus-recover strong{display:block;font-size:13.5px}
+.focus-recover p{margin:2px 0 0;font-size:13px;color:var(--text-2)}
+@media (prefers-reduced-motion:reduce){
+  .focus-recover{animation:none}
+}
