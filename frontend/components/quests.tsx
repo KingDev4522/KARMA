@@ -250,15 +250,40 @@ export function QuestRow({
   index = 0,
   onComplete,
   lastResult,
+  onChanged,
 }: {
   quest: Quest;
   index?: number;
   onComplete: (q: Quest, el: HTMLElement | null) => void;
   lastResult?: CompletionResponse | null;
+  onChanged?: () => void;
 }) {
+  const { authHeaders } = useAuth();
+  const toast = useToast();
   const { openFocus } = useFocus();
+  const [manage, setManage] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [eTitle, setETitle] = useState(quest.title);
+  const [eDesc, setEDesc] = useState(quest.description ?? "");
+  const [eDue, setEDue] = useState((quest.dueAt ?? "").slice(0, 10));
+  const [busy, setBusy] = useState(false);
   const done = quest.status === "completed" || !!lastResult;
   const attr = ATTR_META[questAttrKey(quest)];
+
+  const mutate = async (fn: () => Promise<unknown>, ok: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast(ok, "i-check");
+      setManage(false);
+      setEditing(false);
+      onChanged?.();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't update quest. Nothing was changed.", "i-close");
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <article
       className={`quest-row${done ? " is-done" : ""}`}
@@ -286,6 +311,7 @@ export function QuestRow({
           <p style={{ fontSize: 12, fontWeight: 700, color: "var(--tint-sage-d)", marginTop: 4 }}>
             Cleared +{lastResult.rewardXp} XP · +{lastResult.rewardCoins} coins
             {lastResult.leveledUp ? ` · Level ${lastResult.newLevel}` : ""}
+            {lastResult.rankUp ? ` · Rank up ${lastResult.rankUp.from} → ${lastResult.rankUp.to} (+${lastResult.rankUp.bonusCoins})` : ""}
           </p>
         )}
       </div>
@@ -305,7 +331,76 @@ export function QuestRow({
             <Icon id="i-play" />
           </button>
         )}
+        {onChanged && !done && (
+          <button
+            className="icon-btn"
+            onClick={() => setManage((v) => !v)}
+            title="Manage quest"
+            aria-label={`Manage quest ${quest.title}`}
+            aria-expanded={manage}
+          >
+            <Icon id="i-settings" />
+          </button>
+        )}
       </div>
+      {manage && onChanged && !done && (
+        <div className="qr-manage" style={{ marginTop: 8, borderTop: "1px dashed var(--line)", paddingTop: 8 }}>
+          {!editing ? (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button className="chip" onClick={() => { setETitle(quest.title); setEDesc(quest.description ?? ""); setEDue((quest.dueAt ?? "").slice(0, 10)); setEditing(true); }} disabled={busy}>
+                {quest.isPinned ? "★ " : ""}Edit
+              </button>
+              <button
+                className="chip"
+                disabled={busy}
+                onClick={() => mutate(() => client.patchQuest(authHeaders(), quest.id, { isPinned: !quest.isPinned }), quest.isPinned ? "Unpinned from Today" : "Pinned to Today")}
+              >
+                {quest.isPinned ? "Unpin" : "Pin today"}
+              </button>
+              {quest.status !== "skipped" ? (
+                <button className="chip" disabled={busy} onClick={() => mutate(() => client.patchQuest(authHeaders(), quest.id, { status: "skipped" }), "Quest skipped — reschedule anytime")}>
+                  Skip
+                </button>
+              ) : (
+                <button className="chip" disabled={busy} onClick={() => mutate(() => client.patchQuest(authHeaders(), quest.id, { status: "active" }), "Quest back on the board")}>
+                  Re-queue
+                </button>
+              )}
+              <button
+                className="chip"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm(`Archive “${quest.title}”? History and rewards are kept.`)) {
+                    mutate(() => client.deleteQuest(authHeaders(), quest.id), "Quest archived — history kept");
+                  }
+                }}
+              >
+                Archive
+              </button>
+            </div>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!eTitle.trim()) return;
+                mutate(
+                  () => client.patchQuest(authHeaders(), quest.id, { title: eTitle.trim(), description: eDesc.trim() || undefined, dueAt: eDue || null }),
+                  "Quest updated",
+                );
+              }}
+              style={{ display: "grid", gap: 6 }}
+            >
+              <input value={eTitle} onChange={(e) => setETitle(e.target.value)} aria-label="Quest title" maxLength={200} style={{ width: "100%" }} />
+              <input value={eDesc} onChange={(e) => setEDesc(e.target.value)} aria-label="Quest description" placeholder="Description (optional)" style={{ width: "100%" }} />
+              <input type="date" value={eDue} onChange={(e) => setEDue(e.target.value)} aria-label="Due date" />
+              <span style={{ display: "flex", gap: 6 }}>
+                <button type="submit" className="chip" disabled={busy || !eTitle.trim()}>Save</button>
+                <button type="button" className="chip" onClick={() => setEditing(false)}>Cancel</button>
+              </span>
+            </form>
+          )}
+        </div>
+      )}
     </article>
   );
 }
@@ -337,10 +432,20 @@ const DIFFS = [
   { label: "Easy", num: 1 },
   { label: "Medium", num: 2 },
   { label: "Hard", num: 3 },
+  { label: "Major", num: 4 },
   { label: "Epic", num: 5 },
 ];
 const DURATIONS = [10, 15, 30, 45, 60, 90, 120];
 const WHENS = ["Today", "Tomorrow", "This weekend", "Someday"] as const;
+const KINDS = [
+  { v: "quick", hint: "1–15 min · fast win" },
+  { v: "focus", hint: "deep work + timer" },
+  { v: "routine", hint: "repeats on a schedule" },
+  { v: "campaign", hint: "a slice of a big goal" },
+  { v: "challenge", hint: "time-boxed push" },
+  { v: "recovery", hint: "rest and maintenance" },
+] as const;
+const DOW = ["S", "M", "T", "W", "T", "F", "S"] as const;
 const STEP_QUESTIONS = ["What are you working on?", "How much effort?", "When?", "What kind of activity?", "Your reward"];
 
 function dateForWhen(when: string): string | undefined {
@@ -367,16 +472,46 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
   const [difficulty, setDifficulty] = useState("Medium");
   const [duration, setDuration] = useState(30);
   const [when, setWhen] = useState<string>("Today");
+  const [kind, setKind] = useState<string>("quick");
+  const [recurFreq, setRecurFreq] = useState<"daily" | "weekly">("weekly");
+  const [recurDays, setRecurDays] = useState<number[]>([1, 3, 5]);
+  const [mapping, setMapping] = useState<{ primary: string; secondary: string } | null>(null);
   const [activity, setActivity] = useState<string>("Move");
   const [preview, setPreview] = useState<RewardPreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Offline-tolerant draft (client cache only — the server stays authoritative).
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const raw = window.localStorage.getItem("lrp-quest-draft");
+      if (!raw) return;
+      const d = JSON.parse(raw) as { title?: string; desc?: string; kind?: string; activity?: string };
+      if (d.title) setTitle(d.title);
+      if (d.desc) setDesc(d.desc);
+      if (d.kind) setKind(d.kind);
+      if (d.activity) setActivity(d.activity);
+    } catch {
+      /* corrupt draft is ignored */
+    }
+  }, [open ]);
+
+  useEffect(() => {
+    if (!open) return;
+    try {
+      window.localStorage.setItem("lrp-quest-draft", JSON.stringify({ title, desc, kind, activity }));
+    } catch {
+      /* storage blocked — creation still works */
+    }
+  }, [open, title, desc, kind, activity]);
 
   useEffect(() => {
     if (open) {
       setStep(1);
       setError(null);
       setPreview(null);
+      setMapping(null);
     }
   }, [open ]);
 
@@ -385,23 +520,21 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
     let alive = true;
     setPreview(null);
     const diffNum = DIFFS.find((d) => d.label === difficulty)?.num ?? 2;
-    client
-      .previewQuest(authHeaders(), {
-        difficulty: diffNum,
-        questType: activity === "Focus" ? "focus" : "quick",
-        activityKey: ACTIVITY_KEY[activity],
-      })
-      .then((p) => {
-        if (alive) setPreview(p);
-      })
-      .catch(() => {
-        if (alive) setPreview(null);
-      });
+    const qType = kind;
+    const aKey = ACTIVITY_KEY[activity];
+    Promise.all([
+      client.previewQuest(authHeaders(), { difficulty: diffNum, questType: qType, activityKey: aKey }).catch(() => null),
+      client.suggestMapping(authHeaders(), aKey).catch(() => null),
+    ]).then(([pv, map]) => {
+      if (!alive) return;
+      setPreview(pv);
+      setMapping(map);
+    });
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, step, difficulty, activity]);
+  }, [open, step, difficulty, activity, kind]);
 
   if (!open) return null;
 
@@ -413,15 +546,28 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
     setBusy(true);
     setError(null);
     try {
-      await client.createQuest(authHeaders(), {
+      const created = await client.createQuest(authHeaders(), {
         title: title.trim(),
         description: desc.trim() || undefined,
-        questType: activity === "Focus" ? "focus" : "quick",
+        questType: kind,
         activityKey: ACTIVITY_KEY[activity],
         difficulty: DIFFS.find((d) => d.label === difficulty)?.num ?? 2,
         estimatedMinutes: duration,
         scheduledFor: dateForWhen(when),
+        ...(kind === "routine"
+          ? { recurrenceRule: recurFreq === "daily" ? { freq: "daily" as const } : { freq: "weekly" as const, days: [...recurDays].sort() } }
+          : {}),
       });
+      if (kind === "routine") {
+        const today = new Date().toISOString().slice(0, 10);
+        const end = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+        await client.genInstances(authHeaders(), created.id, today, end).catch(() => undefined);
+      }
+      try {
+        window.localStorage.removeItem("lrp-quest-draft");
+      } catch {
+        /* ignore */
+      }
       setTitle("");
       setDesc("");
       onCreated();
@@ -434,7 +580,7 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
     }
   };
 
-  const attrKey = preview?.primaryAttr ?? ACTIVITY_ATTR[activity];
+  const attrKey = preview?.primaryAttr ?? mapping?.primary ?? ACTIVITY_ATTR[activity];
   const attr = ATTR_META[attrKey] ?? { name: attrKey, icon: "i-spark" as IconId };
 
   return (
@@ -475,7 +621,7 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
               {DIFFS.map((d) => (
                 <button key={d.label} className={`option${difficulty === d.label ? " is-on" : ""}`} onClick={() => setDifficulty(d.label)} aria-pressed={difficulty === d.label}>
                   <strong>{d.label}</strong>
-                  <span>{"●".repeat({ Easy: 1, Medium: 2, Hard: 3, Epic: 4 }[d.label] ?? 2)} · level {d.num}</span>
+                  <span>{"●".repeat({ Easy: 1, Medium: 2, Hard: 3, Major: 4, Epic: 5 }[d.label] ?? 2)} · level {d.num}</span>
                 </button>
               ))}
             </div>
@@ -491,20 +637,54 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
             </div>
           </>
         )}
-        {step === 3 && (
-          <>
-            <div className="chip-row">
-              {WHENS.map((w) => (
-                <button key={w} className={`chip${when === w ? " is-on" : ""}`} onClick={() => setWhen(w)} aria-pressed={when === w}>
-                  {w}
-                </button>
-              ))}
+      {step === 3 && (
+        <>
+          <div className="chip-row" role="group" aria-label="Quest kind">
+            {KINDS.map((k) => (
+              <button key={k.v} className={`chip${kind === k.v ? " is-on" : ""}`} onClick={() => setKind(k.v)} aria-pressed={kind === k.v} title={k.hint}>
+                {k.v}
+              </button>
+            ))}
+          </div>
+          <div className="chip-row" style={{ marginTop: 12 }}>
+            {WHENS.map((w) => (
+              <button key={w} className={`chip${when === w ? " is-on" : ""}`} onClick={() => setWhen(w)} aria-pressed={when === w}>
+                {w}
+              </button>
+            ))}
+          </div>
+          {kind === "routine" && (
+            <div style={{ marginTop: 12 }}>
+              <p style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>Repeats</p>
+              <div className="chip-row" role="group" aria-label="Repeat frequency">
+                {(["daily", "weekly"] as const).map((f) => (
+                  <button key={f} className={`chip${recurFreq === f ? " is-on" : ""}`} onClick={() => setRecurFreq(f)} aria-pressed={recurFreq === f}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+              {recurFreq === "weekly" && (
+                <div className="chip-row" style={{ marginTop: 8 }} role="group" aria-label="Repeat days">
+                  {DOW.map((d, i) => (
+                    <button
+                      key={i}
+                      className={`chip${recurDays.includes(i) ? " is-on" : ""}`}
+                      onClick={() => setRecurDays((s) => (s.includes(i) ? s.filter((x) => x !== i) : [...s, i]))}
+                      aria-pressed={recurDays.includes(i)}
+                      aria-label={["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][i]}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <p style={{ fontSize: 12.5, color: "var(--text-3)", marginTop: 16, fontWeight: 600 }}>
-              You can reschedule any time from the Quests page.
-            </p>
-          </>
-        )}
+          )}
+          <p style={{ fontSize: 12.5, color: "var(--text-3)", marginTop: 16, fontWeight: 600 }}>
+            You can reschedule any time from the Quests page.
+          </p>
+        </>
+      )}
         {step === 4 && (
           <div className="option-grid">
             {ACTIVITIES.map((a) => {
@@ -526,7 +706,8 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
             <div className="reward-preview">
               <h4>{title.trim() || "Untitled quest"}</h4>
               <p style={{ fontSize: 12.5, color: "var(--text-3)", fontWeight: 600 }}>
-                {activity} · {duration} min · {difficulty} · {when}
+                {activity} · {kind} · {duration} min · {difficulty} · {when}
+                {kind === "routine" ? (recurFreq === "daily" ? " · daily" : ` · ${recurDays.length}×/week`) : ""}
               </p>
               <div className="rp-rows">
                 <span className="meta-chip xp">+{preview ? preview.rewardXp : "…"}&nbsp;XP</span>
@@ -580,7 +761,7 @@ export function QuestCreator({ open, onClose, onCreated }: { open: boolean; onCl
 
 const BURST_COLORS = ["#D4694A", "#E9B95C", "#93AC8E", "#B0A4E6", "#8FBCD4"];
 
-export function LevelUpModal({ level, message, onClose }: { level: number; message: string; onClose: () => void }) {
+export function LevelUpModal({ level, message, rankUp, onClose }: { level: number; message: string; rankUp?: { from: string; to: string; bonusCoins: number } | null; onClose: () => void }) {
   const burstRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const mount = burstRef.current;
@@ -611,6 +792,11 @@ export function LevelUpModal({ level, message, onClose }: { level: number; messa
         <h3 style={{ marginTop: 6 }}>Level up</h3>
         <div className="lv-num">{level}</div>
         <p>{message}</p>
+        {rankUp && (
+          <p role="status" style={{ fontWeight: 800, color: "var(--gold)", marginTop: 6 }}>
+            Rank up: {rankUp.from} → {rankUp.to} · +{rankUp.bonusCoins} chest
+          </p>
+        )}
         <button className="btn btn--primary btn--lg" style={{ width: "100%", justifyContent: "center" }} onClick={onClose}>
           Continue the journey
         </button>

@@ -59,7 +59,7 @@ export async function getFullProfile(userId: string) {
 
 export async function updateIdentity(
   userId: string,
-  data: { displayName?: string; heroName?: string; bio?: string; heroAssetId?: string; companionAssetId?: string; lifeDomains?: string[]; reducedMotion?: boolean; theme?: string | null },
+  data: { displayName?: string; heroName?: string; bio?: string; heroAssetId?: string; companionAssetId?: string; lifeDomains?: string[]; reducedMotion?: boolean; theme?: string | null; notifyQuest?: boolean; notifyStreak?: boolean; notifyCelebrate?: boolean },
 ) {
   await ensureProfile(userId);
   return prisma.profile.update({
@@ -73,6 +73,57 @@ export async function updateIdentity(
       lifeDomains: data.lifeDomains,
       reducedMotion: data.reducedMotion,
       theme: data.theme === null ? null : data.theme,
+      notifyQuest: data.notifyQuest,
+      notifyStreak: data.notifyStreak,
+      notifyCelebrate: data.notifyCelebrate,
     },
   });
+}
+
+/**
+ * Account deletion (PRD v2 §45: users own their data, incl. leaving).
+ * Removes every app-owned row transactionally; historical integrity no longer
+ * applies once the owner asks to be forgotten. Also attempts the Supabase Auth
+ * user deletion when a service-role key is configured (best-effort, reported).
+ */
+export async function deleteAccount(userId: string): Promise<{ deleted: boolean; authDeleted: boolean }> {
+  await prisma.$transaction(async (tx) => {
+    const questIds = (await tx.quest.findMany({ where: { userId }, select: { id: true } })).map((q) => q.id);
+    if (questIds.length > 0) {
+      await tx.questCompletion.deleteMany({ where: { questId: { in: questIds } } });
+      await tx.questInstance.deleteMany({ where: { questId: { in: questIds } } });
+    }
+    await tx.focusSession.deleteMany({ where: { userId } });
+    await tx.quest.deleteMany({ where: { userId } });
+    const campaignIds = (await tx.campaign.findMany({ where: { userId }, select: { id: true } })).map((c) => c.id);
+    if (campaignIds.length > 0) {
+      await tx.campaignMilestone.deleteMany({ where: { campaignId: { in: campaignIds } } });
+    }
+    await tx.campaign.deleteMany({ where: { userId } });
+    await tx.rewardLedger.deleteMany({ where: { userId } });
+    await tx.inventory.deleteMany({ where: { userId } });
+    await tx.userAchievement.deleteMany({ where: { userId } });
+    await tx.restDay.deleteMany({ where: { userId } });
+    await tx.userLoadout.deleteMany({ where: { userId } });
+    await tx.profileAttribute.deleteMany({ where: { profileId: userId } });
+    await tx.profileProgression.deleteMany({ where: { profileId: userId } });
+    await tx.profile.deleteMany({ where: { id: userId } });
+  });
+
+  // Best-effort removal of the Supabase Auth identity itself.
+  let authDeleted = false;
+  const { config } = await import("../../config");
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  if (serviceKey && config.supabaseUrl) {
+    try {
+      const res = await fetch(`${config.supabaseUrl.replace(/\/$/, "")}/auth/v1/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+      });
+      authDeleted = res.ok;
+    } catch {
+      authDeleted = false;
+    }
+  }
+  return { deleted: true, authDeleted };
 }

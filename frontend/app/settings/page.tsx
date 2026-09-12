@@ -20,6 +20,8 @@ export default function SettingsPage() {
   });
   const [restDate, setRestDate] = useState("");
   const [motionOff, setMotionOff] = useState<boolean | null>(null);
+  const [armed, setArmed] = useState(false);
+  const [erasing, setErasing] = useState(false);
 
   if (authLoading || loading) return <Skeleton label="Settings" rows={3} />;
   if (!userId) return <SignInPrompt />;
@@ -54,6 +56,19 @@ export default function SettingsPage() {
       setRestDate("");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't mark rest.", "i-close");
+    }
+  };
+
+  const eraseAccount = async () => {
+    setErasing(true);
+    try {
+      await client.deleteProfile(authHeaders());
+      await signOut();
+      window.location.replace("/login?deleted=1");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't delete account. Nothing was erased.", "i-close");
+      setErasing(false);
+      setArmed(false);
     }
   };
 
@@ -131,6 +146,31 @@ export default function SettingsPage() {
       </div>
 
       <div className="settings-panel">
+        <h3>Notifications</h3>
+        {(
+          [
+            ["notifyQuest", "Quest reminders", "Due quests and next objectives"],
+            ["notifyStreak", "Streak warnings", "Nudges before a streak breaks"],
+            ["notifyCelebrate", "Celebrations", "Badges and milestones"],
+          ] as const
+        ).map(([key, label, hint]) => (
+          <div className="set-row" key={key}>
+            <div className="info">
+              <strong>{label}</strong>
+              <span>{hint}</span>
+            </div>
+            <button
+              className={`switch${profile[key] ? " is-on" : ""}`}
+              role="switch"
+              aria-checked={!!profile[key]}
+              aria-label={label}
+              onClick={() => save({ [key]: !profile[key] }, "Notification preference saved")}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="settings-panel">
         <h3>Account</h3>
         <div className="set-row">
           <div className="info">
@@ -140,6 +180,26 @@ export default function SettingsPage() {
           <button onClick={signOut} className="btn btn--ghost">
             Sign out
           </button>
+        </div>
+        <div className="set-row">
+          <div className="info">
+            <strong>Erase everything</strong>
+            <span>Deletes all quests, history and identity. Forever.</span>
+          </div>
+          {!armed ? (
+            <button onClick={() => setArmed(true)} className="btn btn--ghost">
+              Delete…
+            </button>
+          ) : (
+            <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+              <button onClick={eraseAccount} disabled={erasing} className="btn btn--primary">
+                {erasing ? "Erasing…" : "Yes, erase"}
+              </button>
+              <button onClick={() => setArmed(false)} className="btn btn--ghost">
+                Keep
+              </button>
+            </span>
+          )}
         </div>
       </div>
     </div>

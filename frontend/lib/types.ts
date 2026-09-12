@@ -32,6 +32,7 @@ export interface Quest {
   campaignId?: string | null;
   milestoneId?: string | null;
   isPinned: boolean;
+  recurrenceRule?: { freq: "daily" | "weekly" | "custom"; days?: number[]; time?: string } | null;
   primaryOverride?: string | null;
   secondaryOverride?: string | null;
   activityType?: { key: string; name: string } | null;
@@ -54,7 +55,7 @@ export interface TodayResponse {
   spark: Quest | null;
   progression: { level: number; coins: number; currentStreak: number; bestStreak: number; momentum: number } | null;
   campaignSummary: { id: string; title: string; progressPct: number } | null;
-  attributeSnapshot: { key: string; name: string; xp: number; level: number }[];
+  attributeSnapshot: { key: string; name: string; xp: number; level: number; recent: { gain: number; questTitle: string } | null }[];
   streak: { current: number; best: number; momentum: number };
   recentReward: { questId: string; xp: number; coins: number; at: string } | null;
   counts: { pinned: number; due: number };
@@ -74,6 +75,7 @@ export interface CompletionResponse {
   levelsGained: number;
   newRankKey: string;
   newRankDisplay: string;
+  rankUp: { from: string; to: string; bonusCoins: number } | null;
   currentStreak: number;
   bestStreak: number;
   momentum: number;
@@ -82,6 +84,22 @@ export interface CompletionResponse {
   capped: boolean;
   choreography: { step: string; label: string }[];
   companion: { mood: string; message: string };
+}
+
+export interface Notice {
+  key: string;
+  kind: "quest" | "streak" | "celebration" | "rest" | "info";
+  title: string;
+  body: string;
+}
+
+export interface CalendarFeed {
+  from: string;
+  to: string;
+  quests: { kind: "quest"; id: string; title: string; questType: string; status: string; scheduledFor: string | null; dueAt: string | null }[];
+  instances: { kind: "routine_instance"; id: string; questId: string; questTitle: string; date: string; status: string }[];
+  milestones: { kind: "milestone"; id: string; title: string; status: string; date: string | null; campaignId: string; campaignTitle: string }[];
+  focusSessions: { kind: "focus"; id: string; questId: string | null; startedAt: string }[];
 }
 
 export interface Campaign {

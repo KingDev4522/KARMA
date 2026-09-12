@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { client } from "@/lib/api";
 import { Hero, Icon, IconSprite, type IconId } from "@/components/illustrations";
+import type { Notice } from "@/lib/types";
 
 const NAV: { id: string; href: string; label: string; icon: IconId }[] = [
   { id: "today", href: "/", label: "Today", icon: "i-today" },
@@ -46,6 +47,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { authHeaders, userId, signOut, email, loading: authLoading } = useAuth();
   const { theme, toggle } = useTheme();
   const [identity, setIdentity] = useState({ heroName: "Aki", level: 1, rank: "Drifter", coins: 0, active: 0, streak: 0 });
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [query, setQuery] = useState("");
   const [sideOpen, setSideOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -66,6 +68,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           streak: t.streak.current,
         }),
       )
+      .catch(() => undefined);
+    client
+      .notifications(authHeaders())
+      .then((n) => setNotices(n.notifications))
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -205,24 +211,25 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <Icon id={theme === "dark" ? "i-sun" : "i-moon"} />
             </button>
             <div className="notif-wrap">
-              <button className="icon-btn" onClick={() => { setNotifOpen((o) => !o); setProfileOpen(false); }} aria-label="Notifications" aria-expanded={notifOpen}>
+              <button className="icon-btn" onClick={() => { setNotifOpen((o) => !o); setProfileOpen(false); }} aria-label={`Notifications, ${notices.filter((n) => n.key !== "all-clear").length} unread`} aria-expanded={notifOpen}>
                 <Icon id="i-bell" />
-                <em className="ping" />
+                {notices.some((n) => n.key !== "all-clear") && <em className="ping" />}
               </button>
               <div className={`dropdown${notifOpen ? " is-open" : ""}`} role="menu" aria-label="Notifications">
                 <div className="dd-head">Notifications</div>
-                <div className="dd-item">
-                  <Icon id="i-flame" style={{ color: "var(--accent)" }} />
-                  {identity.streak}-day streak — keep it alive tonight
-                </div>
-                <div className="dd-item">
-                  <Icon id="i-campaigns" style={{ color: "var(--tint-sky-d)" }} />
-                  {identity.active} open quests on your board
-                </div>
-                <div className="dd-item">
-                  <Icon id="i-trophy" style={{ color: "var(--gold)" }} />
-                  Complete quests to earn coins for the store
-                </div>
+                {notices.map((n) => (
+                  <div className="dd-item" key={n.key}>
+                    <Icon id={n.kind === "streak" ? "i-flame" : n.kind === "celebration" ? "i-trophy" : n.kind === "quest" ? "i-quests" : n.kind === "rest" ? "i-moon" : "i-spark"} />
+                    <span>
+                      <strong>{n.title}</strong>
+                      <br />
+                      <span style={{ fontWeight: 400, opacity: 0.75 }}>{n.body}</span>
+                    </span>
+                  </div>
+                ))}
+                <Link href="/settings" className="dd-item" onClick={() => setNotifOpen(false)}>
+                  <Icon id="i-settings" /> Notification settings
+                </Link>
               </div>
             </div>
             <div className="profile-wrap">

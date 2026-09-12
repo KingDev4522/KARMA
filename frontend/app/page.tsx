@@ -79,11 +79,12 @@ export default function TodayPage() {
   return (
     <div className="page is-active">
       {ceremony && (
-        <LevelUpModal
-          level={ceremony.newLevel}
-          message={`${ceremony.companion.message} A new rank: ${ceremony.newRankDisplay}.`}
-          onClose={() => setCeremony(null)}
-        />
+          <LevelUpModal
+            level={ceremony.newLevel}
+            message={`${ceremony.companion.message} A new rank: ${ceremony.newRankDisplay}.`}
+            rankUp={ceremony.rankUp}
+            onClose={() => setCeremony(null)}
+          />
       )}
 
       {/* HERO */}
@@ -217,6 +218,11 @@ export default function TodayPage() {
                       <div className="attr-bar">
                         <i style={{ width: `${Math.min(100, Math.round(((a.xp % 500) / 500) * 100))}%` }} />
                       </div>
+                      {a.recent && (
+                        <div className="name" style={{ fontWeight: 400, opacity: 0.75 }} title={a.recent.questTitle}>
+                          +{a.recent.gain} from {a.recent.questTitle.length > 22 ? `${a.recent.questTitle.slice(0, 22)}…` : a.recent.questTitle}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

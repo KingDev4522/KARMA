@@ -5,7 +5,8 @@ import { requireAuth, currentUserId } from "../shared/auth";
 import { validateBody } from "../middlewares/validate";
 import { listAchievements } from "../modules/achievements/service";
 import { getCompanionState } from "../modules/companion/service";
-import { getAnalytics, getDebrief, getHeroCard, getHistory, getRealm } from "../modules/chronicle/service";
+import { getAnalytics, getCalendar, getDebrief, getHeroCard, getHistory, getRealm } from "../modules/chronicle/service";
+import { getNotifications } from "../modules/notifications/service";
 import { prisma } from "../db";
 import { ensureProfile } from "../modules/identity/service";
 import { toDayKey } from "../shared/utils";
@@ -34,6 +35,16 @@ metaRouter.get("/chronicle/debrief", requireAuth, asyncHandler(async (req, res) 
 metaRouter.get("/hero-card", requireAuth, asyncHandler(async (req, res) => { res.json(await getHeroCard(currentUserId(req))); }));
 // LRP-FE-001 §12 Realm in one call (FE §21 perceived performance).
 metaRouter.get("/realm", requireAuth, asyncHandler(async (req, res) => { res.json(await getRealm(currentUserId(req))); }));
+
+// Unified planning calendar (PRD v2 §29): quests + instances + milestones + focus.
+metaRouter.get("/chronicle/calendar", requireAuth, asyncHandler(async (req, res) => {
+  const q = req.query as Record<string, string | undefined>;
+  const today = toDayKey();
+  res.json(await getCalendar(currentUserId(req), q.from ?? today, q.to ?? today));
+}));
+
+// Notification center feed (PRD v2 §31): deterministic, toggleable, no spam.
+metaRouter.get("/notifications", requireAuth, asyncHandler(async (req, res) => { res.json(await getNotifications(currentUserId(req))); }));
 
 // Rest days — intentional rest without breaking streak (MASTER PRD §15)
 const RestSchema = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), note: z.string().max(280).optional() });

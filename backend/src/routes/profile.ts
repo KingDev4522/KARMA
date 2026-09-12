@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { asyncHandler } from "../shared/asyncHandler";
 import { requireAuth, currentUserId } from "../shared/auth";
-import { getFullProfile, updateIdentity } from "../modules/identity/service";
+import { getFullProfile, updateIdentity, deleteAccount } from "../modules/identity/service";
 import { UpdateIdentitySchema } from "../modules/identity/schemas";
 import { getProgression } from "../modules/progression/service";
 import { validateBody } from "../middlewares/validate";
@@ -30,5 +30,14 @@ profileRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     res.json(await getProgression(currentUserId(req)));
+  }),
+);
+
+// Account deletion (PRD v2 §45). Destructive and final — frontend confirms twice.
+profileRouter.delete(
+  "/me",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await deleteAccount(currentUserId(req)));
   }),
 );

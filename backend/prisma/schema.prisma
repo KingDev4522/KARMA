@@ -75,6 +75,10 @@ model Profile {
   // prefs survive refresh/cross-device; localStorage is only non-authoritative cache.
   reducedMotion    Boolean  @default(false) @map("reduced_motion")
   theme            String?  @db.Text
+  // Notification prefs (PRD v2 §31): every category toggleable, no spam by default.
+  notifyQuest      Boolean  @default(true) @map("notify_quest")
+  notifyStreak     Boolean  @default(true) @map("notify_streak")
+  notifyCelebrate  Boolean  @default(true) @map("notify_celebrate")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

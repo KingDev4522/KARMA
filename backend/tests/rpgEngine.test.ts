@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { cumulativeXpForLevel, levelForLifetimeXp, requiredXpForLevel, xpProgressForLevel } from "../src/rpg/xpCurve";
-import { rankForLevel, rankForXp } from "../src/rpg/ranks";
+import { didRankAdvance, rankForLevel, rankForXp, rankUpChestCoins } from "../src/rpg/ranks";
 import { resolveRewards } from "../src/rpg";
 import { applyCompletionToStreak, momentumForActiveDays } from "../src/rpg/streak";
 import { companionMessage } from "../src/rpg/companion";
@@ -21,6 +21,14 @@ assert.equal(rankForLevel(5).rankKey, "novice_v");
 assert.equal(rankForLevel(6).rankKey, "apprentice_i");
 assert.equal(rankForLevel(46).rank, "ascendant");
 assert.equal(rankForXp(0).rank, "novice");
+
+// Rank-up chest (PRD v2 §16): rung-ups and Ascendant stars pay out, stages don't
+assert.equal(didRankAdvance(rankForLevel(5), rankForLevel(6)), true);
+assert.equal(didRankAdvance(rankForLevel(6), rankForLevel(7)), false);
+assert.equal(didRankAdvance(rankForLevel(46), rankForLevel(47)), true);
+assert.equal(rankUpChestCoins("novice"), 25);
+assert.ok(rankUpChestCoins("mythic") > rankUpChestCoins("apprentice"), "later rungs pay more");
+assert.equal(rankUpChestCoins("ascendant", 3), 25 + 9 * 15 + 15);
 
 // Rewards deterministic: E3 study → 40 XP, primary intellect 40, secondary focus floor(40*0.35)=14
 const r1 = resolveRewards({ difficulty: 3, questType: "focus", activityKey: "study_learning", microCountToday: 0, currentStreak: 0 });

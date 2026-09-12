@@ -90,6 +90,7 @@ export default function StorePage() {
     enabled: !authLoading && !!userId,
   });
   const [cat, setCat] = useState("All");
+  const [view, setView] = useState<"market" | "collection">("market");
   const [busyId, setBusyId] = useState<string | null>(null);
 
   if (authLoading || loading) return <Skeleton label="Store" rows={3} />;
@@ -144,19 +145,32 @@ export default function StorePage() {
         </div>
       </div>
 
-      <div className="store-cats">
-        {cats.map((c) => (
-          <button key={c} className={`chip${cat === c ? " is-on" : ""}`} onClick={() => setCat(c)} aria-pressed={cat === c}>
-            {c}
-          </button>
-        ))}
+      <div className="store-cats" role="tablist" aria-label="Store views">
+        <button role="tab" aria-selected={view === "market"} className={`chip${view === "market" ? " is-on" : ""}`} onClick={() => setView("market")}>
+          Market
+        </button>
+        <button role="tab" aria-selected={view === "collection"} className={`chip${view === "collection" ? " is-on" : ""}`} onClick={() => setView("collection")}>
+          Collection
+        </button>
       </div>
 
-      {items.length === 0 ? (
-        <EmptyState message="Nothing on this shelf yet." />
+      {view === "collection" ? (
+        <CollectionView onChanged={() => { retry(); window.dispatchEvent(new CustomEvent("liferpg:refresh")); }} />
       ) : (
-        <div className="store-grid">
-          {items.map((it) => {
+        <>
+          <div className="store-cats">
+            {cats.map((c) => (
+              <button key={c} className={`chip${cat === c ? " is-on" : ""}`} onClick={() => setCat(c)} aria-pressed={cat === c}>
+                {c}
+              </button>
+            ))}
+          </div>
+
+          {items.length === 0 ? (
+            <EmptyState message="Nothing on this shelf yet." />
+          ) : (
+            <div className="store-grid">
+              {items.map((it) => {
             const label = CAT_LABEL[it.itemType] ?? it.itemType;
             return (
               <div className="store-item" key={it.id}>
@@ -196,6 +210,90 @@ export default function StorePage() {
           })}
         </div>
       )}
+        </>
+      )}
     </div>
+  );
+}
+
+// Mirrors backend RESOLVED_SLOT (inventory service): nameplates share the frame slot.
+const SLOT_FOR: Record<string, string> = {
+  frame: "frameItemId",
+  title: "titleItemId",
+  nameplate: "frameItemId",
+  realm: "realmItemId",
+  effect: "effectItemId",
+  companion_emote: "companionEmoteItemId",
+  quest_skin: "questSkinItemId",
+  badge_case: "badgeCaseItemId",
+  hero_card: "heroCardItemId",
+};
+
+/** Collection — everything owned, with equip / unequip loadout control. */
+function CollectionView({ onChanged }: { onChanged: () => void }) {
+  const { authHeaders, userId, loading: authLoading } = useAuth();
+  const toast = useToast();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error, loading, retry } = useApi<any>(() => client.inventory(authHeaders()), [userId], {
+    enabled: !authLoading && !!userId,
+  });
+  const [busy, setBusy] = useState<string | null>(null);
+
+  if (loading) return <Skeleton label="Collection" />;
+  if (error) return <ErrorState error={error} onRetry={retry} />;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const entries = ((data?.items ?? []) as any[]);
+  const loadout = (data?.loadout ?? {}) as Record<string, string | null>;
+  const equipped = new Set(Object.values(loadout).filter((v): v is string => typeof v === "string"));
+
+  const act = async (id: string, fn: () => Promise<unknown>, ok: string) => {
+    setBusy(id);
+    try {
+      await fn();
+      toast(ok, "i-check");
+      retry();
+      onChanged();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Loadout unchanged.", "i-close");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (entries.length === 0) {
+    return <EmptyState message="No treasures yet. Earn coins from quests, then acquire something here." />;
+  }
+  return (
+    <ul className="store-grid">
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      {entries.map((e: any) => {
+        const isEq = equipped.has(e.itemId);
+        const slot = SLOT_FOR[e.item?.itemType] ?? null;
+        return (
+          <li key={`${e.userId}-${e.itemId}`} className="store-item">
+            <div className="si-body">
+              <div>
+                <strong>{e.item?.name ?? "Item"}</strong>
+                <div className="si-cat capitalize">{(e.item?.itemType ?? "").replace(/_/g, " ")} · {e.item?.rarity}</div>
+              </div>
+              {isEq ? (
+                <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span className="si-buy equipped">Equipped</span>
+                  {slot && (
+                    <button className="si-buy" disabled={busy === e.itemId} onClick={() => act(e.itemId, () => client.unequip(authHeaders(), slot), "Unequipped")}>
+                      {busy === e.itemId ? "…" : "Remove"}
+                    </button>
+                  )}
+                </span>
+              ) : (
+                <button className="si-buy" disabled={busy === e.itemId} onClick={() => act(e.itemId, () => client.equip(authHeaders(), e.itemId), `${e.item?.name ?? "Item"} equipped`)}>
+                  {busy === e.itemId ? "…" : "Equip"}
+                </button>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

@@ -70,11 +70,12 @@ function QuestsInner() {
   return (
     <div className="page is-active">
       {ceremony && (
-        <LevelUpModal
-          level={ceremony.newLevel}
-          message={`${ceremony.companion.message} A new rank: ${ceremony.newRankDisplay}.`}
-          onClose={() => setCeremony(null)}
-        />
+          <LevelUpModal
+            level={ceremony.newLevel}
+            message={`${ceremony.companion.message} A new rank: ${ceremony.newRankDisplay}.`}
+            rankUp={ceremony.rankUp}
+            onClose={() => setCeremony(null)}
+          />
       )}
       <div className="page-head">
         <div>
@@ -114,11 +115,29 @@ function QuestsInner() {
           <p>No quests match. The Realm is quiet… for now.</p>
         </div>
       ) : (
-        <div className="quest-list panel">
-          {list.map((t, i) => (
-            <QuestRow key={t.id} quest={t} index={i} onComplete={complete} lastResult={results[t.id] ?? null} />
-          ))}
-        </div>
+        <>
+          {list.some((t) => t.questType === "routine") && (
+            <section aria-label="Routines">
+              <div className="sec-head">
+                <h3>Rhythms</h3>
+              </div>
+              <div className="quest-list panel">
+                {list
+                  .filter((t) => t.questType === "routine")
+                  .map((t, i) => (
+                    <RoutineRow key={t.id} quest={t} index={i} />
+                  ))}
+              </div>
+            </section>
+          )}
+          <div className="quest-list panel">
+            {list
+              .filter((t) => t.questType !== "routine")
+              .map((t, i) => (
+                <QuestRow key={t.id} quest={t} index={i} onComplete={complete} lastResult={results[t.id] ?? null} onChanged={() => { retry(); window.dispatchEvent(new CustomEvent("liferpg:refresh")); }} />
+              ))}
+          </div>
+        </>
       )}
 
       <QuestCreator open={creator} onClose={() => setCreator(false)} onCreated={() => { retry(); window.dispatchEvent(new CustomEvent("liferpg:refresh")); }} />
@@ -131,5 +150,59 @@ export default function QuestsPage() {
     <Suspense>
       <QuestsInner />
     </Suspense>
+  );
+}
+
+const DOW_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
+
+/** A routine as a living rhythm: rule chips + expandable upcoming instances. */
+function RoutineRow({ quest, index }: { quest: Quest; index: number }) {
+  const { authHeaders } = useAuth();
+  const [open, setOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: instances } = useApi<any>(() => client.listInstances(authHeaders(), quest.id), [quest.id, open], {
+    enabled: open,
+  });
+  const rule = quest.recurrenceRule;
+  const days = rule?.freq === "daily" ? [0, 1, 2, 3, 4, 5, 6] : (rule?.days ?? []);
+  return (
+    <article className="quest-row" style={{ animationDelay: `${Math.min(index, 10) * 35}ms` }} aria-label={`Routine: ${quest.title}`}>
+      <div className="qr-main">
+        <h4>{quest.title}</h4>
+        <div className="qr-meta">
+          <span>{rule ? (rule.freq === "daily" ? "Daily" : "Weekly") : "Routine"}</span>
+          <span style={{ display: "inline-flex", gap: 3 }} aria-label={rule?.freq === "daily" ? "Repeats daily" : `Repeats ${(days).map((d) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d]).join(", ")}`}>
+            {DOW_SHORT.map((d, i) => (
+              <b key={i} style={{ opacity: days.includes(i) ? 1 : 0.3, fontSize: 11 }}>{d}</b>
+            ))}
+          </span>
+        </div>
+      </div>
+      <div className="qr-actions">
+        <button className="icon-btn" onClick={() => setOpen((v) => !v)} aria-expanded={open} title="Upcoming occurrences" aria-label={`Upcoming occurrences of ${quest.title}`}>
+          <Icon id="i-clock" />
+        </button>
+      </div>
+      {open && (
+        <div style={{ flexBasis: "100%", marginTop: 6 }}>
+          {!instances ? (
+            <p style={{ fontSize: 12, color: "var(--text-3)" }}>Reading the rhythm…</p>
+          ) : (instances as unknown[]).length === 0 ? (
+            <p style={{ fontSize: 12, color: "var(--text-3)" }}>No upcoming occurrences — generate more from the routine.</p>
+          ) : (
+            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4 }}>
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {(instances as any[]).slice(0, 8).map((ins: any) => (
+                <li key={ins.id} style={{ fontSize: 12, color: "var(--text-2)" }}>
+                  {new Date(ins.occurrenceDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                  {" · "}
+                  {String(ins.status).replace("_", " ")}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </article>
   );
 }

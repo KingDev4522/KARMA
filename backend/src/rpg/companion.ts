@@ -80,7 +80,7 @@ export function companionMessage(event: CompanionEvent, ctx: CompanionContext = 
       return "First quest taken. Small steps count — this one matters.";
     case "quest_complete":
       return pick(
-        ["Quest cleared. That one mattered.", "Quest cleared. Nice work.", "Done. That counted."],
+        ["Quest cleared. That one mattered.", "Quest cleared. Nice work.", "Done. That counted.", "You're getting stronger."],
         seed,
       );
     case "level_up":

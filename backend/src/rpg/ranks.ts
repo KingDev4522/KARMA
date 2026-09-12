@@ -77,3 +77,20 @@ export function levelUpCoinBonus(newLevel: number): number {
   // gentle scaling: 5 + level, capped at 60
   return Math.min(60, 5 + newLevel);
 }
+
+/**
+ * Rank-promotion chest: a more meaningful cosmetic-scale reward (PRD v2 §16).
+ * Deterministic per rank rung — Ascendant stars keep paying out endlessly.
+ */
+export function rankUpChestCoins(rank: RankName, stars = 0): number {
+  const rung = RANK_ORDER.indexOf(rank); // 0..9
+  return 25 + rung * 15 + Math.min(100, stars * 5);
+}
+
+/** True when moving to a higher rung, or earning a new Ascendant star. */
+export function didRankAdvance(oldRank: RankInfo, newRank: RankInfo): boolean {
+  return (
+    RANK_ORDER.indexOf(newRank.rank) > RANK_ORDER.indexOf(oldRank.rank) ||
+    (newRank.rank === "ascendant" && (newRank.stars ?? 0) > (oldRank.stars ?? 0))
+  );
+}

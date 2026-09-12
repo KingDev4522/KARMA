@@ -10,4 +10,8 @@ export const UpdateIdentitySchema = z.object({
   // UX prefs (LRP-FE-001 §15 reduced-motion, §20 accessibility): persisted server-side.
   reducedMotion: z.boolean().optional(),
   theme: z.string().max(40).nullable().optional(),
+  // Notification prefs (PRD v2 §31): every category toggleable.
+  notifyQuest: z.boolean().optional(),
+  notifyStreak: z.boolean().optional(),
+  notifyCelebrate: z.boolean().optional(),
 });

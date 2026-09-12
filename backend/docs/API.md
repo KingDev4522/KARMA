@@ -44,7 +44,12 @@ Errors: `{ error: { code, message, details, retryable } }` — `retryable=true` 
 
 ## Misc
 
-- `PATCH /api/v1/profile/me` identity + UX prefs `{reducedMotion, theme}` (persisted; localStorage is cache only).
+- `PATCH /api/v1/profile/me` identity + UX prefs `{reducedMotion, theme}` + notification prefs `{notifyQuest, notifyStreak, notifyCelebrate}` (persisted; localStorage is cache only).
+- `DELETE /api/v1/profile/me` erases all app data (and the Supabase Auth identity when a service-role key is configured). Double-confirm in UI.
+- `GET /api/v1/chronicle/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` unified feed: scheduled quests + routine instances + milestones + focus sessions (62-day cap).
+- `GET /api/v1/notifications` deterministic center: due quests, streak risk, recent badges, next objective + active prefs.
+- `GET /api/v1/quests?preview=true` attaches `rewardPreview` to every row; `GET /api/v1/quests/:id` always previews.
+- Completion returns `rankUp: {from, to, bonusCoins} | null` + matching `rank_up` ledger entry.
 - `GET /api/v1/starters` deterministic starter suggestions from `lifeDomains`.
 - `GET|POST /api/v1/rest-days`, `GET /api/v1/achievements`, `GET /api/v1/wallet`.
 - `GET /health`.

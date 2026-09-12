@@ -26,6 +26,9 @@ export const CreateQuestSchema = z.object({
 
 export const UpdateQuestSchema = CreateQuestSchema.partial().extend({
   status: QuestStatusEnum.optional(),
+  // Reschedule edge case (PRD v2 §44): accept a plain calendar date or explicit
+  // null to clear — the service normalizes both to timestamptz/null.
+  dueAt: z.union([z.string().datetime({ offset: true }), z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.null()]).optional(),
 });
 
 export const CompleteQuestSchema = z.object({

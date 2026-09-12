@@ -105,6 +105,9 @@ export const client = {
   listCampaigns: (h: H) => api<Campaign[]>(`/api/v1/campaigns`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createCampaign: (h: H, body: any) => api<Campaign>(`/api/v1/campaigns`, { method: "POST", headers: h, body: JSON.stringify(body) }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  patchCampaign: (h: H, id: string, body: any) => api<Campaign>(`/api/v1/campaigns/${id}`, { method: "PATCH", headers: h, body: JSON.stringify(body) }),
+  deleteCampaign: (h: H, id: string) => api<unknown>(`/api/v1/campaigns/${id}`, { method: "DELETE", headers: h }),
   getCampaign: (h: H, id: string) => api<Campaign>(`/api/v1/campaigns/${id}`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createMilestone: (h: H, id: string, body: any) => api<unknown>(`/api/v1/campaigns/${id}/milestones`, { method: "POST", headers: h, body: JSON.stringify(body) }),
@@ -121,10 +124,15 @@ export const client = {
   purchase: (h: H, itemId: string) => api<{ balance: number }>(`/api/v1/store/purchase`, { method: "POST", headers: h, body: JSON.stringify({ itemId }) }),
   inventory: (h: H) => api<unknown>(`/api/v1/inventory`, { headers: h }),
   equip: (h: H, itemId: string) => api<unknown>(`/api/v1/inventory/equip`, { method: "POST", headers: h, body: JSON.stringify({ itemId }) }),
+  unequip: (h: H, slot: string) => api<unknown>(`/api/v1/inventory/unequip`, { method: "POST", headers: h, body: JSON.stringify({ slot }) }),
+  genInstances: (h: H, id: string, from: string, to: string) =>
+    api<unknown>(`/api/v1/quests/${id}/generate-instances`, { method: "POST", headers: h, body: JSON.stringify({ from, to }) }),
+  listInstances: (h: H, id: string) => api<unknown[]>(`/api/v1/quests/${id}/instances`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getProfile: (h: H) => api<any>(`/api/v1/profile/me`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   patchProfile: (h: H, body: any) => api<unknown>(`/api/v1/profile/me`, { method: "PATCH", headers: h, body: JSON.stringify(body) }),
+  deleteProfile: (h: H) => api<{ deleted: boolean; authDeleted: boolean }>(`/api/v1/profile/me`, { method: "DELETE", headers: h }),
   getProgression: (h: H) => api<{ level: number; coins: number; currentStreak: number }>(`/api/v1/profile/me/progression`, { headers: h }),
   achievements: (h: H) => api<{ unlocked: unknown[] }>(`/api/v1/achievements`, { headers: h }),
   companion: (h: H, event = "app_open") => api<{ mood: string; message: string }>(`/api/v1/companion?event=${event}`, { headers: h }),
@@ -132,6 +140,13 @@ export const client = {
   history: (h: H, limit = 20) => api<any>(`/api/v1/chronicle/history?limit=${limit}`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   analytics: (h: H) => api<any>(`/api/v1/chronicle/analytics`, { headers: h }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  debrief: (h: H, date?: string) => api<any>(`/api/v1/chronicle/debrief${date ? `?date=${date}` : ""}`, { headers: h }),
+  calendar: (h: H, from: string, to: string) =>
+    api<import("./types").CalendarFeed>(`/api/v1/chronicle/calendar?from=${from}&to=${to}`, { headers: h }),
+  notifications: (h: H) =>
+    api<{ notifications: import("./types").Notice[]; prefs: { quest: boolean; streak: boolean; celebrate: boolean } }>(`/api/v1/notifications`, { headers: h }),
+  wallet: (h: H) => api<{ coins: number; lifetimeXp: number }>(`/api/v1/wallet`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   heroCard: (h: H) => api<any>(`/api/v1/hero-card`, { headers: h }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

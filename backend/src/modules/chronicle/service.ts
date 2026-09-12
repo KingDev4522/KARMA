@@ -51,12 +51,100 @@ export async function getAnalytics(userId: string) {
   const focusSeconds = sessions.reduce((a, s) => a + (s.actualSeconds ?? s.plannedSeconds), 0);
   const activeDays = new Set(weekC.map((c) => c.completedAt.toISOString().slice(0, 10))).size;
 
+  // Streak/activity history: per-day buckets for the last 30 days (MASTER PRD § History).
+  const dailyActivity = (() => {
+    const map = new Map<string, { date: string; quests: number; xp: number; coins: number }>();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(startOfDay);
+      d.setUTCDate(d.getUTCDate() - i);
+      const k = d.toISOString().slice(0, 10);
+      map.set(k, { date: k, quests: 0, xp: 0, coins: 0 });
+    }
+    for (const c of monthC) {
+      const k = c.completedAt.toISOString().slice(0, 10);
+      const b = map.get(k);
+      if (b) {
+        b.quests += 1;
+        b.xp += c.rewardXp;
+        b.coins += c.rewardCoins;
+      }
+    }
+    return [...map.values()];
+  })();
+
   return {
     today: { ...sum(todayC), focusSecondsToday: sessions.filter((s) => s.startedAt >= startOfDay).reduce((a, s) => a + (s.actualSeconds ?? 0), 0) },
     week: { ...sum(weekC), activeDays },
     month: { ...sum(monthC), focusSeconds, strongestAttribute: attrs[0]?.attribute.key ?? null, totalFocusSessions: sessions.length },
     streak: { current: prog?.currentStreak ?? 0, best: prog?.bestStreak ?? 0, momentum: prog?.momentum ?? 0 },
     attributes: attrs.map((a) => ({ key: a.attribute.key, name: a.attribute.name, xp: a.xp, level: a.level })),
+    dailyActivity,
+  };
+}
+
+/**
+ * Unified planning calendar (PRD v2 §29): scheduled quests, routine instances,
+ * campaign milestones and focus sessions in ONE feed. Every event links to its
+ * underlying quest — no duplicate task records.
+ */
+export async function getCalendar(userId: string, from: string, to: string) {
+  await ensureProfile(userId);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    const { BadRequestError } = await import("../../shared/errors");
+    throw new BadRequestError("from/to must be YYYY-MM-DD");
+  }
+  const start = new Date(`${from}T00:00:00.000Z`);
+  const end = new Date(`${to}T23:59:59.999Z`);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    const { BadRequestError } = await import("../../shared/errors");
+    throw new BadRequestError("Invalid date range");
+  }
+  if ((end.getTime() - start.getTime()) / 86_400_000 > 62) {
+    const { BadRequestError } = await import("../../shared/errors");
+    throw new BadRequestError("Range capped at 62 days");
+  }
+
+  const [quests, instances, milestones, sessions] = await Promise.all([
+    prisma.quest.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        OR: [
+          { scheduledFor: { gte: start, lte: end } },
+          { dueAt: { gte: start, lte: end } },
+        ],
+      },
+      select: { id: true, title: true, questType: true, status: true, scheduledFor: true, dueAt: true, campaignId: true, milestoneId: true },
+      orderBy: { dueAt: "asc" },
+      take: 200,
+    }),
+    prisma.questInstance.findMany({
+      where: { quest: { userId }, occurrenceDate: { gte: start, lte: end } },
+      include: { quest: { select: { id: true, title: true } } },
+      orderBy: { occurrenceDate: "asc" },
+      take: 200,
+    }),
+    prisma.campaignMilestone.findMany({
+      where: { campaign: { userId }, targetDate: { gte: start, lte: end } },
+      include: { campaign: { select: { id: true, title: true } } },
+      orderBy: { targetDate: "asc" },
+      take: 100,
+    }),
+    prisma.focusSession.findMany({
+      where: { userId, startedAt: { gte: start, lte: end } },
+      select: { id: true, questId: true, startedAt: true, endedAt: true, plannedSeconds: true, actualSeconds: true, status: true },
+      orderBy: { startedAt: "asc" },
+      take: 200,
+    }),
+  ]);
+
+  return {
+    from,
+    to,
+    quests: quests.map((q) => ({ kind: "quest" as const, ...q })),
+    instances: instances.map((i) => ({ kind: "routine_instance" as const, id: i.id, questId: i.questId, questTitle: i.quest.title, date: i.occurrenceDate, status: i.status })),
+    milestones: milestones.map((m) => ({ kind: "milestone" as const, id: m.id, title: m.title, status: m.status, date: m.targetDate, campaignId: m.campaignId, campaignTitle: m.campaign.title })),
+    focusSessions: sessions.map((s) => ({ kind: "focus" as const, ...s })),
   };
 }
 

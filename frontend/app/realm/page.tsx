@@ -14,6 +14,12 @@ export default function RealmPage() {
   const { data, error, loading, retry } = useApi<any>(() => client.realm(authHeaders()), [userId], {
     enabled: !authLoading && !!userId,
   });
+  // Badge source of truth: /achievements returns all + unlocked + locked.
+  // (The realm aggregate carries unlocked only, so locked must come from here.)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: badgeBook } = useApi<any>(() => client.achievements(authHeaders()), [userId], {
+    enabled: !authLoading && !!userId,
+  });
 
   if (authLoading || loading) return <Skeleton label="Realm" rows={4} />;
   if (!userId) return <SignInPrompt />;
@@ -33,7 +39,7 @@ export default function RealmPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const unlocked: any[] = data.achievements?.unlocked ?? [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const locked: any[] = data.achievements?.locked ?? [];
+  const locked: any[] = (badgeBook?.locked ?? []).map((a: any) => ({ key: a.key, name: a.name, description: a.description, iconPath: a.iconPath }));
   const equipped = data.equipped ?? data.loadout ?? {};
   const cosmeticTags = [
     equipped?.frameItemId ?? equipped?.frame ? `Frame · ${equipped.frameItemId ?? equipped.frame}` : null,

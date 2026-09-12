@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { Companion, Hero, Icon } from "@/components/illustrations";
 import { SignInPrompt, Skeleton } from "@/components/States";
@@ -34,6 +35,12 @@ export default function OnboardingPage() {
   const [companionAssetId, setCompanionAssetId] = useState(COMPANIONS[0].id);
   const [domains, setDomains] = useState<string[]>(["Learning"]);
   const [firstQuest, setFirstQuest] = useState("Drink a glass of water");
+  const [firstCampaign, setFirstCampaign] = useState("My first campaign");
+  const [domainsSaved, setDomainsSaved] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: starterPack } = useApi<any>(() => client.starters(authHeaders()), [userId, domainsSaved], {
+    enabled: !!userId && step === 3 && domainsSaved,
+  });
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
@@ -51,7 +58,7 @@ export default function OnboardingPage() {
     }
     try {
       await client.patchProfile(authHeaders(), { heroAssetId, heroName: heroName.trim(), companionAssetId, lifeDomains: domains });
-      const camp = await client.createCampaign(authHeaders(), { title: "First steps" });
+      const camp = await client.createCampaign(authHeaders(), { title: firstCampaign.trim() || "My first campaign" });
       await client.createQuest(authHeaders(), { title: firstQuest.trim(), questType: "quick", activityKey: "routine_habit", difficulty: 1, campaignId: camp.id });
       setDone(true);
       toast("Welcome to the realm.", "i-spark");
@@ -60,6 +67,8 @@ export default function OnboardingPage() {
       setError(e instanceof Error ? e.message : "Couldn't finish onboarding. Nothing was written.");
     }
   };
+
+  const starters: { title: string }[] = starterPack?.suggestions ?? [];
 
   return (
     <div className="page is-active" style={{ maxWidth: 560, margin: "0 auto" }}>
@@ -132,10 +141,24 @@ export default function OnboardingPage() {
       )}
       {step === 3 && (
         <section className="panel" style={{ padding: 24 }} aria-label="First quest">
-          <h3 style={{ fontSize: 17, marginBottom: 6 }}>Receive your first quest</h3>
+          <h3 style={{ fontSize: 17, marginBottom: 6 }}>Name your first campaign</h3>
           <p style={{ fontSize: 13.5, color: "var(--text-2)", marginBottom: 14 }}>
-            We&apos;ll create your campaign and drop an achievable first quest on Today.
+            One long-term goal worth becoming — your first quest will serve it.
           </p>
+          <div className="field">
+            <label htmlFor="obCamp">First campaign</label>
+            <input id="obCamp" type="text" value={firstCampaign} onChange={(e) => setFirstCampaign(e.target.value)} maxLength={80} />
+          </div>
+          <h3 style={{ fontSize: 17, marginBottom: 6, marginTop: 8 }}>Receive your first quest</h3>
+          {starters.length > 0 && (
+            <div className="chip-row" style={{ marginBottom: 10 }} aria-label="Suggested first quests">
+              {starters.slice(0, 3).map((s) => (
+                <button key={s.title} className={`chip${firstQuest === s.title ? " is-on" : ""}`} onClick={() => setFirstQuest(s.title)} aria-pressed={firstQuest === s.title}>
+                  {s.title}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="obQuest">First quest</label>
             <input id="obQuest" type="text" value={firstQuest} onChange={(e) => setFirstQuest(e.target.value)} maxLength={80} />
@@ -156,7 +179,17 @@ export default function OnboardingPage() {
           </button>
         )}
         {step < 3 ? (
-          <button onClick={() => setStep((s) => s + 1)} className="btn btn--primary">
+          <button
+            onClick={async () => {
+              if (step === 2) {
+                // Persist interests first so step 3 suggestions come from the server.
+                await client.patchProfile(authHeaders(), { lifeDomains: domains }).catch(() => undefined);
+                setDomainsSaved(true);
+              }
+              setStep((s) => s + 1);
+            }}
+            className="btn btn--primary"
+          >
             Next <Icon id="i-arrow-r" style={{ width: 15, height: 15 }} />
           </button>
         ) : (

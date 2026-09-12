@@ -7,7 +7,7 @@ import { ACTIVITY_BY_KEY } from "../../rpg/attributes";
 import { attributeLevelForXp } from "../../rpg/xpCurve";
 import { resolveRewards } from "../../rpg";
 import { applyCompletionToStreak, momentumAfterCompletion, momentumForActiveDays } from "../../rpg/streak";
-import { levelUpCoinBonus, rankForXp } from "../../rpg/ranks";
+import { didRankAdvance, levelUpCoinBonus, rankForXp, rankUpChestCoins } from "../../rpg/ranks";
 import { xpProgressForLevel } from "../../rpg/xpCurve";
 import { evaluateAndGrantAchievements } from "../achievements/service";
 import { ensureProfile } from "../identity/service";
@@ -149,7 +149,9 @@ export async function listQuests(userId: string, q: { status?: string; questType
 export async function getQuest(userId: string, id: string) {
   const quest = await prisma.quest.findUnique({ where: { id }, include: { activityType: true } });
   if (!quest || quest.userId !== userId || quest.deletedAt) throw new NotFoundError("Quest not found");
-  return quest;
+  // Single-fetch also previews (FE §6: reward visible before action, everywhere).
+  const [previewed] = await withRewardPreviews(userId, [quest]);
+  return previewed;
 }
 
 export async function updateQuest(userId: string, id: string, patch: Partial<CreateQuestInput> & { status?: string }) {
@@ -210,6 +212,8 @@ export interface CompletionResult {
   levelsGained: number;
   newRankKey: string;
   newRankDisplay: string;
+  // PRD v2 §16: rank promotions pay a bonus chest on top of level rewards.
+  rankUp: { from: string; to: string; bonusCoins: number } | null;
   currentStreak: number;
   bestStreak: number;
   momentum: number;
@@ -254,6 +258,7 @@ export async function completeQuest(
       levelsGained: 0,
       newRankKey: "",
       newRankDisplay: "",
+      rankUp: null,
       currentStreak: 0,
       bestStreak: 0,
       momentum: 0,
@@ -334,6 +339,15 @@ export async function completeQuest(
       for (let l = oldLevel + 1; l <= progress.level; l++) bonusCoins += levelUpCoinBonus(l);
     }
 
+    // Rank promotion chest (PRD v2 §16): rung-up or new Ascendant star pays out.
+    const oldRank = rankForXp(prog.lifetimeXp);
+    const rankAdvanced = didRankAdvance(oldRank, newRank);
+    const rankUpBonus = rankAdvanced ? rankUpChestCoins(newRank.rank, newRank.stars ?? 0) : 0;
+    bonusCoins += rankUpBonus;
+    const rankUp = rankAdvanced
+      ? { from: oldRank.display, to: newRank.display, bonusCoins: rankUpBonus }
+      : null;
+
     // Streak
     const streakPrev = {
       currentStreak: prog.currentStreak,
@@ -385,6 +399,7 @@ export async function completeQuest(
         { userId, sourceType: "quest_completion", sourceId: completion.id, currencyType: "xp", amount: rewards.rewardXp, metadata: { questId, difficulty: rewards.difficulty, capped: rewards.capped } },
         { userId, sourceType: "quest_completion", sourceId: completion.id, currencyType: "coins", amount: rewards.rewardCoins, metadata: { questId, streakBonus: rewards.streakBonusCoins } },
         ...(bonusCoins ? [{ userId, sourceType: "level_up", sourceId: completion.id, currencyType: "coins", amount: bonusCoins, metadata: { levelsGained } }] : []),
+        ...(rankUp ? [{ userId, sourceType: "rank_up", sourceId: completion.id, currencyType: "coins", amount: rankUp.bonusCoins, metadata: { from: rankUp.from, to: rankUp.to } }] : []),
       ],
     });
 
@@ -464,6 +479,7 @@ export async function completeQuest(
       levelsGained,
       newRankKey: newRank.rankKey,
       newRankDisplay: newRank.display,
+      rankUp,
       currentStreak: streak.currentStreak,
       bestStreak: streak.bestStreak,
       momentum,
@@ -612,6 +628,24 @@ export async function getToday(userId: string, dateKey = toDayKey()) {
   const withPv = <T extends { id: string }>(row: T): T & { rewardPreview: ReturnType<typeof resolveRewards> } =>
     (byId.get(row.id) ?? { ...row, rewardPreview: resolveRewards({ difficulty: 3, questType: "quick" }) }) as T & { rewardPreview: ReturnType<typeof resolveRewards> };
 
+  // Recent contribution per attribute (BLUEPRINT §11: "Focus +21 from …").
+  const recentCompletions = await prisma.questCompletion.findMany({
+    where: { userId },
+    orderBy: { completedAt: "desc" },
+    take: 20,
+    select: { questId: true, primaryAttribute: true, primaryAttributeXp: true, secondaryAttribute: true, secondaryAttributeXp: true },
+  });
+  const questTitles = new Map(
+    (await prisma.quest.findMany({ where: { id: { in: [...new Set(recentCompletions.map((c) => c.questId))] } }, select: { id: true, title: true } })).map((q) => [q.id, q.title]),
+  );
+  const recentByAttr = new Map<string, { gain: number; questTitle: string }>();
+  for (const c of recentCompletions) {
+    const title = questTitles.get(c.questId) ?? "a quest";
+    for (const [attr, gain] of [[c.primaryAttribute, c.primaryAttributeXp], [c.secondaryAttribute, c.secondaryAttributeXp]] as const) {
+      if (attr && gain > 0 && !recentByAttr.has(attr)) recentByAttr.set(attr, { gain, questTitle: title });
+    }
+  }
+
   return {
     date: dateKey,
     // FE §4 header
@@ -644,7 +678,13 @@ export async function getToday(userId: string, dateKey = toDayKey()) {
     spark: spark ? withPv(spark) : null,
     progression,
     campaignSummary: campaignSummary ? { ...campaignSummary, progressPct: campaignPct } : null,
-    attributeSnapshot: attrRows.map((a) => ({ key: a.attribute.key, name: a.attribute.name, xp: a.xp, level: a.level })),
+    attributeSnapshot: attrRows.map((a) => ({
+      key: a.attribute.key,
+      name: a.attribute.name,
+      xp: a.xp,
+      level: a.level,
+      recent: recentByAttr.get(a.attribute.key) ?? null,
+    })),
     streak: { current: progression?.currentStreak ?? 0, best: progression?.bestStreak ?? 0, momentum: progression?.momentum ?? 0 },
     recentReward: recentCompletion
       ? { questId: recentCompletion.questId, xp: recentCompletion.rewardXp, coins: recentCompletion.rewardCoins, at: recentCompletion.completedAt }
