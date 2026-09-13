@@ -501,12 +501,6 @@ Located in `/PRDS`:
 
 ---
 
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
 ## Acknowledgements
 
 - **Problem Statement**: IIT Bhubaneswar Life RPG Challenge
@@ -526,9 +520,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 | Indranil Chatterjee | `@indranil-chatterjee` | indranilchatterjee098@gmail.com |
 | Mehul Kumar Jaiswal | `@mehul-kumar-jaiswal` | jaiswalmehulkumar441@gmail.com |
 
-**Project Board**: [GitHub Projects](https://github.com/orgs/karma/projects)  
-**Issues**: [GitHub Issues](https://github.com/karma/karma/issues)  
-**Discussions**: [GitHub Discussions](https://github.com/karma/karma/discussions)
+
 
 ---
 
