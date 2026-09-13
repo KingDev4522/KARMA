@@ -2,11 +2,12 @@
 
 import { useKeepAlive } from "@/lib/useKeepAlive";
 
-/** Internal wrapper that starts the keep-alive ping once auth is ready.
+/** Root wrapper that warms the Render backend on every frontend load.
  *
- * The hook is a no-op while there is no signed-in user, so this wrapper
- * never blocks rendering of the rest of the tree (Shell gates on auth
- * itself).
+ *  Mounted once in app/layout.tsx, so it runs on ALL pages — including
+ *  logged-out routes like /login — firing GET /health immediately to wake
+ *  the free-tier server while the user reads / signs in. Never blocks
+ *  rendering of the rest of the tree.
  */
 export function KeepAlivePing({ children }: { children: React.ReactNode }) {
   useKeepAlive();
