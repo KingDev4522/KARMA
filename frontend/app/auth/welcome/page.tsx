@@ -36,6 +36,24 @@ export default function WelcomePage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const me = (await client.getProfile(authHeaders())) as any;
         if (!alive) return;
+        // First-sight backfill: it is THEM — store the Google name + photo on
+        // the server profile so every slot (sidebar, cards, greetings) shows
+        // the player, never a fallback word. User choices always win later.
+        try {
+          const meta = (data.user.user_metadata ?? {}) as Record<string, unknown>;
+          const gName = String(meta.full_name ?? meta.name ?? "").trim();
+          const gPhoto = String(meta.avatar_url ?? meta.picture ?? "").trim();
+          const patch: Record<string, string> = {};
+          if (!me?.profile?.displayName && gName) patch.displayName = gName.slice(0, 80);
+          if (!me?.profile?.avatarAssetId && /^https?:\/\//.test(gPhoto) && gPhoto.length <= 2000) {
+            patch.avatarAssetId = gPhoto;
+          }
+          if (Object.keys(patch).length > 0) {
+            await client.patchProfile(authHeaders(), patch).catch(() => undefined);
+          }
+        } catch {
+          /* backfill is a courtesy, never a blocker */
+        }
         router.replace(me?.profile?.heroName ? "/" : "/onboarding");
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : "Couldn't reach your realm.");

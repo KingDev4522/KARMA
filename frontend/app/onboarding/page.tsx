@@ -23,15 +23,18 @@ export default function OnboardingPage() {
   const toast = useToast();
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [heroId, setHeroId] = useState(HEROES[5].id); // Kavya first paint
+  // Nothing preselected — the player chooses everything (no hardcoded defaults).
+  const [heroId, setHeroId] = useState<string | null>(null);
   const [heroName, setHeroName] = useState("");
   const [oath, setOath] = useState("");
-  const [companionId, setCompanionId] = useState(FREE_COMPANIONS[0].id);
+  const [companionId, setCompanionId] = useState<string | null>(null);
   const [companionName, setCompanionName] = useState("");
   const [domains, setDomains] = useState<string[]>(["Learning"]);
   const [firstQuest, setFirstQuest] = useState("Drink a glass of water");
   const [firstCampaign, setFirstCampaign] = useState("My first campaign");
   const [domainsSaved, setDomainsSaved] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: starterPack } = useApi<any>(() => client.starters(authHeaders()), [userId, domainsSaved], {
     enabled: !!userId && step === 4 && domainsSaved,
@@ -40,17 +43,49 @@ export default function OnboardingPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!companionName) {
+    if (!companionName && companionId) {
       const c = FREE_COMPANIONS.find((x) => x.id === companionId);
       if (c) setCompanionName(c.name);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companionId]);
 
+  // Suggest their real name (editable) so the field never starts blank.
+  useEffect(() => {
+    if (!userId || heroName) return;
+    let alive = true;
+    (async () => {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const { data } = await createClient().auth.getUser();
+        if (!alive) return;
+        const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+        const gName = String(meta.full_name ?? meta.name ?? "").trim().split(" ")[0];
+        if (gName) setHeroName((cur) => cur || gName);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
   const toggleDomain = (d: string) => setDomains((s) => (s.includes(d) ? s.filter((x) => x !== d) : [...s, d]));
 
   const finish = async () => {
     setError(null);
+    if (!heroId) {
+      setError("Choose your character first.");
+      setStep(0);
+      return;
+    }
+    if (!companionId) {
+      setError("Choose your companion first.");
+      setStep(2);
+      return;
+    }
     if (!heroName.trim()) {
       setError("Name your character to cross the threshold.");
       return;
@@ -60,13 +95,25 @@ export default function OnboardingPage() {
       return;
     }
     try {
+      // Optional profile photo — asked up front, skippable, changeable later.
+      let avatarAssetId: string | null = null;
+      if (photoFile && userId) {
+        try {
+          const { uploadAvatarPhoto } = await import("@/lib/avatar-upload");
+          avatarAssetId = await uploadAvatarPhoto(userId, photoFile);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Photo upload failed — continuing without it.");
+          avatarAssetId = null;
+        }
+      }
       await client.patchProfile(authHeaders(), {
-        heroAssetId: heroAssetId(heroId, "traditional"),
+        heroAssetId: heroAssetId(heroId as string, "traditional"),
         heroName: heroName.trim(),
-        companionAssetId: companionId,
+        companionAssetId: companionId as string,
         companionName: companionName.trim() || null,
         bio: oath.trim() || null,
         lifeDomains: domains,
+        ...(avatarAssetId ? { avatarAssetId } : {}),
       });
       const camp = await client.createCampaign(authHeaders(), { title: firstCampaign.trim() || "My first campaign" });
       await client.createQuest(authHeaders(), { title: firstQuest.trim(), questType: "quick", activityKey: "routine_habit", difficulty: 1, campaignId: camp.id });
@@ -79,7 +126,18 @@ export default function OnboardingPage() {
       }
       router.push("/");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't finish onboarding. Nothing was written.");
+      // Surface server validation details (field errors) instead of a bare message.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const body = (e as any)?.body as { message?: string; details?: unknown } | undefined;
+      let detail = "";
+      try {
+        const f = (body?.details as { fieldErrors?: Record<string, string[]> } | undefined)?.fieldErrors;
+        if (f) detail = Object.entries(f).map(([k, v]) => `${k}: ${v.join(", ")}`).join("; ");
+      } catch {
+        /* ignore */
+      }
+      const msg = e instanceof Error ? e.message : "Couldn't finish onboarding. Nothing was written.";
+      setError(detail ? `${msg} — ${detail}` : msg);
     }
   };
 
@@ -117,7 +175,7 @@ export default function OnboardingPage() {
           </p>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
             <div style={{ width: 150, borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)" }}>
-              <HeroImage assetId={heroAssetId(heroId, "traditional")} eager alt={`${hero.region} traveler in traditional attire`} />
+              <HeroImage assetId={heroId ? heroAssetId(heroId, "traditional") : null} eager alt={hero ? `${hero.region} traveler in traditional attire` : "Choose a character below"} />
             </div>
           </div>
           <div className="option-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
@@ -142,6 +200,25 @@ export default function OnboardingPage() {
             <input id="obName" type="text" value={heroName} onChange={(e) => setHeroName(e.target.value)} placeholder="Your character's name" maxLength={80} />
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
+            <label htmlFor="obPhoto">Profile photo <span style={{ fontWeight: 400, color: "var(--text-3)" }}>(optional — your character leads by default)</span></label>
+            <input
+              id="obPhoto"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null;
+                setPhotoFile(f);
+                setPhotoPreview(f ? URL.createObjectURL(f) : null);
+              }}
+            />
+            {photoPreview && (
+              <span style={{ display: "block", width: 72, borderRadius: 12, overflow: "hidden", marginTop: 8 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoPreview} alt="Photo preview" style={{ width: "100%", display: "block" }} />
+              </span>
+            )}
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="obOath">Oath (shown on your Realm)</label>
             <input id="obOath" type="text" value={oath} onChange={(e) => setOath(e.target.value)} placeholder="Ship my portfolio, kill doomscroll" maxLength={500} />
           </div>
@@ -151,7 +228,7 @@ export default function OnboardingPage() {
         <section className="panel" style={{ padding: 24 }} aria-label="Choose companion">
           <h3 style={{ fontSize: 17, marginBottom: 4, textAlign: "center" }}>Choose your companion</h3>
           <p style={{ fontSize: 13, color: "var(--text-2)", textAlign: "center", marginBottom: 12 }}>
-            Six walk beside you free. Rarer friends await in the Store.
+            Your first friend is free — others unlock in the Store.
           </p>
           <div className="option-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
             {FREE_COMPANIONS.map((c) => (
@@ -172,7 +249,10 @@ export default function OnboardingPage() {
       )}
       {step === 3 && (
         <section className="panel" style={{ padding: 24 }} aria-label="Choose focus">
-          <h3 style={{ fontSize: 17, marginBottom: 12 }}>What will you work on?</h3>
+          <h3 style={{ fontSize: 17, marginBottom: 4 }}>What do you want to work on?</h3>
+          <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 12 }}>
+            Pick every goal that matters — your first quests are shaped around them.
+          </p>
           <div className="chip-row">
             {DOMAINS.map((d) => (
               <button key={d} onClick={() => toggleDomain(d)} aria-pressed={domains.includes(d)} className={`chip${domains.includes(d) ? " is-on" : ""}`}>
@@ -184,12 +264,12 @@ export default function OnboardingPage() {
       )}
       {step === 4 && (
         <section className="panel" style={{ padding: 24 }} aria-label="First quest">
-          <h3 style={{ fontSize: 17, marginBottom: 6 }}>Name your first campaign</h3>
+          <h3 style={{ fontSize: 17, marginBottom: 6 }}>What is your final goal?</h3>
           <p style={{ fontSize: 13.5, color: "var(--text-2)", marginBottom: 14 }}>
-            One long-term goal worth becoming — your first quest will serve it.
+            Name the campaign your life is building toward — your first quest will serve it.
           </p>
           <div className="field">
-            <label htmlFor="obCamp">First campaign</label>
+            <label htmlFor="obCamp">Final goal (first campaign)</label>
             <input id="obCamp" type="text" value={firstCampaign} onChange={(e) => setFirstCampaign(e.target.value)} maxLength={80} />
           </div>
           <h3 style={{ fontSize: 17, marginBottom: 6, marginTop: 8 }}>Receive your first quest</h3>
@@ -224,6 +304,15 @@ export default function OnboardingPage() {
         {step < 4 ? (
           <button
             onClick={async () => {
+              setError(null);
+              if (step === 0 && !heroId) {
+                setError("Choose your character to continue.");
+                return;
+              }
+              if (step === 2 && !companionId) {
+                setError("Choose your companion to continue.");
+                return;
+              }
               if (step === 3) {
                 // Persist interests first so step 4 suggestions come from the server.
                 await client.patchProfile(authHeaders(), { lifeDomains: domains }).catch(() => undefined);

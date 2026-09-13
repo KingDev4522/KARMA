@@ -8,6 +8,7 @@ import { TourProvider } from "@/components/tour";
 import { IdentityProvider } from "@/lib/identity-context";
 import { Shell } from "@/components/Shell";
 import { KeepAlivePing } from "@/components/KeepAlivePing";
+import { BootBgm } from "@/components/BootBgm";
 
 export const metadata: Metadata = {
   title: "KARMA — Quiet progress, kept score",
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
             <IdentityProvider>
               <KeepAlivePing>
+                <BootBgm />
                 <ToastProvider>
                   <FocusProvider>
                     <TourProvider>

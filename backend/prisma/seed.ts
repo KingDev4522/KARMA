@@ -21,12 +21,17 @@ const ACHIEVEMENTS = [
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX"];
+const TITLE_BOX_NAMES = ["Ember", "Gilded", "Crimson", "Azure", "Forest", "Royal", "Shadow", "Golden", "Silver", "Ivory", "Obsidian"];
 const ITEMS: { itemType: never; key: string; name: string; description: string; assetPath: string; price: number; rarity: string; metadata?: Record<string, string> }[] = [
   // NOTE: retired placeholder items (old SVG/JSON art) are NOT listed here —
   // RETIRED_KEYS below deactivates them so the Store only sells working art.
   // Hero skins — non-default variants (traditional is free with the hero).
   // metadata.heroAssetId is applied to Profile.heroAssetId on equip.
+  // Traditional skins of the OTHER five heroes are sold cheap: the first
+  // character is free, every later one is earned (60 coins).
   ...(["meera", "dev", "zoya", "tenzing", "arjun", "kavya"] as const).flatMap((hero) => [
+    { itemType: "hero_skin" as never, key: `skin_${hero}_traditional`, name: `${cap(hero)} · Traditional`, description: `Traditional attire of ${cap(hero)} — unlock a new starting character.`, assetPath: `/heroes/${hero}-traditional.jpeg`, price: 60, rarity: "common", metadata: { heroAssetId: `${hero}-traditional` } },
     { itemType: "hero_skin" as never, key: `skin_${hero}_warrior`, name: `${cap(hero)} · Warrior`, description: "Warrior variant — level-up and inferno quests.", assetPath: `/heroes/${hero}-warrior.jpeg`, price: 220, rarity: "epic", metadata: { heroAssetId: `${hero}-warrior` } },
     { itemType: "hero_skin" as never, key: `skin_${hero}_modern`, name: `${cap(hero)} · Modern`, description: "Modern variant — focus room attire.", assetPath: `/heroes/${hero}-modern.jpeg`, price: 180, rarity: "rare", metadata: { heroAssetId: `${hero}-modern` } },
     { itemType: "hero_skin" as never, key: `skin_${hero}_holiday`, name: `${cap(hero)} · Holiday`, description: "Holiday variant — streak and rest-day wear.", assetPath: `/heroes/${hero}-holiday.jpeg`, price: 150, rarity: "rare", metadata: { heroAssetId: `${hero}-holiday` } },
@@ -37,21 +42,25 @@ const ITEMS: { itemType: never; key: string; name: string; description: string; 
   { itemType: "companion" as never, key: "companion_otter", name: "Otter Companion", description: "Playful river otter. Premium companion.", assetPath: "/companions/otter.jpeg", price: 300, rarity: "epic", metadata: { companionAssetId: "otter" } },
   { itemType: "companion" as never, key: "companion_panda", name: "Panda Companion", description: "Gentle bamboo panda. Premium companion.", assetPath: "/companions/panda.jpeg", price: 300, rarity: "epic", metadata: { companionAssetId: "panda" } },
   { itemType: "companion" as never, key: "companion_penguin", name: "Penguin Companion", description: "Dapper ice penguin. Premium companion.", assetPath: "/companions/penguin.jpeg", price: 250, rarity: "rare", metadata: { companionAssetId: "penguin" } },
+  // Common companions (cheap unlocks for switching after the free first pick).
+  ...([["cat", "Cat"], ["cow", "Cow"], ["deer", "Deer"], ["dog", "Dog"], ["rabbit", "Rabbit"], ["squirrel", "Squirrel"]] as const).map(([id, name]) => (
+    { itemType: "companion" as never, key: `companion_${id}`, name: `${name} Companion`, description: `Loyal ${name.toLowerCase()} friend.`, assetPath: `/companions/${id}.jpeg`, price: 30, rarity: "common", metadata: { companionAssetId: id } }
+  )),
   // Real frames (assets/title frame → public/frames). Frames 1–4 are the free
   // starter set granted to every hero; 5–20 are earned in the Store.
   ...([1, 2, 3, 4] as const).map((n) => (
-    { itemType: "frame" as never, key: `frame_no_${n}`, name: `Frame ${n}`, description: "Starter frame — yours from day one.", assetPath: `/frames/frame-${n}.jpeg`, price: 0, rarity: "common" }
+    { itemType: "frame" as never, key: `frame_no_${n}`, name: `Temple Frame ${ROMAN[n - 1]}`, description: "Starter frame — yours from day one.", assetPath: `/frames/frame-${n}.jpeg`, price: 0, rarity: "common" }
   )),
   ...([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] as const).map((n) => (
-    { itemType: "frame" as never, key: `frame_no_${n}`, name: `Frame ${n}`, description: "Hand-drawn temple frame for your portrait.", assetPath: `/frames/frame-${n}.jpeg`, price: n <= 10 ? 100 : n <= 16 ? 200 : 300, rarity: n <= 10 ? "rare" : n <= 16 ? "epic" : "legendary" }
+    { itemType: "frame" as never, key: `frame_no_${n}`, name: `Temple Frame ${ROMAN[n - 1]}`, description: "Hand-drawn temple frame for your portrait.", assetPath: `/frames/frame-${n}.jpeg`, price: n <= 10 ? 100 : n <= 16 ? 200 : 300, rarity: n <= 10 ? "rare" : n <= 16 ? "epic" : "legendary" }
   )),
   // Real title boxes (assets/tilte box → public/frames). Boxes 1–4 are free;
   // 5–11 are earned. Your hero name is rendered inside the equipped box.
   ...([1, 2, 3, 4] as const).map((n) => (
-    { itemType: "title" as never, key: `title_box_${n}`, name: `Title Box ${n}`, description: "Starter title plate — your name, framed.", assetPath: `/frames/titlebox-${n}.jpeg`, price: 0, rarity: "common" }
+    { itemType: "title" as never, key: `title_box_${n}`, name: `${TITLE_BOX_NAMES[n - 1]} Title Box`, description: "Starter title plate — your name, framed.", assetPath: `/frames/titlebox-${n}.jpeg`, price: 0, rarity: "common" }
   )),
   ...([5, 6, 7, 8, 9, 10, 11] as const).map((n) => (
-    { itemType: "title" as never, key: `title_box_${n}`, name: `Title Box ${n}`, description: "Ornate title plate for your name.", assetPath: `/frames/titlebox-${n}.jpeg`, price: n <= 7 ? 100 : 150, rarity: n <= 7 ? "rare" : "epic" }
+    { itemType: "title" as never, key: `title_box_${n}`, name: `${TITLE_BOX_NAMES[n - 1]} Title Box`, description: "Ornate title plate for your name.", assetPath: `/frames/titlebox-${n}.jpeg`, price: n <= 7 ? 100 : 150, rarity: n <= 7 ? "rare" : "epic" }
   )),
 ];
 

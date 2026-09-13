@@ -1,6 +1,27 @@
 import { prisma } from "../../db";
 import { ATTRIBUTE_KEYS } from "../../shared/validation";
 import { STARTER_ITEM_KEYS } from "../../shared/starterKit";
+import { ForbiddenError } from "../../shared/errors";
+
+/** Free starter companions (chosen free once at onboarding; later ones are earned). */
+const COMMON_COMPANION_IDS = ["cat", "cow", "deer", "dog", "rabbit", "squirrel"];
+
+const heroBaseOf = (assetId?: string | null): string | null => {
+  if (!assetId) return null;
+  const m = assetId.toLowerCase().match(/^(meera|dev|zoya|tenzing|arjun|kavya)/);
+  return m ? m[1] : null;
+};
+
+/** Grant ownership of a single store item by key (starter/first-pick gifts). */
+async function grantItemByKey(userId: string, itemKey: string, source: string) {
+  try {
+    const item = await prisma.item.findUnique({ where: { key: itemKey } });
+    if (!item || !item.active) return;
+    await prisma.inventory.create({ data: { userId, itemId: item.id, source } }).catch(() => undefined);
+  } catch {
+    /* gift, never a blocker */
+  }
+}
 
 /**
  * Identity domain — Hero + Companion + Profile bootstrap.
@@ -61,9 +82,49 @@ export async function getFullProfile(userId: string) {
 
 export async function updateIdentity(
   userId: string,
-  data: { displayName?: string; heroName?: string; companionName?: string; bio?: string; heroAssetId?: string; companionAssetId?: string; avatarAssetId?: string | null; lifeDomains?: string[]; reducedMotion?: boolean; theme?: string | null; notifyQuest?: boolean; notifyStreak?: boolean; notifyCelebrate?: boolean },
+  data: { displayName?: string | null; heroName?: string | null; companionName?: string | null; bio?: string | null; heroAssetId?: string; companionAssetId?: string; avatarAssetId?: string | null; lifeDomains?: string[]; reducedMotion?: boolean; theme?: string | null; notifyQuest?: boolean; notifyStreak?: boolean; notifyCelebrate?: boolean },
 ) {
   await ensureProfile(userId);
+  // Ownership gates: the first character + companion are free forever
+  // (onboarding); every later switch must be owned from the Store —
+  // traditional skins for characters, companion items for friends.
+  // Legacy heroes with zero owned skins get one free traditional switch.
+  const current = await prisma.profile.findUnique({ where: { id: userId } });
+  if (data.heroAssetId && data.heroAssetId !== current?.heroAssetId) {
+    if (!current?.heroAssetId) {
+      await grantItemByKey(userId, `skin_${heroBaseOf(data.heroAssetId) ?? "kavya"}_traditional`, "starter");
+    } else if (heroBaseOf(data.heroAssetId) !== heroBaseOf(current.heroAssetId)) {
+      const ownedSkins = await prisma.inventory.findMany({ where: { userId }, select: { itemId: true } });
+      const skinItems = ownedSkins.length
+        ? await prisma.item.findMany({ where: { id: { in: ownedSkins.map((o) => o.itemId) }, itemType: "hero_skin" } })
+        : [];
+      const hasSkin = skinItems.some((i) => (i.metadata as Record<string, unknown> | null)?.heroAssetId === data.heroAssetId);
+      if (!hasSkin) {
+        const legacyFree = skinItems.length === 0 && (data.heroAssetId ?? "").endsWith("-traditional");
+        if (legacyFree) {
+          await grantItemByKey(userId, `skin_${heroBaseOf(data.heroAssetId) ?? "kavya"}_traditional`, "starter");
+        } else {
+          throw new ForbiddenError("Unlock this character in the Store first.");
+        }
+      }
+    }
+  }
+  if (data.companionAssetId && data.companionAssetId !== current?.companionAssetId) {
+    const ownedComp = await prisma.inventory.findMany({ where: { userId }, select: { itemId: true } });
+    const compItems = ownedComp.length
+      ? await prisma.item.findMany({ where: { id: { in: ownedComp.map((o) => o.itemId) }, itemType: "companion" } })
+      : [];
+    const hasComp = compItems.some((i) => (i.metadata as Record<string, unknown> | null)?.companionAssetId === data.companionAssetId);
+    if (!hasComp) {
+      const firstPick = !current?.companionAssetId;
+      const common = COMMON_COMPANION_IDS.includes(data.companionAssetId);
+      if ((firstPick && common) || (compItems.length === 0 && common)) {
+        await grantItemByKey(userId, `companion_${data.companionAssetId}`, "starter");
+      } else {
+        throw new ForbiddenError("Unlock this companion in the Store first.");
+      }
+    }
+  }
   // companionName/avatarAssetId columns are added by migration 20260913_identity_store;
   // older databases without them fall back gracefully instead of failing the whole save.
   const cols = await prisma.$queryRawUnsafe(`SELECT column_name FROM information_schema.columns WHERE table_name='profiles'`).catch(() => []) as { column_name: string }[];
@@ -109,8 +170,21 @@ export async function grantStarterKit(userId: string) {
     /* starter kit is a gift, never a blocker */
   }
 }
-/** Account deletion (PRD v2 §45): removes app rows; auth deletion best-effort. */
-export async function deleteAccount(userId: string): Promise<{ deleted: boolean; authDeleted: boolean }> {
+/**
+ * Display name for a profile — the player's own name first, the character
+ * name only when it is a real choice. The historical "hero" fallback (and a
+ * literally-typed "hero") never renders when something human exists.
+ * Display-only: stored values are never rewritten.
+ */
+export function displayNameOf(p: { heroName?: string | null; displayName?: string | null } | null | undefined): string {
+  const h = (p?.heroName ?? "").trim();
+  if (h && h.toLowerCase() !== "hero" && h.toLowerCase() !== "unnamed hero") return p!.heroName!.trim();
+  const d = (p?.displayName ?? "").trim();
+  if (d) return d;
+  return h || "Traveler";
+}
+
+/** Account deletion (PRD v2 §45): removes app rows; auth deletion best-effort. */export async function deleteAccount(userId: string): Promise<{ deleted: boolean; authDeleted: boolean }> {
   await prisma.$transaction(async (tx) => {
     const questIds = (await tx.quest.findMany({ where: { userId }, select: { id: true } })).map((q) => q.id);
     if (questIds.length > 0) {

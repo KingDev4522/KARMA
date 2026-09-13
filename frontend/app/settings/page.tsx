@@ -9,9 +9,10 @@ import { useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { useTour } from "@/components/tour";
 import { soundEnabled, setSoundEnabled } from "@/lib/sound";
+import { bgmEnabled, setBgmEnabled, ensureBgm, currentTrackName } from "@/lib/bgm";
 import { ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
-/** Settings — appearance, motion, hero identity, rest days, sign out. */
+/** Settings — appearance, motion, character identity, rest days, sign out. */
 export default function SettingsPage() {
   const { authHeaders, userId, signOut, email, loading: authLoading } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -24,11 +25,15 @@ export default function SettingsPage() {
   const [restDate, setRestDate] = useState("");
   const [motionOff, setMotionOff] = useState<boolean | null>(null);
   const [soundOn, setSoundOn] = useState(true);
+  const [bgmOn, setBgmOn] = useState(true);
+  const [track, setTrack] = useState("");
   const [armed, setArmed] = useState(false);
   const [erasing, setErasing] = useState(false);
 
   useEffect(() => {
     setSoundOn(soundEnabled());
+    setBgmOn(bgmEnabled());
+    setTrack(currentTrackName());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -97,7 +102,7 @@ export default function SettingsPage() {
                 to sync across devices.
               </>
             ) : (
-              <>Signed in as {email ?? "local hero"}</>
+              <>Signed in as {email ?? "local character"}</>
             )}
           </p>
         </div>
@@ -139,6 +144,25 @@ export default function SettingsPage() {
         </div>
         <div className="set-row">
           <div className="info">
+            <strong>Ambient music</strong>
+            <span>Slow generative pads — {track || "Dawn Haze"}. Tracks take turns.</span>
+          </div>
+          <button
+            className={`switch${bgmOn ? " is-on" : ""}`}
+            role="switch"
+            aria-checked={bgmOn}
+            aria-label="Ambient music"
+            onClick={() => {
+              const next = !bgmOn;
+              setBgmOn(next);
+              setBgmEnabled(next);
+              if (next) void ensureBgm();
+              toast(next ? "Ambient music on" : "Ambient music off", "i-check");
+            }}
+          />
+        </div>
+        <div className="set-row">
+          <div className="info">
             <strong>Companion tour</strong>
             <span>Replay the first-run guide with your companion</span>
           </div>
@@ -149,7 +173,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="settings-panel">
-        <h3>Hero & companion</h3>
+        <h3>Character & companion</h3>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -165,7 +189,7 @@ export default function SettingsPage() {
           }}
         >
           <div className="field">
-            <label htmlFor="setHero">Hero name (yours to choose)</label>
+            <label htmlFor="setHero">Character name (yours to choose)</label>
             <input id="setHero" name="heroName" type="text" defaultValue={profile.heroName ?? ""} className="set-input" maxLength={80} />
           </div>
           <div className="field">
@@ -219,10 +243,38 @@ export default function SettingsPage() {
       </div>
 
       <div className="settings-panel">
+        <h3>Cloud sync</h3>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 12 }}>
+          Same Google account on every device means the same realm. Compare these two lines across devices — if they match, you are in sync.
+        </p>
+        <div className="set-row">
+          <div className="info">
+            <strong>{email ?? "Not signed in"}</strong>
+            <span>
+              ID {(userId ?? "—").slice(0, 8)}… · {(() => { try { return new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").host; } catch { return "local backend"; } })()} · updated{" "}
+              {profile.updatedAt ? new Date(profile.updatedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "just now"}
+            </span>
+          </div>
+          <button
+            className="btn btn--ghost"
+            onClick={async () => {
+              const { invalidateCache } = await import("@/lib/api");
+              invalidateCache("/api/v1");
+              toast("Synced from cloud", "i-check");
+              retry();
+              window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+            }}
+          >
+            Sync now
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-panel">
         <h3>Account</h3>
         <div className="set-row">
           <div className="info">
-            <strong>{profile.heroName ?? "Local hero"}</strong>
+            <strong>{profile.heroName ?? "local character"}</strong>
             <span>
               Server-side profile — survives every device ·{" "}
               <Link href="/privacy" style={{ textDecoration: "underline" }}>

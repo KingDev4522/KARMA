@@ -18,7 +18,7 @@ export type IconId =
   | "i-close" | "i-arrow-r" | "i-sun" | "i-moon" | "i-spark" | "i-clock"
   | "i-strength" | "i-vitality" | "i-intellect" | "i-focusattr"
   | "i-discipline" | "i-craft" | "i-connection" | "i-exploration"
-  | "i-level" | "i-trophy";
+  | "i-level" | "i-trophy" | "i-vol" | "i-volx";
 
 export function Icon({ id, style }: { id: IconId; style?: CSSProperties }) {
   return (
@@ -95,7 +95,20 @@ export function HeroImage({  assetId,
   const [failed, setFailed] = useState(false);
   const { hero, variant: v } = resolveHero(assetId);
   const useVariant = variant ?? v;
-  if (failed) return <Hero width={width} className={className} variant={0} />;
+  if (failed || !assetId) {
+    if (!assetId) {
+      return (
+        <span
+          role="img"
+          aria-label={alt}
+          style={{ display: "grid", placeItems: "center", width: "100%", aspectRatio: "3/4", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
+        >
+          <Icon id="i-realm" style={{ width: "40%", height: "40%" }} />
+        </span>
+      );
+    }
+    return <Hero width={width} className={className} variant={0} />;
+  }
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -124,7 +137,20 @@ export function CompanionImage({
 }) {
   const [failed, setFailed] = useState(false);
   const c = resolveCompanion(assetId);
-  if (failed) return <Companion width={width} />;
+  if (failed || !assetId) {
+    if (!assetId) {
+      return (
+        <span
+          role="img"
+          aria-label={alt}
+          style={{ display: "grid", placeItems: "center", width: typeof width === "number" ? width : "100%", aspectRatio: "1", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
+        >
+          <Icon id="i-spark" style={{ width: "40%", height: "40%" }} />
+        </span>
+      );
+    }
+    return <Companion width={width} />;
+  }
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -204,7 +230,45 @@ export function AvatarImg({
   alt?: string;
   eager?: boolean;
 }) {
+  // No identity at all (signed out / fresh) → neutral silhouette, NEVER a
+  // default character. No hero is hardcoded anywhere in the UI.
+  // (Hook first: early returns must never skip hooks between renders.)
+  const [photoGone, setPhotoGone] = useState(false);
+  if (!avatarAssetId && !heroAssetId) {
+    return (
+      <span
+        role="img"
+        aria-label={alt}
+        style={{
+          display: "grid",
+          placeItems: "center",
+          width: typeof width === "number" ? width : undefined,
+          ...(typeof width === "number" ? {} : { width: width as string }),
+          aspectRatio: "1",
+          borderRadius: 12,
+          background: "var(--surface-2)",
+          color: "var(--text-3)",
+        }}
+      >
+        <Icon id="i-realm" style={{ width: "55%", height: "55%" }} />
+      </span>
+    );
+  }
   const a = resolveAvatar(avatarAssetId, heroAssetId);
+  if (a.kind === "photo" && a.photoUrl && !photoGone) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={a.photoUrl}
+        alt={alt}
+        width={typeof width === "number" ? width : undefined}
+        style={typeof width === "number" ? { height: "auto", borderRadius: 12, objectFit: "cover" } : { width: width as string, height: "auto", display: "block", borderRadius: 12, objectFit: "cover" }}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        onError={() => setPhotoGone(true)}
+      />
+    );
+  }
   if (a.kind === "companion") return <CompanionImage assetId={a.companion.id} width={width} alt={alt} eager={eager} />;
   return <HeroImage assetId={`${a.hero.id}-${a.variant}`} width={width} alt={alt} eager={eager} />;
 }
@@ -441,6 +505,8 @@ export function IconSprite() {
         <symbol id="i-connection" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="9" cy="8.5" r="3" /><path d="M3.5 19c.8-3 2.9-4.6 5.5-4.6s4.7 1.6 5.5 4.6" /><circle cx="17" cy="9.5" r="2.2" /><path d="M16.2 14.6c2.1.3 3.6 1.6 4.3 3.9" /></g></symbol>
         <symbol id="i-exploration" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><circle cx="12" cy="12" r="8" /><path d="M15 9l-1.8 4.5L8.8 15.2l1.8-4.5z" /></g></symbol>
         <symbol id="i-level" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9z" /></g></symbol>
+        <symbol id="i-vol" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" /><path d="M15 9a4.2 4.2 0 0 1 0 6M17.6 6.8a7.4 7.4 0 0 1 0 10.4" /></g></symbol>
+        <symbol id="i-volx" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" /><path d="M15.5 9.5l5 5M20.5 9.5l-5 5" /></g></symbol>
         <symbol id="i-trophy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M8 4h8v6a4 4 0 0 1-8 0z" /><path d="M8 5.5H4.5A3.5 3.5 0 0 0 8 9M16 5.5h3.5A3.5 3.5 0 0 1 16 9" /><path d="M12 14v3M8.5 20h7M10 17h4" /></g></symbol>
       </defs>
     </svg>

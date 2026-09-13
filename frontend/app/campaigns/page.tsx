@@ -26,7 +26,9 @@ export default function CampaignsPage() {
   const [editTitle, setEditTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const headId = selectedId ?? data?.[0]?.id ?? null;
+  // Spotlight the first ACTIVE journey (a finished one never headlines),
+  // unless the player explicitly opened another.
+  const headId = selectedId ?? data?.find((c) => c.status === "active")?.id ?? data?.[0]?.id ?? null;
   const { data: detail, retry: retryDetail } = useApi(
     () => (headId ? client.getCampaign(authHeaders(), headId) : Promise.resolve(null as unknown as Campaign)),
     [headId],
@@ -57,7 +59,7 @@ export default function CampaignsPage() {
   if (error) return <ErrorState error={error} onRetry={retry} />;
   if (!data || data.length === 0) return <EmptyState message="No journeys yet. Your first campaign begins with a single quest." />;
 
-  const head = data.find((c) => c.id === headId) ?? data[0];
+  const head = data.find((c) => c.id === headId) ?? data.find((c) => c.status === "active") ?? data[0];
   const rest = data.filter((c) => c.id !== head.id);
   const headDetail = detail && detail.id === head.id ? detail : head;
   const miles = (headDetail.milestones ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex);

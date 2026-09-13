@@ -8,6 +8,8 @@ import { useFocus } from "@/components/focus";
 import { Icon } from "@/components/illustrations";
 import { EmptyState, ErrorState, Skeleton } from "@/components/States";
 
+import { FOCUS_CLASSICAL_TRACKS } from "@/lib/media";
+
 /** Focus — pick a quest, set minutes, enter the session overlay. */
 export default function FocusPage() {
   const { authHeaders, userId, loading: authLoading } = useAuth();
@@ -18,6 +20,9 @@ export default function FocusPage() {
   const [questId, setQuestId] = useState("");
   const [minutes, setMinutes] = useState(25);
   const [custom, setCustom] = useState("");
+  // Sub-minute taps (accidental opens) stay in history but not in Recent.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recentSessions = ((sessions ?? []) as any[]).filter((s: any) => (s.actualSeconds ?? s.plannedSeconds ?? 0) >= 60);
 
   if (authLoading || loading) return <Skeleton label="Focus" rows={3} />;
   if (error) return <ErrorState error={error} onRetry={retry} />;
@@ -98,10 +103,76 @@ export default function FocusPage() {
         Finish and the linked quest completes by itself. Leave before 5 real minutes and it costs 5 XP — the quest stays for another run.
       </p>
 
-      <div className="sec-head" style={{ marginTop: 22 }}>
+      {/* Focus Audio Station — 10 Classical & Lo-Fi Tracks on Shuffle */}
+      <div
+        style={{
+          marginTop: 24,
+          padding: "20px 24px",
+          borderRadius: 18,
+          background: "rgba(255, 255, 255, 0.03)",
+          border: "1px solid rgba(255, 255, 255, 0.09)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Icon id="i-spark" style={{ width: 16, height: 16, color: "#FFFFFF" }} />
+            <div>
+              <strong style={{ fontSize: 14, color: "#FFFFFF", display: "block" }}>Focus Audio Station · Classical, Lo-Fi & Cinematic</strong>
+              <span style={{ fontSize: 12, color: "var(--text-3)" }}>{FOCUS_CLASSICAL_TRACKS.length} pieces playing on auto-shuffle with visible player controls during focus</span>
+            </div>
+          </div>
+          <span
+            style={{
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              padding: "4px 12px",
+              borderRadius: 9999,
+              background: "rgba(255, 255, 255, 0.08)",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
+              color: "#FFFFFF",
+            }}
+          >
+            ⇄ Auto-Shuffle Active
+          </span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 10 }}>
+          {FOCUS_CLASSICAL_TRACKS.map((t, i) => (
+            <div
+              key={t.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                borderRadius: 10,
+                background: "rgba(255, 255, 255, 0.02)",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+              }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", width: 16 }}>{i + 1}</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ display: "block", fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#FFFFFF" }}>
+                  {t.name}
+                </strong>
+                <span style={{ display: "block", fontSize: 10.5, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {t.movement}
+                </span>
+              </div>
+              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", color: "var(--text-3)", padding: "2px 6px", borderRadius: 4, background: "rgba(255, 255, 255, 0.05)" }}>
+                {t.instrument}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="sec-head" style={{ marginTop: 28 }}>
         <h3>Recent sessions</h3>
       </div>
-      {!sessions || sessions.length === 0 ? (
+      {!recentSessions || recentSessions.length === 0 ? (
         <div className="empty-state panel">
           <Icon id="i-focus" />
           <p>One quest, one timer. Starting focus quiets everything else.</p>
@@ -109,7 +180,7 @@ export default function FocusPage() {
       ) : (
         <div className="quest-list panel">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {sessions.map((s: any) => (
+          {recentSessions.map((s: any) => (
             <div className="session-row" key={s.id}>
               <Icon id="i-clock" style={{ color: "var(--text-3)" }} />
               <span style={{ flex: 1 }}>
