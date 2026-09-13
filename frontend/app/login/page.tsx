@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { HeroImage } from "@/components/illustrations";
+import { BrandLogo } from "@/components/illustrations";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { EmptyState, Skeleton } from "@/components/States";
 
@@ -52,17 +52,11 @@ function LoginInner() {
           <ThemeToggle />
         </div>
         <div className="auth-card panel">
-          <span style={{ display: "flex", justifyContent: "center", margin: "0 auto" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo.png" alt="LIFE RPG" width={64} height={64} style={{ borderRadius: 16, objectFit: "contain" }} />
-          </span>
+            <span style={{ display: "flex", justifyContent: "center", margin: "0 auto" }}>
+              <BrandLogo size={64} />
+            </span>
           <h1>Enter the realm</h1>
           <p>One account across every device. Your quests, XP and identity persist.</p>
-          <div style={{ display: "flex", justifyContent: "center", margin: "14px 0 4px" }}>
-            <div style={{ width: 110, borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)" }}>
-              <HeroImage assetId="kavya-traditional" eager alt="Kavya" />
-            </div>
-          </div>
 
           {error && (
             <p role="alert" style={{ marginTop: 12, fontSize: 13.5, color: "var(--accent-text)" }}>

@@ -23,10 +23,11 @@ export default function OnboardingPage() {
   const toast = useToast();
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [heroId, setHeroId] = useState(HEROES[5].id); // Kavya first paint
+  // Nothing preselected — the player chooses everything (no hardcoded defaults).
+  const [heroId, setHeroId] = useState<string | null>(null);
   const [heroName, setHeroName] = useState("");
   const [oath, setOath] = useState("");
-  const [companionId, setCompanionId] = useState(FREE_COMPANIONS[0].id);
+  const [companionId, setCompanionId] = useState<string | null>(null);
   const [companionName, setCompanionName] = useState("");
   const [domains, setDomains] = useState<string[]>(["Learning"]);
   const [firstQuest, setFirstQuest] = useState("Drink a glass of water");
@@ -42,7 +43,7 @@ export default function OnboardingPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    if (!companionName) {
+    if (!companionName && companionId) {
       const c = FREE_COMPANIONS.find((x) => x.id === companionId);
       if (c) setCompanionName(c.name);
     }
@@ -53,6 +54,16 @@ export default function OnboardingPage() {
 
   const finish = async () => {
     setError(null);
+    if (!heroId) {
+      setError("Choose your character first.");
+      setStep(0);
+      return;
+    }
+    if (!companionId) {
+      setError("Choose your companion first.");
+      setStep(2);
+      return;
+    }
     if (!heroName.trim()) {
       setError("Name your character to cross the threshold.");
       return;
@@ -74,9 +85,9 @@ export default function OnboardingPage() {
         }
       }
       await client.patchProfile(authHeaders(), {
-        heroAssetId: heroAssetId(heroId, "traditional"),
+        heroAssetId: heroAssetId(heroId as string, "traditional"),
         heroName: heroName.trim(),
-        companionAssetId: companionId,
+        companionAssetId: companionId as string,
         companionName: companionName.trim() || null,
         bio: oath.trim() || null,
         lifeDomains: domains,
@@ -131,7 +142,7 @@ export default function OnboardingPage() {
           </p>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
             <div style={{ width: 150, borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)" }}>
-              <HeroImage assetId={heroAssetId(heroId, "traditional")} eager alt={`${hero.region} traveler in traditional attire`} />
+              <HeroImage assetId={heroId ? heroAssetId(heroId, "traditional") : null} eager alt={hero ? `${hero.region} traveler in traditional attire` : "Choose a character below"} />
             </div>
           </div>
           <div className="option-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
@@ -260,6 +271,15 @@ export default function OnboardingPage() {
         {step < 4 ? (
           <button
             onClick={async () => {
+              setError(null);
+              if (step === 0 && !heroId) {
+                setError("Choose your character to continue.");
+                return;
+              }
+              if (step === 2 && !companionId) {
+                setError("Choose your companion to continue.");
+                return;
+              }
               if (step === 3) {
                 // Persist interests first so step 4 suggestions come from the server.
                 await client.patchProfile(authHeaders(), { lifeDomains: domains }).catch(() => undefined);

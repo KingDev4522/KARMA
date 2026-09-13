@@ -111,7 +111,8 @@ export default function HeroCardPage() {
           <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
             Level {data.level} · {data.rank?.display}
           </p>
-          <div style={{ display: "flex", justifyContent: "center", margin: "14px 0" }}>
+          <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".25em", color: "var(--text-3)", margin: "14px 0 6px" }}>CHARACTER</p>
+          <div style={{ display: "flex", justifyContent: "center", margin: "0 0 14px" }}>
             <div style={{ width: 180 }}>
               <FrameWrap frameSrc={frameAsset} label="Framed character">
                 <span style={{ display: "block", borderRadius: 16, overflow: "hidden" }}>
@@ -120,6 +121,7 @@ export default function HeroCardPage() {
               </FrameWrap>
             </div>
           </div>
+          <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".25em", color: "var(--text-3)", margin: "0 0 6px" }}>COMPANION</p>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, flexDirection: "column", alignItems: "center", gap: 4 }}>
             <CompanionImage assetId={data.companion ?? data.companionAssetId} width={64} alt={data.companionName ?? "Companion"} />
             {data.companionName && <span style={{ fontSize: 12, color: "var(--text-2)", fontWeight: 700 }}>{data.companionName}</span>}
@@ -189,6 +191,17 @@ export default function HeroCardPage() {
 }
 
 /** Radar stat graph — one spoke per attribute, like the games use. */
+const ATTR_SHORT: Record<string, string> = {
+  strength: "STR",
+  vitality: "VIT",
+  intellect: "INT",
+  focus: "FOC",
+  discipline: "DIS",
+  craft: "CRF",
+  connection: "CON",
+  exploration: "EXP",
+};
+
 function RadarChart({ attrs }: { attrs: { key?: string; name?: string; level?: number }[] }) {
   const R = 72;
   const C = 92;
@@ -214,7 +227,7 @@ function RadarChart({ attrs }: { attrs: { key?: string; name?: string; level?: n
           <g key={a.key ?? i}>
             <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--border-strong)" strokeWidth={1} opacity={0.7} />
             <text x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize={9.5} fontWeight={700} fill="var(--text-2)">
-              {`${String(a.name ?? "").slice(0, 4)} ${levels[i]}`}
+              {`${ATTR_SHORT[String(a.key ?? "").toLowerCase()] ?? String(a.name ?? "").slice(0, 3).toUpperCase()} ${levels[i]}`}
             </text>
           </g>
         );

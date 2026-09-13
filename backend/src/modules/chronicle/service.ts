@@ -1,6 +1,7 @@
 import { prisma } from "../../db";
 import { xpProgressForLevel } from "../../rpg/xpCurve";
 import { rankForXp } from "../../rpg/ranks";
+import { ATTRIBUTE_KEYS } from "../../shared/validation";
 import { ensureProfile } from "../identity/service";
 
 /**
@@ -177,11 +178,20 @@ export async function getHeroCard(userId: string) {
   const [profile, prog, attrs, achievements, loadout, campaigns] = await Promise.all([
     prisma.profile.findUniqueOrThrow({ where: { id: userId } }),
     prisma.profileProgression.findUnique({ where: { profileId: userId } }),
-    prisma.profileAttribute.findMany({ where: { profileId: userId }, include: { attribute: true }, orderBy: { xp: "desc" }, take: 4 }),
+    prisma.profileAttribute.findMany({ where: { profileId: userId }, include: { attribute: true } }),
     prisma.userAchievement.findMany({ where: { userId }, include: { achievement: true }, orderBy: { unlockedAt: "desc" }, take: 6 }),
     prisma.userLoadout.findUnique({ where: { userId } }),
     prisma.campaign.findMany({ where: { userId, status: "active" }, include: { milestones: true }, take: 3 }),
   ]);
+  // Full 8-attribute set in canonical order (radar spokes are positional —
+  // a top-4 slice would misalign the graph with real scores).
+  const attrByKey = new Map(attrs.map((a) => [a.attribute.key, a]));
+  const allAttrs = ATTRIBUTE_KEYS.map((key) => {
+    const row = attrByKey.get(key);
+    return row
+      ? { key, name: row.attribute.name, xp: row.xp, level: row.level }
+      : { key, name: key.charAt(0).toUpperCase() + key.slice(1), xp: 0, level: 0 };
+  });
   const lifetimeXp = prog?.lifetimeXp ?? 0;
   const loadoutRec = (loadout ?? {}) as Record<string, string | null>;
   const equippedIds = Object.values(loadoutRec).filter((v): v is string => typeof v === "string" && v.length > 0);
@@ -199,7 +209,7 @@ export async function getHeroCard(userId: string) {
     level: prog?.level ?? 1,
     xpProgress: xpProgressForLevel(lifetimeXp),
     rank: rankForXp(lifetimeXp),
-    topAttributes: attrs.map((a) => ({ key: a.attribute.key, name: a.attribute.name, xp: a.xp, level: a.level })),
+    topAttributes: allAttrs,
     streak: prog?.currentStreak ?? 0,
     achievements: achievements.map((a) => ({ key: a.achievement.key, name: a.achievement.name, iconPath: a.achievement.iconPath })),
     campaigns: campaigns.map((c) => ({

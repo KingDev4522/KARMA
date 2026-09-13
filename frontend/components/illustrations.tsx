@@ -95,7 +95,20 @@ export function HeroImage({  assetId,
   const [failed, setFailed] = useState(false);
   const { hero, variant: v } = resolveHero(assetId);
   const useVariant = variant ?? v;
-  if (failed) return <Hero width={width} className={className} variant={0} />;
+  if (failed || !assetId) {
+    if (!assetId) {
+      return (
+        <span
+          role="img"
+          aria-label={alt}
+          style={{ display: "grid", placeItems: "center", width: "100%", aspectRatio: "3/4", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
+        >
+          <Icon id="i-realm" style={{ width: "40%", height: "40%" }} />
+        </span>
+      );
+    }
+    return <Hero width={width} className={className} variant={0} />;
+  }
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -124,7 +137,20 @@ export function CompanionImage({
 }) {
   const [failed, setFailed] = useState(false);
   const c = resolveCompanion(assetId);
-  if (failed) return <Companion width={width} />;
+  if (failed || !assetId) {
+    if (!assetId) {
+      return (
+        <span
+          role="img"
+          aria-label={alt}
+          style={{ display: "grid", placeItems: "center", width: typeof width === "number" ? width : "100%", aspectRatio: "1", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
+        >
+          <Icon id="i-spark" style={{ width: "40%", height: "40%" }} />
+        </span>
+      );
+    }
+    return <Companion width={width} />;
+  }
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -204,6 +230,28 @@ export function AvatarImg({
   alt?: string;
   eager?: boolean;
 }) {
+  // No identity at all (signed out / fresh) → neutral silhouette, NEVER a
+  // default character. No hero is hardcoded anywhere in the UI.
+  if (!avatarAssetId && !heroAssetId) {
+    return (
+      <span
+        role="img"
+        aria-label={alt}
+        style={{
+          display: "grid",
+          placeItems: "center",
+          width: typeof width === "number" ? width : undefined,
+          ...(typeof width === "number" ? {} : { width: width as string }),
+          aspectRatio: "1",
+          borderRadius: 12,
+          background: "var(--surface-2)",
+          color: "var(--text-3)",
+        }}
+      >
+        <Icon id="i-realm" style={{ width: "55%", height: "55%" }} />
+      </span>
+    );
+  }
   const a = resolveAvatar(avatarAssetId, heroAssetId);
   const [photoGone, setPhotoGone] = useState(false);
   if (a.kind === "photo" && a.photoUrl && !photoGone) {

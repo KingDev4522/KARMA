@@ -243,6 +243,34 @@ export default function SettingsPage() {
       </div>
 
       <div className="settings-panel">
+        <h3>Cloud sync</h3>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 12 }}>
+          Same Google account on every device means the same realm. Compare these two lines across devices — if they match, you are in sync.
+        </p>
+        <div className="set-row">
+          <div className="info">
+            <strong>{email ?? "Not signed in"}</strong>
+            <span>
+              ID {(userId ?? "—").slice(0, 8)}… · {(() => { try { return new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").host; } catch { return "local backend"; } })()} · updated{" "}
+              {profile.updatedAt ? new Date(profile.updatedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "just now"}
+            </span>
+          </div>
+          <button
+            className="btn btn--ghost"
+            onClick={async () => {
+              const { invalidateCache } = await import("@/lib/api");
+              invalidateCache("/api/v1");
+              toast("Synced from cloud", "i-check");
+              retry();
+              window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+            }}
+          >
+            Sync now
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-panel">
         <h3>Account</h3>
         <div className="set-row">
           <div className="info">
