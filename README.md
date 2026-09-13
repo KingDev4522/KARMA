@@ -28,10 +28,11 @@ User chooses goal
 
 | Member | Role | Primary Ownership |
 |--------|------|-------------------|
-| **Debjeet Mazumder** | **Tech Lead & Backend Architect** | Server architecture, RPG engine (XP curve, rewards, anti-farming, ranks, streaks), Prisma schema, domain services, API design, database migrations, authentication boundary, transactional reward operations, CI/CD pipeline |
-| **Indranil Chatterjee** | **Frontend Lead & UX Engineer** | Next.js App Router architecture, component system, design tokens, motion (Framer Motion), Today/Quest/Focus/Campaign/Realm/Chronicle/Store screens, Hero Card export, accessibility (WCAG AA), reduced-motion mode, responsive layouts, performance optimization |
-| **Debardrita Baksi** | **Game Systems & Full-Stack Engineer** | Quest/Campaign/Routine/Focus domain logic (backend + frontend), progression integration, economy & store (coins, inventory, loadout), achievement engine, companion deterministic dialogue, attribute mapping, campaign-to-quest decomposition, reward preview, end-to-end feature wiring |
-| **Mehul Kumar Jaiswal** | **DevOps & Platform Engineer** | Supabase/PostgreSQL provisioning, Vercel deployment, environment management, monitoring, logging, rate limiting, security headers, seed scripts, database backups, preview deployments, developer tooling (tsx, typecheck, lint), documentation maintenance |
+| **Debjeet Mazumder** | **Lead Full Stack Developer & Backend Architect** | Server architecture, RPG engine (XP curve, rewards, anti-farming, ranks, streaks), Prisma schema, domain services, API design, database migrations, authentication boundary, transactional reward operations, CI/CD pipeline |
+| **Mehul Kumar Jaiswal** | **DevOps, Platform Engineer & Backend Developer** | Supabase/PostgreSQL provisioning, Vercel deployment, environment management, monitoring, logging, rate limiting, security headers, seed scripts, database backups, preview deployments, developer tooling (tsx, typecheck, lint), documentation maintenance |
+| **Indranil Chatterjee** | **Frontend Lead & UX Architect** | Next.js App Router architecture, component system, design tokens, motion (Framer Motion), Today/Quest/Focus/Campaign/Realm/Chronicle/Store screens, Hero Card export, accessibility (WCAG AA), reduced-motion mode, responsive layouts, performance optimization |
+| **Debardrita Baksi** | **Game Systems & UI/UX Engineer** | Quest/Campaign/Routine/Focus domain logic (backend + frontend), progression integration, economy & store (coins, inventory, loadout), achievement engine, companion deterministic dialogue, attribute mapping, campaign-to-quest decomposition, reward preview, end-to-end feature wiring |
+
 
 > **Work Balance Principle:** Each member owns a vertical slice (backend ↔ frontend ↔ infra) while collaborating on cross-cutting features (auth, reward engine, companion, Hero Card). Code reviews are mandatory for all domain services and UI primitives.
 
@@ -520,10 +521,10 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 | Member | GitHub | Email |
 |--------|--------|-------|
-| Debjeet Mazumder | `@debjeet-mazumder` | debjeet@karma.app |
-| Debardrita Baksi | `@debardrita-baksi` | debardrita@karma.app |
-| Indranil Chatterjee | `@indranil-chatterjee` | indranil@karma.app |
-| Mehul Kumar Jaiswal | `@mehul-kumar-jaiswal` | mehul@karma.app |
+| Debjeet Mazumder | `@debjeet-mazumder` | debjeetmazumder3232@gmail.com |
+| Debardrita Baksi | `@debardrita-baksi` | baksidebadrita@gmail.com |
+| Indranil Chatterjee | `@indranil-chatterjee` | indranilchatterjee098@gmail.com |
+| Mehul Kumar Jaiswal | `@mehul-kumar-jaiswal` | jaiswalmehulkumar441@gmail.com |
 
 **Project Board**: [GitHub Projects](https://github.com/orgs/karma/projects)  
 **Issues**: [GitHub Issues](https://github.com/karma/karma/issues)  
