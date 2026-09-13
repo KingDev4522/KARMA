@@ -106,7 +106,13 @@ export default function PersonalizePage() {
       const { uploadAvatarPhoto } = await import("@/lib/avatar-upload");
       const url = await uploadAvatarPhoto(userId, file);
       await client.patchProfile(authHeaders(), { avatarAssetId: url });
-      toast("Profile picture updated", "i-check");
+      // Verify it actually stuck (re-read server state, don't trust the toast).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const check = (await client.getProfile(authHeaders()).catch(() => null)) as any;
+      if (check?.profile?.avatarAssetId !== url) {
+        throw new Error("Photo didn't stick on the server — try again, or update the app.");
+      }
+      toast("Profile picture updated — it's you everywhere now", "i-check");
       refresh();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't upload photo.", "i-close");
@@ -136,7 +142,7 @@ export default function PersonalizePage() {
           <div className="studio-avatar-pedestal">
             <div className="studio-avatar-wrap">
               <FrameWrap frameSrc={frameAsset} label="Framed profile picture">
-                <span style={{ display: "block", width: 120, height: 120, borderRadius: 20, overflow: "hidden" }}>
+                <span style={{ display: "block", width: 120, borderRadius: 20, overflow: "hidden" }}>
                   <AvatarImg avatarAssetId={curAvatar} heroAssetId={curHeroId} width="100%" eager alt={name} />
                 </span>
               </FrameWrap>
@@ -164,7 +170,7 @@ export default function PersonalizePage() {
               <TitleBox boxSrc={titleBoxAsset} name={name} sub={profile.bio ?? null} />
               {curCompanion && (
                 <span className="studio-companion-badge">
-                  <CompanionImage assetId={curCompanion} width={22} alt={profile.companionName ?? "Companion"} />
+                  <CompanionImage assetId={curCompanion} width={40} alt={profile.companionName ?? "Companion"} />
                   <span>{profile.companionName || "Loyal Companion"}</span>
                 </span>
               )}
