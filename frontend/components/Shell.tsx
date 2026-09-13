@@ -275,7 +275,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
         <div className="sidebar__label">Workspace</div>
         <nav aria-label="Workspace">
           {NAV.map((n) => (
-            <Link key={n.id} href={n.href} onMouseEnter={() => prefetchRoute(n.href)} onFocus={() => prefetchRoute(n.href)} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
+            <Link key={n.id} href={n.href} data-tour={n.id} onMouseEnter={() => prefetchRoute(n.href)} onFocus={() => prefetchRoute(n.href)} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
               <Icon id={n.icon} />
               <span>{n.label}</span>
               {n.id === "quests" && identity.active > 0 && <em className="nav-badge">{identity.active}</em>}
@@ -285,7 +285,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
         <div className="sidebar__divider" />
         <nav aria-label="More">
           {MORE.map((n) => (
-            <Link key={n.id} href={n.href} onMouseEnter={() => prefetchRoute(n.href)} onFocus={() => prefetchRoute(n.href)} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
+            <Link key={n.id} href={n.href} data-tour={n.id} onMouseEnter={() => prefetchRoute(n.href)} onFocus={() => prefetchRoute(n.href)} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
               <Icon id={n.icon} />
               <span>{n.label}</span>
               {n.id === "store" && <em className="nav-dot" />}
@@ -340,7 +340,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
             <kbd>⌘K</kbd>
           </div>
           <div className="topbar__actions">
-            <div className="coin-pill" id="coinPill" title="Your coins" aria-label={`${identity.coins} coins`}>
+            <div className="coin-pill" id="coinPill" data-tour="coins" title="Your coins" aria-label={`${identity.coins} coins`}>
               <CoinImg size={16} />
               <span className="coin-val">{identity.coins.toLocaleString("en-US")}</span>
               {coinDelta !== 0 && (
@@ -387,6 +387,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
               <button
                 className="icon-btn"
                 style={{ padding: 0 }}
+                data-tour="profile"
                 onClick={() => { setProfileOpen((o) => !o); setNotifOpen(false); }}
                 aria-label="Profile menu"
                 aria-expanded={profileOpen}
@@ -444,7 +445,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
           { id: "realm", href: "/realm", label: "Realm", icon: "i-realm" as IconId },
           { id: "chronicle", href: "/chronicle", label: "Chronicle", icon: "i-chronicle" as IconId },
         ].map((n) => (
-          <Link key={n.id} href={n.href} className={isActive(n.href) ? "is-active" : ""} aria-current={isActive(n.href) ? "page" : undefined}>
+          <Link key={n.id} href={n.href} data-tour={n.id} className={isActive(n.href) ? "is-active" : ""} aria-current={isActive(n.href) ? "page" : undefined}>
             <Icon id={n.icon} />
             {n.label}
           </Link>

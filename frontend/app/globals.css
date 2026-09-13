@@ -881,21 +881,32 @@ p{max-width:65ch}
 .titlebox-fallback{display:inline-flex;flex-direction:column;gap:2px}
 .titlebox-fallback strong{font-size:22px;font-weight:800;letter-spacing:-.02em}
 .titlebox-fallback span{font-size:12.5px;color:var(--text-2)}
-.tour-card{position:fixed;right:16px;bottom:76px;z-index:150;display:flex;gap:12px;align-items:flex-start;max-width:min(360px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.22);animation:tourIn .4s var(--spring)}
-.tour-card img{flex:none}
-.tour-bubble{flex:1;font-size:13.5px}
-.tour-bubble strong{display:flex;justify-content:space-between;align-items:baseline;font-size:13px}
 .tour-step{font-weight:500;font-size:11px;color:var(--text-3)}
 .tour-title{font-weight:800;font-size:15px;margin:2px 0 4px}
-.tour-bubble p{margin:0 0 4px;color:var(--text-2)}
-.tour-actions{display:flex;gap:8px;margin-top:8px}
+.tour-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 @keyframes tourIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+/* ============ SPOTLIGHT TOUR ============ */
+.spotlight{position:fixed;inset:0;z-index:160;pointer-events:none}
+.spotlight-ring{position:fixed;border:2px solid var(--accent);border-radius:16px;box-shadow:0 0 0 9999px rgba(10,10,12,.62);animation:ringPulse 2s ease-in-out infinite}
+@keyframes ringPulse{0%,100%{box-shadow:0 0 0 9999px rgba(10,10,12,.62),0 0 0 0 rgba(188,64,40,.45)}50%{box-shadow:0 0 0 9999px rgba(10,10,12,.62),0 0 0 7px rgba(188,64,40,0)}}
+.spotlight-bubble{position:fixed;z-index:161;pointer-events:auto;background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;padding:14px;box-shadow:0 16px 48px rgba(0,0,0,.3);animation:tourIn .35s var(--spring);width:min(340px,calc(100vw - 32px))}
+.spotlight-arrow{position:absolute;width:16px;height:16px;background:var(--surface);border:1px solid var(--border-strong);transform:rotate(45deg)}
+.spotlight-arrow.is-top{top:-9px;border-right:none;border-bottom:none}
+.spotlight-arrow.is-bottom{bottom:-9px;border-left:none;border-top:none}
+.spotlight-head{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+.spotlight-head img{flex:none;border-radius:12px}
+.spotlight-head strong{display:block;font-size:13.5px}
+.spotlight-body{font-size:13.5px;color:var(--text-2);margin:0 0 4px}
+@media (prefers-reduced-motion:reduce){
+  .spotlight-ring{animation:none}
+  .spotlight-bubble{animation:none}
+}
 button.cal-cell{font:inherit;color:inherit;text-align:left;width:100%}
 button.cal-cell:hover{border-color:var(--border-strong)}
 .cal-cell.is-selected{border:1px solid var(--accent);background:var(--accent-soft)}
 @media (prefers-reduced-motion:reduce){
   .toast{animation:none}
-  .tour-card{animation:none}
+  .spotlight-ring,.spotlight-bubble{animation:none}
 }
 
 /* ============ KARMA LOADER ============ */
@@ -1018,7 +1029,7 @@ button.cal-cell:hover{border-color:var(--border-strong)}
 a.option{text-decoration:none;color:inherit}
 @media (max-width:760px){
   .celebration{bottom:96px}
-  .tour-card{bottom:96px}
+  .spotlight-bubble{bottom:auto}
   .pq-actions{flex-wrap:wrap}
   .pq-actions .btn{flex:1 1 140px;justify-content:center}
   .focus-actions{flex-wrap:wrap}
