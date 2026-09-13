@@ -1704,8 +1704,8 @@ p{max-width:65ch}
 
 /* ============ XP COINS, FRAMES, TITLE BOXES, TOUR ============ */
 .xp-coin{position:fixed;width:15px;height:15px;object-fit:contain;z-index:130;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
-.frame-wrap{position:relative;display:block;border-radius:16px;overflow:hidden;aspect-ratio:3/4;background:var(--surface-2)}
-.frame-inner{position:absolute;inset:0;display:grid;place-items:center;padding:0}
+.frame-wrap{position:relative;display:block;border-radius:16px;overflow:hidden;aspect-ratio:3/4;background:var(--surface-2);isolation:isolate}
+.frame-inner{position:absolute;inset:0;z-index:1;display:grid;place-items:center;padding:0}
 .frame-inner img,.frame-inner span{width:100%!important;height:100%!important;object-fit:cover;object-position:top center;border-radius:0}
 .frame-art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;z-index:2}
 .titlebox{position:relative;display:inline-block;max-width:100%}
