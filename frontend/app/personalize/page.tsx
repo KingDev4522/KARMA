@@ -30,6 +30,7 @@ export default function PersonalizePage() {
   const [heroName, setHeroName] = useState<string | null>(null);
   const [compName, setCompName] = useState<string | null>(null);
   const [oath, setOath] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const refresh = () => {
     retryMe();
@@ -97,7 +98,6 @@ export default function PersonalizePage() {
   const ownedPremiumIds = ownedCompanionIds;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ownedTradSkins = new Set(skins.map((s: any) => s?.metadata?.heroAssetId).filter((v: unknown): v is string => typeof v === "string" && v.endsWith("-traditional")));
-  const [photoBusy, setPhotoBusy] = useState(false);
 
   const uploadPhoto = async (file: File | undefined) => {
     if (!file || !userId) return;
