@@ -984,7 +984,7 @@ button.cal-cell:hover{border-color:var(--border-strong)}
 .focus-session.is-open{overflow:hidden}
 .focus-scenery{position:absolute;inset:0;overflow:hidden;opacity:.5;pointer-events:none}
 .focus-scenery::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,color-mix(in srgb,var(--bg) 62%,transparent),color-mix(in srgb,var(--bg) 30%,transparent) 55%,color-mix(in srgb,var(--bg) 66%,transparent))}
-.focus-mute{position:absolute;top:24px;right:76px;z-index:3}
+.focus-mute{position:absolute;top:24px;left:28px;z-index:3}
 @media (prefers-reduced-motion:reduce){
   .focus-scenery{opacity:.35}
 }
