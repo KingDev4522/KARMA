@@ -3,7 +3,7 @@
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { AvatarImg, CompanionImage, EnvStack, FramedAvatar, HeroImage, Icon, TitleBox } from "@/components/illustrations";
+import { CompanionImage, EnvStack, FramedAvatar, HeroImage, Icon, TitleBox } from "@/components/illustrations";
 import Link from "next/link";
 import { attrProgress } from "@/lib/identity";
 import { ATTR_META } from "@/components/quests";
@@ -83,11 +83,7 @@ export default function RealmPage() {
         <div className="realm-hero-card realm-hero-card--flow">
           <EnvStack />
           <div className="nameplate nameplate--flow">
-            <span className="np-frame" style={{ overflow: "hidden" }}>
-              <AvatarImg avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} width={30} alt={heroName} />
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".18em", color: "var(--text-3)", margin: "0 0 2px" }}>TITLE BOX</p>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <TitleBox boxSrc={titleBoxAsset} name={heroName} sub={title} />
             </div>
           </div>
@@ -98,24 +94,23 @@ export default function RealmPage() {
           {companionAssetId && (
             <div className="realm-companion">
               <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".18em", color: "var(--text-3)", margin: 0 }}>COMPANION</p>
-              <CompanionImage assetId={companionAssetId} width={52} alt={companionName ?? "Companion"} />
+              <CompanionImage assetId={companionAssetId} width={84} alt={companionName ?? "Companion"} />
               <span>{companionName ? <strong>{companionName}</strong> : "Companion"}</span>
             </div>
           )}
           <div className="realm-picture">
             <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".18em", color: "var(--text-3)", margin: "0 0 6px" }}>PROFILE PICTURE</p>
-            <FramedAvatar avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} frameSrc={frameAsset} size={96} alt={heroName} />
+            <FramedAvatar avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} frameSrc={frameAsset} size={120} alt={heroName} />
           </div>
         </div>
 
         <div className="realm-detail">
-          <div className="identity panel">
+          <div className="identity panel realm-identity">
             <div className="id-top">
               <div>
                 <h3>{heroName}</h3>
                 <div style={{display:"flex", alignItems:"baseline", gap:16, flexWrap:"wrap"}}>
                   <span className="lvl-huge" style={{fontSize:"clamp(56px,6vw,84px)", fontWeight:750, letterSpacing:"-.05em", lineHeight:.95}}>{level}</span>
-                  <span className="seal" title={rank} aria-label={rank}>{String(rank).slice(0,2).toUpperCase()}</span>
                 </div>
                 <p className="rank-line"><b>{rank}</b> rank · {xpInto} / {xpNeed} XP · {coins.toLocaleString("en-US")} coins</p>
                 {oath && (
