@@ -501,12 +501,6 @@ Located in `/PRDS`:
 
 ---
 
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
 ## Acknowledgements
 
 - **Problem Statement**: IIT Bhubaneswar Life RPG Challenge
