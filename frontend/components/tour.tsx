@@ -8,17 +8,37 @@ import { CompanionImage } from "@/components/illustrations";
 
 const KEY = "lrp-tour";
 
-export function startTour() {
+const keyFor = (userId?: string | null) => (userId ? `${KEY}-${userId}` : KEY);
+
+/** One-time first-run guide: armed ONLY by onboarding finish ("ready"),
+ *  consumed on Skip/Finish ("done"). Returning logins never re-arm it —
+ *  Settings "Replay tour" is the only other writer. Per-account key so a
+ *  second device / second account can't replay or suppress it wrongly. */
+export function startTour(userId?: string | null) {
   try {
     window.localStorage.setItem(KEY, "ready");
+    if (userId) window.localStorage.setItem(keyFor(userId), "ready");
     window.dispatchEvent(new CustomEvent("liferpg:tour"));
   } catch {
     /* ignore */
   }
 }
 
-function tourState(): string | null {
+export function endTourState(userId?: string | null) {
   try {
+    window.localStorage.setItem(KEY, "done");
+    if (userId) window.localStorage.setItem(keyFor(userId), "done");
+  } catch {
+    /* ignore */
+  }
+}
+
+function tourState(userId?: string | null): string | null {
+  try {
+    if (userId) {
+      const per = window.localStorage.getItem(keyFor(userId));
+      if (per) return per;
+    }
     return window.localStorage.getItem(KEY);
   } catch {
     return "done";
@@ -88,8 +108,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
   stepRef.current = step;
 
   const refresh = useCallback(() => {
-    setActive(tourState() === "ready");
-  }, []);
+    setActive(tourState(userId) === "ready");
+  }, [userId]);
 
   useEffect(() => {
     refresh();
@@ -117,22 +137,18 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }, [active, userId, authLoading]);
 
   const end = useCallback(() => {
-    try {
-      window.localStorage.setItem(KEY, "done");
-    } catch {
-      /* ignore */
-    }
+    endTourState(userId);
     setActive(false);
     setStep(0);
     setSpot(null);
-  }, []);
+  }, [userId]);
 
   const replay = useCallback(() => {
-    startTour();
+    startTour(userId);
     setStep(0);
     setSpot(null);
     router.push("/");
-  }, [router]);
+  }, [router, userId]);
 
   const go = useCallback(
     (n: number) => {

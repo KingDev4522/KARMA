@@ -55,6 +55,20 @@ export default function WelcomePage() {
           /* backfill is a courtesy, never a blocker */
         }
         router.replace(me?.profile?.heroName ? "/" : "/onboarding");
+        // One-time guide guard: returning heroes never auto-start the tour.
+        // New accounts are armed by onboarding finish (startTour); here we
+        // only ever seed "done" for accounts that already have a hero.
+        try {
+          if (me?.profile?.heroName && userId) {
+            const per = `lrp-tour-${userId}`;
+            if (!window.localStorage.getItem(per) && window.localStorage.getItem("lrp-tour") !== "ready") {
+              window.localStorage.setItem(per, "done");
+              window.localStorage.setItem("lrp-tour", "done");
+            }
+          }
+        } catch {
+          /* tour guard is a courtesy, never a blocker */
+        }
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : "Couldn't reach your realm.");
       }
