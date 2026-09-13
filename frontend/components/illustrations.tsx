@@ -184,7 +184,9 @@ export function CoinImg({ size = 16 }: { size?: number }) {
   );
 }
 
-/** App brand mark (assets/logo.png). Falls back to the letter mark. */
+/** App brand mark (assets/logo.png). The art is dark-on-black, so it always
+ *  sits on a white tile — visible on light and dark themes alike. Falls back
+ *  to the letter mark. */
 export function BrandLogo({ size = 30 }: { size?: number }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
@@ -195,17 +197,31 @@ export function BrandLogo({ size = 30 }: { size?: number }) {
     );
   }
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/brand/logo.png"
-      alt="LIFE RPG"
-      width={size}
-      height={size}
-      style={{ width: size, height: size, objectFit: "contain", borderRadius: 8 }}
-      loading="eager"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-grid",
+        placeItems: "center",
+        width: size,
+        height: size,
+        borderRadius: Math.max(6, Math.round(size * 0.28)),
+        background: "#FFFFFF",
+        overflow: "hidden",
+        flex: "none",
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/logo.png"
+        alt="LIFE RPG"
+        width={size}
+        height={size}
+        style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+        loading="eager"
+        decoding="async"
+        onError={() => setFailed(true)}
+      />
+    </span>
   );
 }
 
