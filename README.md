@@ -1,5 +1,7 @@
 # KARMA — Life RPG
 
+> **Live Prototype:** https://karma-plum.vercel.app/
+
 > **Quiet progress, kept score.**  
 > A minimal productivity practice with a discreet RPG progression system.
 
