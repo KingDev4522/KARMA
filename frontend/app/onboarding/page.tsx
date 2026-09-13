@@ -50,6 +50,28 @@ export default function OnboardingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companionId]);
 
+  // Suggest their real name (editable) so the field never starts blank.
+  useEffect(() => {
+    if (!userId || heroName) return;
+    let alive = true;
+    (async () => {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const { data } = await createClient().auth.getUser();
+        if (!alive) return;
+        const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+        const gName = String(meta.full_name ?? meta.name ?? "").trim().split(" ")[0];
+        if (gName) setHeroName((cur) => cur || gName);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
   const toggleDomain = (d: string) => setDomains((s) => (s.includes(d) ? s.filter((x) => x !== d) : [...s, d]));
 
   const finish = async () => {

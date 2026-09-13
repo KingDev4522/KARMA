@@ -2,7 +2,7 @@ import { prisma } from "../../db";
 import { xpProgressForLevel } from "../../rpg/xpCurve";
 import { rankForXp } from "../../rpg/ranks";
 import { ATTRIBUTE_KEYS } from "../../shared/validation";
-import { ensureProfile } from "../identity/service";
+import { ensureProfile, displayNameOf } from "../identity/service";
 
 /**
  * Chronicle — history, statistics, analytics, Hero Card read model (MASTER PRD §13, PRD v2 §32-§33, §20).
@@ -201,7 +201,7 @@ export async function getHeroCard(userId: string) {
   const byId = new Map(equippedItems.map((i) => [i.id, i]));
   const titleItem = loadout?.titleItemId ? byId.get(loadout.titleItemId) ?? null : null;
   return {
-    heroName: profile.heroName ?? profile.displayName ?? "Unnamed Hero",
+    heroName: displayNameOf(profile),
     avatar: profile.heroAssetId,
     avatarAssetId: (profile as Record<string, unknown>).avatarAssetId ?? null,
     companion: profile.companionAssetId,
@@ -243,7 +243,7 @@ export async function getRealm(userId: string) {
   const items = itemIds.length ? await prisma.item.findMany({ where: { id: { in: itemIds } } }) : [];
   const byId = new Map(items.map((i) => [i.id, i]));
   return {
-    hero: { name: profile.heroName, displayName: profile.displayName, bio: profile.bio, heroAssetId: profile.heroAssetId, avatarAssetId: (profile as Record<string, unknown>).avatarAssetId ?? null },
+    hero: { name: displayNameOf(profile), displayName: profile.displayName, bio: profile.bio, heroAssetId: profile.heroAssetId, avatarAssetId: (profile as Record<string, unknown>).avatarAssetId ?? null },
     companion: { companionAssetId: profile.companionAssetId, companionName: (profile as Record<string, unknown>).companionName ?? null },
     progression: prog,
     xpProgress: xpProgressForLevel(lifetimeXp),

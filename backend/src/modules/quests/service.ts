@@ -10,7 +10,7 @@ import { applyCompletionToStreak, momentumAfterCompletion, momentumForActiveDays
 import { didRankAdvance, levelUpCoinBonus, rankForXp, rankUpChestCoins } from "../../rpg/ranks";
 import { xpProgressForLevel } from "../../rpg/xpCurve";
 import { evaluateAndGrantAchievements } from "../achievements/service";
-import { ensureProfile } from "../identity/service";
+import { ensureProfile, displayNameOf } from "../identity/service";
 import { abandonPenaltyFor, applyPenaltyToLifetime } from "../../rpg/penalties";
 
 /**
@@ -776,7 +776,7 @@ export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: 
     // FE §4 header
     hero: {
       heroAssetId: profile?.heroAssetId ?? null,
-      heroName: profile?.heroName ?? profile?.displayName ?? "hero",
+      heroName: displayNameOf(profile),
       companionAssetId: profile?.companionAssetId ?? null,
       companionName: (profile as Record<string, unknown> | null | undefined)?.companionName ?? null,
       avatarAssetId: (profile as Record<string, unknown> | null | undefined)?.avatarAssetId ?? null,
@@ -784,7 +784,7 @@ export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: 
       titleBoxAsset: (loadout?.titleItemId && frameById.get(loadout.titleItemId)) || null,
     },
     greeting: {
-      heroName: profile?.heroName ?? profile?.displayName ?? "hero",
+      heroName: displayNameOf(profile),
       heroLevel: progression?.level ?? 1,
       coins: progression?.coins ?? 0,
       xpProgress: xpProg(lifetimeXp),
@@ -794,7 +794,7 @@ export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: 
     companion: {
       mood: "greeting" as const,
       message: dailyGreeting({
-        heroName: profile?.heroName ?? undefined,
+        heroName: displayNameOf(profile),
         questsToday: pick.length,
         streak: progression?.currentStreak ?? 0,
         campaignPct,

@@ -170,8 +170,21 @@ export async function grantStarterKit(userId: string) {
     /* starter kit is a gift, never a blocker */
   }
 }
-/** Account deletion (PRD v2 §45): removes app rows; auth deletion best-effort. */
-export async function deleteAccount(userId: string): Promise<{ deleted: boolean; authDeleted: boolean }> {
+/**
+ * Display name for a profile — the player's own name first, the character
+ * name only when it is a real choice. The historical "hero" fallback (and a
+ * literally-typed "hero") never renders when something human exists.
+ * Display-only: stored values are never rewritten.
+ */
+export function displayNameOf(p: { heroName?: string | null; displayName?: string | null } | null | undefined): string {
+  const h = (p?.heroName ?? "").trim();
+  if (h && h.toLowerCase() !== "hero" && h.toLowerCase() !== "unnamed hero") return p!.heroName!.trim();
+  const d = (p?.displayName ?? "").trim();
+  if (d) return d;
+  return h || "Traveler";
+}
+
+/** Account deletion (PRD v2 §45): removes app rows; auth deletion best-effort. */export async function deleteAccount(userId: string): Promise<{ deleted: boolean; authDeleted: boolean }> {
   await prisma.$transaction(async (tx) => {
     const questIds = (await tx.quest.findMany({ where: { userId }, select: { id: true } })).map((q) => q.id);
     if (questIds.length > 0) {

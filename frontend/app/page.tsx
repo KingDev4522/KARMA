@@ -84,7 +84,7 @@ export default function TodayPage() {
     heroObj?.companionName ??
     ((data as any)?.companion?.companionName as string | null | undefined) ??
     null;
-  const heroName: string = heroObj?.heroName ?? (g as any)?.heroName ?? (data as any)?.hero?.heroName ?? (data as any)?.heroName ?? "hero";
+  const heroName: string = heroObj?.heroName ?? (g as any)?.heroName ?? (data as any)?.hero?.heroName ?? (data as any)?.heroName ?? "Traveler";
   const frameAsset: string | null = heroObj?.frameAsset ?? null;
   const titleBoxAsset: string | null = heroObj?.titleBoxAsset ?? null;
   const seen = new Set<string>();
