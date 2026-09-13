@@ -368,6 +368,13 @@ export const client = {
     }).catch(() => undefined);
     return r;
   },
-  // Keep-alive / health check (no cache)
-  health: () => fetch(`${BASE}/health`, { method: "GET" }),
+  // Keep-alive / health check (no cache, wake-friendly for Render cold starts)
+  health: () =>
+    fetch(`${BASE}/health`, {
+      method: "GET",
+      mode: "cors",
+      credentials: "omit",
+      cache: "no-store",
+      keepalive: true,
+    }),
 };
