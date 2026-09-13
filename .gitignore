@@ -39,3 +39,7 @@ STDOUT
 Thumbs.db
 .vscode/
 .idea/
+
+# WAV studio masters (15MB) - archive locally, never ship to git/Vercel.
+# MP3s in assets/audio/ + frontend/public/audio/ ARE committed.
+assets/audio/wav/

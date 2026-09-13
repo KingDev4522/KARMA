@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { client, type H } from "@/lib/api";
-import { Scenery, SCENERY_COUNT } from "@/components/scenery";
-
+import { SPLASH_FILES } from "@/lib/media";
 const MIN_MS = 3000;
 const MAX_MS = 9000;
 
@@ -14,11 +13,18 @@ const MAX_MS = 9000;
  * warm. Nothing proceeds until the player taps.
  */
 export function Splash({ authHeaders, heroName }: { authHeaders: () => H; heroName: string }) {
-  const [scene, setScene] = useState(0);
+  const [videoGone, setVideoGone] = useState(false);
   const [ready, setReady] = useState(false);
   const [gone, setGone] = useState(false);
   const [mobile, setMobile] = useState(false);
+  const [calm] = useState(() =>
+    typeof document !== "undefined" &&
+    (document.documentElement.dataset.motion === "off" || window.matchMedia("(prefers-reduced-motion: reduce)").matches),
+  );
   const done = useRef(false);
+  const art = mobile
+    ? { img: SPLASH_FILES.mobile, webm: SPLASH_FILES.loopWebmMobile, mp4: SPLASH_FILES.loopMp4Mobile }
+    : { img: SPLASH_FILES.desktop, webm: SPLASH_FILES.loopWebmDesktop, mp4: SPLASH_FILES.loopMp4Desktop };
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 760px)");
@@ -26,13 +32,6 @@ export function Splash({ authHeaders, heroName }: { authHeaders: () => H; heroNa
     const onMq = (e: MediaQueryListEvent) => setMobile(e.matches);
     mq.addEventListener("change", onMq);
     return () => mq.removeEventListener("change", onMq);
-  }, []);
-
-  useEffect(() => {
-    // Animated montage while loading (calm in reduced-motion).
-    if (document.documentElement.dataset.motion === "off") return;
-    const id = setInterval(() => setScene((s) => (s + 1) % SCENERY_COUNT), 1600);
-    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -72,7 +71,23 @@ export function Splash({ authHeaders, heroName }: { authHeaders: () => H; heroNa
   return (
     <div className="splash" role="dialog" aria-modal="true" aria-label="Enter the realm" onClick={enter}>
       <div className="splash-art" aria-hidden="true">
-        <Scenery key={scene} index={scene} mobile={mobile} className="sc-scene-enter" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={art.img} alt="" className="scenery-photo" loading="eager" decoding="async" />
+        {!videoGone && !calm && (
+          <video
+            className="scenery-photo splash-loop"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            poster={art.img}
+            onError={() => setVideoGone(true)}
+          >
+            <source src={art.webm} type="video/webm" />
+            <source src={art.mp4} type="video/mp4" onError={() => setVideoGone(true)} />
+          </video>
+        )}
       </div>
       <div className="splash-inner">
         {/* eslint-disable-next-line @next/next/no-img-element */}

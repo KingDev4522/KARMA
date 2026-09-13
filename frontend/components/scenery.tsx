@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { SCENERY_FILES } from "@/lib/media";
+
 /**
  * Scenery — six hand-built animated SVG vignettes (Himalayan dawn, Thar gold,
  * monsoon hills, marigold dusk, Himalayan night, backwater emerald).
@@ -90,6 +93,40 @@ function Diyas() {
 }
 
 export function Scenery({
+  index,
+  mobile = false,
+  className,
+  label,
+  eager = false,
+}: {
+  index: number;
+  mobile?: boolean;
+  className?: string;
+  label?: string;
+  eager?: boolean;
+}) {
+  const i = ((index % SCENERY_COUNT) + SCENERY_COUNT) % SCENERY_COUNT;
+  const [failed, setFailed] = useState(false);
+  const src = mobile ? SCENERY_FILES[i].mobile : SCENERY_FILES[i].desktop;
+  if (!failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        role="presentation"
+        aria-label={label ?? `Scenery ${i + 1} of ${SCENERY_COUNT}`}
+        className={`scenery-photo${className ? ` ${className}` : ""}`}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return <ScenerySvg index={i} mobile={mobile} className={className} label={label} />;
+}
+
+function ScenerySvg({
   index,
   mobile = false,
   className,
