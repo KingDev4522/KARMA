@@ -515,10 +515,10 @@ Located in `/PRDS`:
 
 | Member | GitHub | Email |
 |--------|--------|-------|
-| Debjeet Mazumder | `@debjeet-mazumder` | debjeetmazumder3232@gmail.com |
-| Debardrita Baksi | `@debardrita-baksi` | baksidebadrita@gmail.com |
-| Indranil Chatterjee | `@indranil-chatterjee` | indranilchatterjee098@gmail.com |
-| Mehul Kumar Jaiswal | `@mehul-kumar-jaiswal` | jaiswalmehulkumar441@gmail.com |
+| Debjeet Mazumder | `@dj` | debjeetmazumder3232@gmail.com |
+| Debardrita Baksi | `@debardritabaksi` | baksidebadrita@gmail.com |
+| Indranil Chatterjee | `@indranil122` | indranilchatterjee098@gmail.com |
+| Mehul Kumar Jaiswal | `@mehul18ji` | jaiswalmehulkumar441@gmail.com |
 
 
 
