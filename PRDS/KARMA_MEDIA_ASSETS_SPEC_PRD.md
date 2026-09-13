@@ -6,7 +6,7 @@ This document details the generation, optimization, and organization of the **KA
 
 All assets are strictly isolated within the [`assets/`](file:///c:/Users/Debjeet%20Mazumder/Desktop/Coding/C%20Code%20Runner/KARMA/assets) directory. **Zero application code changes and zero Git pushes** have been performed, preserving your codebase for direct integration.
 
----
+
 
 ## 2. Directory Structure & File Locations
 
