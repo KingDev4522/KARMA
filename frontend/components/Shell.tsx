@@ -78,6 +78,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   }, [identity.coins]);  const [sideOpen, setSideOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileSearch, setMobileSearch] = useState(false);
   const [muted, setMuted] = useState(false);
   const [gate, setGate] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -241,6 +242,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
         setNotifOpen(false);
         setProfileOpen(false);
         setSideOpen(false);
+        setMobileSearch(false);
       }
     };
     // Professional dismiss: a tap anywhere outside an open popup/menu closes it.
@@ -281,10 +283,20 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
     setNotifOpen(false);
     setProfileOpen(false);
     setSideOpen(false);
+    setMobileSearch(false);
   }, [path]);
+
+  // When the mobile search row opens, focus the input (it unhides same tick).
+  useEffect(() => {
+    if (mobileSearch) {
+      const id = requestAnimationFrame(() => searchRef.current?.focus());
+      return () => cancelAnimationFrame(id);
+    }
+  }, [mobileSearch]);
 
   const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   const submitSearch = () => {
+    setMobileSearch(false);
     router.push(`/quests${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ""}`);
   };
 
@@ -494,7 +506,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
               </span>
             </div>
             <div
-              className="topbar__search"
+              className={`topbar__search${mobileSearch ? " is-open" : ""}`}
               onMouseEnter={handleItemHover}
               onFocus={handleItemHover}
             >
@@ -512,6 +524,17 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
               <kbd>⌘K</kbd>
             </div>
             <div className="topbar__actions">
+              <button
+                className="icon-btn search-toggle"
+                onClick={() => setMobileSearch((v) => !v)}
+                onMouseEnter={handleItemHover}
+                onFocus={handleItemHover}
+                title="Search quests"
+                aria-label="Search quests"
+                aria-expanded={mobileSearch}
+              >
+                <Icon id="i-search" />
+              </button>
               <div
                 className="coin-pill"
                 id="coinPill"

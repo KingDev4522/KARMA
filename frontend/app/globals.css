@@ -839,6 +839,8 @@ p{max-width:65ch}
 .coin-pill.shake { animation: shake .4s; }
 @keyframes shake { 20%,60% { transform: translateX(-3px); } 40%,80% { transform: translateX(3px); } }
 .menu-btn { display: none; }
+/* Mobile search toggle — desktop keeps the inline search bar, so this stays hidden. */
+.search-toggle { display: none; }
 
 /* Glassmorphic Dropdown */
 .dropdown {
@@ -1870,7 +1872,16 @@ a.option{text-decoration:none;color:inherit}
 }
 @media (max-width:480px){
   .topbar__progress{display:none}
+  /* Search collapses to a toggle on phones: hidden by default, second full-width
+     row when open — the bar is never lost, and the action cluster never overflows. */
+  .topbar{flex-wrap:wrap;gap:6px;padding:6px 8px;border-radius:22px}
+  .topbar::before,.topbar::after{border-radius:22px}
   .topbar__search{display:none}
+  .topbar__search.is-open{display:flex;order:9;flex:1 1 100%;max-width:none;margin:2px 2px 4px}
+  .search-toggle{display:grid}
+  .topbar__actions{margin-left:auto;gap:2px;min-width:0}
+  .topbar .icon-btn{width:32px;height:32px}
+  .coin-pill{padding:4px 10px;font-size:12px}
   .pq-timer{width:100%}
   .achieve-grid{grid-template-columns:1fr}
   .attr-grid{grid-template-columns:1fr}
