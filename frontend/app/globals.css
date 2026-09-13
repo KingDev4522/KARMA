@@ -1705,9 +1705,9 @@ p{max-width:65ch}
 /* ============ XP COINS, FRAMES, TITLE BOXES, TOUR ============ */
 .xp-coin{position:fixed;width:15px;height:15px;object-fit:contain;z-index:130;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
 .frame-wrap{position:relative;display:block;border-radius:16px;overflow:hidden;aspect-ratio:3/4;background:var(--surface-2)}
-.frame-art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
-.frame-inner{position:absolute;inset:19% 21% 17%;display:grid;place-items:center;padding:0}
-.frame-inner img,.frame-inner span{width:100%!important;height:100%!important;object-fit:contain;border-radius:8px}
+.frame-inner{position:absolute;inset:0;display:grid;place-items:center;padding:0}
+.frame-inner img,.frame-inner span{width:100%!important;height:100%!important;object-fit:cover;object-position:top center;border-radius:0}
+.frame-art{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;z-index:2}
 .titlebox{position:relative;display:inline-block;max-width:100%}
 .titlebox img{display:block;width:100%;max-width:340px;height:auto;border-radius:10px}
 .titlebox-name{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:clamp(17px,2.4vw,22px);letter-spacing:-.01em;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.55);padding:0 12%;text-align:center}
@@ -2232,8 +2232,6 @@ a.option{text-decoration:none;color:inherit}
 .studio-avatar-wrap {
   position: relative;
   width: 130px;
-  height: 130px;
-  border-radius: 22px;
   display: grid;
   place-items: center;
 }
@@ -2839,3 +2837,9 @@ a.option{text-decoration:none;color:inherit}
   background: rgba(255, 255, 255, 0.08);
   color: #D8D8D8;
 }
+
+/* Studio character box: square skins fill the square exactly */
+.studio-character-box img{height:100%!important;object-fit:cover;object-position:top center}
+
+/* Character Card rank badge */
+.rank-badge{display:inline-block;font-size:13px;font-weight:800;background:var(--text);color:var(--bg);border-radius:999px;padding:5px 14px;letter-spacing:.02em}

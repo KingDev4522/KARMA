@@ -139,7 +139,7 @@ export default function PersonalizePage() {
         {/* Hero Dais Live Stage (Seamless, no ugly card box) */}
         <section className="studio-hero-stage" aria-label="Current Hero Sanctum">
           {/* Framed Avatar Pedestal with seamless photo upload trigger */}
-          <div className="studio-avatar-pedestal">
+          <div className="studio-avatar-pedestal" style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
             <div className="studio-avatar-wrap">
               <FrameWrap frameSrc={frameAsset} label="Framed profile picture">
                 <span style={{ display: "block", width: 120, borderRadius: 20, overflow: "hidden" }}>
@@ -161,6 +161,17 @@ export default function PersonalizePage() {
                 />
                 {photoBusy ? "…" : <Icon id="i-spark" style={{ width: 15, height: 15 }} />}
               </label>
+              <span style={{ display: "block", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--text-3)", marginTop: 6, letterSpacing: ".08em" }}>
+                PROFILE PICTURE
+              </span>
+            </div>
+            <div className="studio-avatar-wrap">
+              <span className="studio-character-box" style={{ display: "block", width: 120, aspectRatio: "1/1", borderRadius: 20, overflow: "hidden", border: "1px solid var(--border-strong)", background: "var(--surface-2)" }}>
+                <HeroImage assetId={curHeroId} eager alt={`${name} — character`} />
+              </span>
+              <span style={{ display: "block", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--text-3)", marginTop: 6, letterSpacing: ".08em" }}>
+                CHARACTER
+              </span>
             </div>
           </div>
 

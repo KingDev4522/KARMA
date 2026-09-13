@@ -4,7 +4,8 @@ import Link from "next/link";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { AvatarImg, CompanionImage, FrameWrap, CoinImg, Icon, TitleBox } from "@/components/illustrations";
+import { AvatarImg, CompanionImage, FrameWrap, HeroImage, CoinImg, Icon, TitleBox } from "@/components/illustrations";
+import { attrProgress } from "@/lib/identity";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 /** Character Card — collectible identity composition, export-ready. */
@@ -108,18 +109,26 @@ export default function HeroCardPage() {
           <div style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
             <TitleBox boxSrc={titleBoxAsset} name={String(data.heroName ?? "Traveler")} />
           </div>
-          <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
-            Level {data.level} · {data.rank?.display}
+          <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 6 }}>
+            <span className="rank-badge" title={`Level ${data.level}`}>
+              Lv {data.level} · {data.rank?.display ?? "Novice"}
+            </span>
           </p>
           <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".25em", color: "var(--text-3)", margin: "14px 0 6px" }}>CHARACTER</p>
-          <div style={{ display: "flex", justifyContent: "center", margin: "0 0 14px" }}>
+          <div style={{ display: "flex", justifyContent: "center", margin: "0 0 6px" }}>
             <div style={{ width: 180 }}>
               <FrameWrap frameSrc={frameAsset} label="Framed character">
                 <span style={{ display: "block", borderRadius: 16, overflow: "hidden" }}>
-                  <AvatarImg avatarAssetId={data.avatarAssetId} heroAssetId={heroAssetId} width="100%" eager alt={data.heroName ?? "Hero"} />
+                  <HeroImage assetId={heroAssetId} eager alt={String(data.heroName ?? "Character")} />
                 </span>
               </FrameWrap>
             </div>
+          </div>
+          <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".25em", color: "var(--text-3)", margin: "10px 0 6px" }}>PROFILE PICTURE</p>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+            <span style={{ display: "block", width: 72, borderRadius: 14, overflow: "hidden", border: "1px solid var(--border-strong)" }}>
+              <AvatarImg avatarAssetId={data.avatarAssetId} heroAssetId={heroAssetId} width="100%" alt="Profile picture" />
+            </span>
           </div>
           <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".25em", color: "var(--text-3)", margin: "0 0 6px" }}>COMPANION</p>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -127,9 +136,23 @@ export default function HeroCardPage() {
             {data.companionName && <span style={{ fontSize: 12, color: "var(--text-2)", fontWeight: 700 }}>{data.companionName}</span>}
           </div>
           {radarAttrs.length > 0 && (
-            <div style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
-              <RadarChart attrs={radarAttrs} />
-            </div>
+            <>
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
+                <RadarChart attrs={radarAttrs} />
+              </div>
+              <ul style={{ listStyle: "none", margin: "10px auto 0", padding: 0, display: "grid", gap: 6, maxWidth: 300 }} aria-label="Attributes">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {radarAttrs.map((a: any) => (
+                  <li key={a.key} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2px 10px", alignItems: "baseline", fontSize: 12.5 }}>
+                    <span style={{ fontWeight: 700 }}>{a.name}</span>
+                    <span style={{ color: "var(--text-2)", fontWeight: 700 }}>Lv {a.level} · {Number(a.xp) || 0} XP</span>
+                    <span className="attr-bar" style={{ gridColumn: "1 / -1" }}>
+                      <i style={{ width: `${attrProgress(Number(a.level) || 1, Number(a.xp) || 0)}%` }} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
           <p style={{ marginTop: 12, fontSize: 13, fontWeight: 700 }}>
             <Icon id="i-flame" style={{ display: "inline", verticalAlign: -3, color: "var(--text-3)" }} /> {data.streak}-day streak
@@ -147,24 +170,19 @@ export default function HeroCardPage() {
             ))}
           </div>
           {(data.achievements?.length ?? 0) > 0 && (
-            <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <span style={{ display: "inline-flex", gap: 3, alignItems: "center" }}>
+            <div style={{ marginTop: 10 }}>
+              <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".25em", color: "var(--text-3)", margin: "0 0 6px" }}>
+                BADGES · {data.achievements.length}
+              </p>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {data.achievements.slice(0, 5).map((_: any, i: number) => (
-                  <i
-                    key={i}
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: "var(--accent)",
-                      display: "inline-block",
-                      opacity: 0.9 - i * 0.12,
-                    }}
-                  />
+                {data.achievements.slice(0, 6).map((a: any) => (
+                  <li key={a.key} title={a.description ?? a.name} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700, border: "1px solid var(--border)", borderRadius: 999, padding: "4px 10px", color: "var(--text-2)" }}>
+                    <Icon id="i-trophy" style={{ width: 12, height: 12, color: "var(--gold)" }} />
+                    {a.name}
+                  </li>
                 ))}
-              </span>
-              <span style={{ fontSize: 11.5, color: "var(--text-3)" }}>{data.achievements.length} seals earned</span>
+              </ul>
             </div>
           )}
           {typeof data.coins === "number" && (

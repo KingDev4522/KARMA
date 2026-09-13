@@ -729,7 +729,7 @@ export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: 
     prisma.profile.findUnique({ where: { id: userId } }),
     prisma.profileProgression.findUnique({ where: { profileId: userId } }),
     prisma.campaign.findFirst({ where: { userId, status: "active" }, orderBy: { updatedAt: "desc" }, include: { milestones: true } }),
-    prisma.profileAttribute.findMany({ where: { profileId: userId }, include: { attribute: true }, orderBy: { xp: "desc" }, take: 3 }),
+    prisma.profileAttribute.findMany({ where: { profileId: userId }, include: { attribute: true } }),
     prisma.questCompletion.findFirst({ where: { userId }, orderBy: { completedAt: "desc" } }),
     prisma.userLoadout.findUnique({ where: { userId } }),
   ]);
@@ -814,13 +814,17 @@ export async function getToday(userId: string, dateKey = toDayKey(), timeZone?: 
     spark: spark ? withPv(spark) : null,
     progression,
     campaignSummary: campaignSummary ? { ...campaignSummary, progressPct: campaignPct } : null,
-    attributeSnapshot: attrRows.map((a) => ({
-      key: a.attribute.key,
-      name: a.attribute.name,
-      xp: a.xp,
-      level: a.level,
-      recent: recentByAttr.get(a.attribute.key) ?? null,
-    })),
+    attributeSnapshot: (() => {
+      // Full 8-attribute set in canonical order for the overview Growth
+      // panel — a top-3 slice would hide real scores.
+      const byKey = new Map(attrRows.map((a) => [a.attribute.key, a]));
+      return ATTRIBUTE_KEYS.map((key) => {
+        const row = byKey.get(key);
+        return row
+          ? { key, name: row.attribute.name, xp: row.xp, level: row.level, recent: recentByAttr.get(key) ?? null }
+          : { key, name: key.charAt(0).toUpperCase() + key.slice(1), xp: 0, level: 0, recent: null };
+      });
+    })(),
     streak: { current: progression?.currentStreak ?? 0, best: progression?.bestStreak ?? 0, momentum: progression?.momentum ?? 0 },
     recentReward: recentCompletion
       ? { questId: recentCompletion.questId, xp: recentCompletion.rewardXp, coins: recentCompletion.rewardCoins, at: recentCompletion.completedAt }
