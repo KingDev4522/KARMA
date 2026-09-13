@@ -80,6 +80,28 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   const [profileOpen, setProfileOpen] = useState(false);
   const [muted, setMuted] = useState(false);
   const [gate, setGate] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("karma_sidebar_collapsed");
+      if (saved === "true") setCollapsed(true);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("karma_sidebar_collapsed", String(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   // 120 FPS cursor spotlight sheen & sliding magnetic hover pill for the navigation bar
   const topbarRef = useRef<HTMLElement>(null);
@@ -318,44 +340,106 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
       {/* ============ SIDEBAR ============ */}
       <aside
         ref={sideRef}
-        className={`sidebar${sideOpen ? " is-open" : ""}`}
+        className={`sidebar${sideOpen ? " is-open" : ""}${collapsed ? " is-collapsed" : ""}`}
         aria-label="Primary"
         aria-hidden={sideOpen ? "false" : "true"}
       >
         <div className="sidebar__brand">
-          <BrandLogo size={30} />
-          <span className="brand-name">
-            KARMA
-          </span>
+          <Link href="/" className="sidebar__brand-link" title="KARMA Home">
+            <BrandLogo size={28} />
+            <span className="brand-name">
+              KARMA
+              <em className="brand-rpg">RPG</em>
+            </span>
+          </Link>
+          <button
+            type="button"
+            className="sidebar__collapse-btn"
+            onClick={toggleCollapse}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              {collapsed ? (
+                <path d="M9 18l6-6-6-6" />
+              ) : (
+                <path d="M15 18l-6-6 6-6" />
+              )}
+            </svg>
+          </button>
         </div>
+
         <div className="sidebar__label">Workspace</div>
         <nav aria-label="Workspace">
           {NAV.map((n) => (
-            <Link key={n.id} href={n.href} data-tour={n.id} onMouseEnter={() => prefetchRoute(n.href)} onFocus={() => prefetchRoute(n.href)} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
-              <Icon id={n.icon} />
-              <span>{n.label}</span>
-              {n.id === "quests" && identity.active > 0 && <em className="nav-badge">{identity.active}</em>}
+            <Link
+              key={n.id}
+              href={n.href}
+              data-tour={n.id}
+              title={n.label}
+              onMouseEnter={() => prefetchRoute(n.href)}
+              onFocus={() => prefetchRoute(n.href)}
+              aria-current={isActive(n.href) ? "page" : undefined}
+              className={`nav-item${isActive(n.href) ? " is-active" : ""}`}
+            >
+              <span className="nav-icon-wrap">
+                <Icon id={n.icon} />
+                {n.id === "quests" && identity.active > 0 && (
+                  <em className="nav-badge nav-badge--floating">{identity.active}</em>
+                )}
+              </span>
+              <span className="nav-label">{n.label}</span>
+              {n.id === "quests" && identity.active > 0 && (
+                <em className="nav-badge nav-badge--inline">{identity.active}</em>
+              )}
             </Link>
           ))}
         </nav>
-        <div className="sidebar__divider" />
+
+        <div className="sidebar__divider" role="separator">
+          <span className="divider-line" />
+          <span className="divider-rune">◈</span>
+          <span className="divider-line" />
+        </div>
+
+        <div className="sidebar__label">Realm & Codex</div>
         <nav aria-label="More">
           {MORE.map((n) => (
-            <Link key={n.id} href={n.href} data-tour={n.id} onMouseEnter={() => prefetchRoute(n.href)} onFocus={() => prefetchRoute(n.href)} aria-current={isActive(n.href) ? "page" : undefined} className={`nav-item${isActive(n.href) ? " is-active" : ""}`}>
-              <Icon id={n.icon} />
-              <span>{n.label}</span>
-              {n.id === "store" && <em className="nav-dot" />}
+            <Link
+              key={n.id}
+              href={n.href}
+              data-tour={n.id}
+              title={n.label}
+              onMouseEnter={() => prefetchRoute(n.href)}
+              onFocus={() => prefetchRoute(n.href)}
+              aria-current={isActive(n.href) ? "page" : undefined}
+              className={`nav-item${isActive(n.href) ? " is-active" : ""}`}
+            >
+              <span className="nav-icon-wrap">
+                <Icon id={n.icon} />
+                {n.id === "store" && <em className="nav-dot nav-dot--floating" />}
+              </span>
+              <span className="nav-label">{n.label}</span>
+              {n.id === "store" && <em className="nav-dot nav-dot--inline" />}
             </Link>
           ))}
         </nav>
+
+        {/* User profile */}
         <Link href="/personalize" className="sidebar__user" title="Open Personalize">
-          <span className="avatar" style={{ overflow: "hidden" }}>
-            <AvatarImg avatarAssetId={identity.avatarAssetId} heroAssetId={identity.heroAssetId} width={26} alt={identity.heroName} />
+          <span className="avatar">
+            <AvatarImg
+              avatarAssetId={identity.avatarAssetId}
+              heroAssetId={identity.heroAssetId}
+              width={30}
+              alt={identity.heroName}
+            />
           </span>
-          <span>
-            <strong>{identity.heroName}</strong>
-            <span>
+          <span className="sidebar__user-info">
+            <strong className="sidebar__user-name">{identity.heroName}</strong>
+            <span className="sidebar__user-meta">
               Lv {identity.level} · {identity.rank}
+              {identity.streak > 0 && ` · ${identity.streak}d`}
             </span>
           </span>
           <span className="rank-insignia" title={`Level ${identity.level}`}>

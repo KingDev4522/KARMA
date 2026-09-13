@@ -34,6 +34,98 @@ export const TRACK_FILES = [
   { name: "Sandalwood", src: "/audio/bgm-sandalwood.mp3" },
 ];
 
+export interface ClassicalFocusTrack {
+  id: string;
+  name: string;
+  movement: string;
+  instrument: string;
+  src: string;
+  fallbackSrc: string;
+}
+
+export const FOCUS_CLASSICAL_TRACKS: ClassicalFocusTrack[] = [
+  {
+    id: "solo-piano-1",
+    name: "Nocturne in C Minor",
+    movement: "Solo Piano · Take 1",
+    instrument: "Piano",
+    src: "/audio/focus/solo-piano-1.wav",
+    fallbackSrc: "/audio/focus/Focus%20Classical%20I_%20Solo%20Piano%20(Take%201).wav",
+  },
+  {
+    id: "solo-piano-2",
+    name: "Clair de Lune Reverie",
+    movement: "Solo Piano · Take 2",
+    instrument: "Piano",
+    src: "/audio/focus/solo-piano-2.wav",
+    fallbackSrc: "/audio/focus/Focus%20Classical%20I_%20Solo%20Piano%20(Take%202).wav",
+  },
+  {
+    id: "solo-cello-1",
+    name: "Cello Suite No. 1: Prélude",
+    movement: "Solo Cello · Take 1",
+    instrument: "Cello",
+    src: "/audio/focus/solo-cello-1.wav",
+    fallbackSrc: "/audio/focus/Focus%20Classical%20II_%20Solo%20Cello%20(Take%201).wav",
+  },
+  {
+    id: "solo-cello-2",
+    name: "Élégie for Deep Thought",
+    movement: "Solo Cello · Take 2",
+    instrument: "Cello",
+    src: "/audio/focus/solo-cello-2.wav",
+    fallbackSrc: "/audio/focus/Focus%20Classical%20II_%20Solo%20Cello%20(Take%202).wav",
+  },
+  {
+    id: "classical-trumpet-1",
+    name: "Heroic Fanfare in D Major",
+    movement: "Classical Trumpet · Take 1",
+    instrument: "Trumpet",
+    src: "/audio/focus/classical-trumpet-1.wav",
+    fallbackSrc: "/audio/focus/Focus%20Classical%20III_%20Classical%20Trumpet%20(Take%201).wav",
+  },
+  {
+    id: "classical-trumpet-2",
+    name: "Aria for Quiet Dawn",
+    movement: "Classical Trumpet · Take 2",
+    instrument: "Trumpet",
+    src: "/audio/focus/classical-trumpet-2.wav",
+    fallbackSrc: "/audio/focus/Focus%20Classical%20III_%20Classical%20Trumpet%20(Take%202).wav",
+  },
+  {
+    id: "lofi-beats-1",
+    name: "Midnight Coffee Chillhop",
+    movement: "Lo-Fi Beats · Take 1",
+    instrument: "Lo-Fi",
+    src: "/audio/focus/lofi-beats-1.wav",
+    fallbackSrc: "/audio/focus/Focus%20IV_%20Lo-Fi%20Beats%20(Take%201).wav",
+  },
+  {
+    id: "lofi-beats-2",
+    name: "Velvet Study Groove",
+    movement: "Lo-Fi Beats · Take 2",
+    instrument: "Lo-Fi",
+    src: "/audio/focus/lofi-beats-2.wav",
+    fallbackSrc: "/audio/focus/Focus%20IV_%20Lo-Fi%20Beats%20(Take%202).wav",
+  },
+  {
+    id: "sax-orchestral-2",
+    name: "Symphonic Noir & Saxophone",
+    movement: "Sax & Orchestral · Take 2",
+    instrument: "Saxophone",
+    src: "/audio/focus/sax-orchestral-2.wav",
+    fallbackSrc: "/audio/focus/Focus%20Classical%20V_%20Sax%20%26%20Orchestral%20(Take%202).wav",
+  },
+  {
+    id: "italian-cinematic",
+    name: "Cinema Paradiso Nocturne",
+    movement: "Dramatic Italian Cinematic Cover",
+    instrument: "Orchestral Strings",
+    src: "/audio/focus/italian-cinematic.wav",
+    fallbackSrc: "/audio/focus/Dramatic%20Italian%20Cinematic%20Cover.wav",
+  },
+];
+
 export function isMobileViewport(): boolean {
   try {
     return window.matchMedia("(max-width: 760px)").matches;
@@ -41,3 +133,4 @@ export function isMobileViewport(): boolean {
     return false;
   }
 }
+

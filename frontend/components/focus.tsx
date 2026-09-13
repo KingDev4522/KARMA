@@ -10,7 +10,8 @@ import { ATTR_META, LevelUpModal, announceAchievements, questAttrKey } from "@/c
 import { Celebration, celebrationFrom, type CelebrationData } from "@/components/celebration";
 import { Scenery, sceneryIndexFor, useIsMobileViewport, SCENERY_COUNT } from "@/components/scenery";
 import { SCENERY_FILES } from "@/lib/media";
-import { bgmEnabled, setBgmEnabled, ensureBgm } from "@/lib/bgm";
+import { bgmEnabled, ensureBgm, stopBgm } from "@/lib/bgm";
+import { FocusAudioPlayer } from "@/components/FocusAudioPlayer";
 
 export interface FocusQuest {
   id?: string;
@@ -321,18 +322,13 @@ export function FocusProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
   }, [quest, sceneIdx, isMobileView]);
-  const [muted, setMuted] = useState(false);
-
   useEffect(() => {
-    if (quest) setMuted(!bgmEnabled());
+    if (quest) {
+      stopBgm();
+    } else {
+      if (bgmEnabled()) void ensureBgm();
+    }
   }, [quest]);
-
-  const toggleMute = () => {
-    const next = !bgmEnabled();
-    setBgmEnabled(next);
-    if (next) void ensureBgm();
-    setMuted(!next);
-  };
 
   return (
     <FocusCtx.Provider value={{ openFocus, focusSeq: seq }}>
@@ -368,15 +364,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
           <Icon id="i-close" style={{ width: 15, height: 15 }} />
           Leave focus
         </button>
-        <button
-          className="icon-btn focus-mute"
-          onClick={toggleMute}
-          title={muted ? "Unmute ambient music" : "Mute ambient music"}
-          aria-label={muted ? "Unmute ambient music" : "Mute ambient music"}
-          aria-pressed={!muted}
-        >
-          <Icon id={muted ? "i-volx" : "i-vol"} style={{ width: 15, height: 15 }} />
-        </button>
+
         <div className="focus-stage">
           <div className="focus-label">Focus session</div>
           <div className="focus-timer" role="timer" aria-label={`${mm} minutes ${ss} seconds left`}>
@@ -402,7 +390,11 @@ export function FocusProvider({ children }: { children: ReactNode }) {
               {error}
             </p>
           )}
-          <div className="focus-actions">
+
+          {/* Visible Classical & Lo-Fi Focus Music Player playing on Shuffle */}
+          <FocusAudioPlayer active={!!quest} />
+
+          <div className="focus-actions" style={{ marginTop: 16 }}>
             <button className="btn btn--ghost btn--lg" onClick={running ? pause : resume}>
               <Icon id={running ? "i-pause" : "i-play"} style={{ width: 16, height: 16 }} />
               <span>{running ? "Pause" : "Resume"}</span>
