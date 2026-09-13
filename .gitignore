@@ -40,6 +40,12 @@ Thumbs.db
 .vscode/
 .idea/
 
+# User-requested ignores (not recommended — breaks team sync, deployment, onboarding)
+PRDS/
+supabase/
+package-lock.json
+package.json
+
 # WAV studio masters (15MB) - archive locally, never ship to git/Vercel.
 # MP3s in assets/audio/ + frontend/public/audio/ ARE committed.
 assets/audio/wav/
