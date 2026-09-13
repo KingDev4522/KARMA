@@ -8,7 +8,8 @@ import { useToast } from "@/components/toast";
 import { Icon } from "@/components/illustrations";
 import { ATTR_META, LevelUpModal, announceAchievements, questAttrKey } from "@/components/quests";
 import { Celebration, celebrationFrom, type CelebrationData } from "@/components/celebration";
-import { Scenery, sceneryIndexFor } from "@/components/scenery";
+import { Scenery, sceneryIndexFor, useIsMobileViewport, SCENERY_COUNT } from "@/components/scenery";
+import { SCENERY_FILES } from "@/lib/media";
 import { bgmEnabled, setBgmEnabled, ensureBgm } from "@/lib/bgm";
 
 export interface FocusQuest {
@@ -306,6 +307,20 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const ss = String(left % 60).padStart(2, "0");
   // One scenery per minute of the session (6 vignettes, cycling).
   const sceneIdx = sceneryIndexFor(total - left);
+  const isMobileView = useIsMobileViewport();
+
+  // Preload next minute's art (correct orientation) so rotation never flashes.
+  useEffect(() => {
+    if (!quest) return;
+    try {
+      const next = SCENERY_FILES[(sceneIdx + 1) % SCENERY_COUNT];
+      const img = new Image();
+      img.decoding = "async";
+      img.src = isMobileView ? next.mobile : next.desktop;
+    } catch {
+      /* ignore */
+    }
+  }, [quest, sceneIdx, isMobileView]);
   const [muted, setMuted] = useState(false);
 
   useEffect(() => {
@@ -346,7 +361,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
       <div className={`focus-session${quest ? " is-open" : ""}`} role="dialog" aria-modal={!!quest} aria-label="Focus session">
         {quest && (
           <div className="focus-scenery" aria-hidden="true">
-            <Scenery key={sceneIdx} index={sceneIdx} className="sc-scene-enter" />
+            <Scenery key={sceneIdx} index={sceneIdx} eager className="sc-scene-enter" />
           </div>
         )}
         <button className="btn btn--ghost focus-exit" onClick={exit}>

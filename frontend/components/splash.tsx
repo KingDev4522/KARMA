@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { client, type H } from "@/lib/api";
 import { SPLASH_FILES } from "@/lib/media";
+import { useIsMobileViewport } from "@/components/scenery";
 const MIN_MS = 3000;
 const MAX_MS = 9000;
 
@@ -16,7 +17,8 @@ export function Splash({ authHeaders, heroName }: { authHeaders: () => H; heroNa
   const [videoGone, setVideoGone] = useState(false);
   const [ready, setReady] = useState(false);
   const [gone, setGone] = useState(false);
-  const [mobile, setMobile] = useState(false);
+  // Viewport-decided from first paint (no desktop flash on phones).
+  const mobile = useIsMobileViewport();
   const [calm] = useState(() =>
     typeof document !== "undefined" &&
     (document.documentElement.dataset.motion === "off" || window.matchMedia("(prefers-reduced-motion: reduce)").matches),
@@ -25,14 +27,6 @@ export function Splash({ authHeaders, heroName }: { authHeaders: () => H; heroNa
   const art = mobile
     ? { img: SPLASH_FILES.mobile, webm: SPLASH_FILES.loopWebmMobile, mp4: SPLASH_FILES.loopMp4Mobile }
     : { img: SPLASH_FILES.desktop, webm: SPLASH_FILES.loopWebmDesktop, mp4: SPLASH_FILES.loopMp4Desktop };
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 760px)");
-    setMobile(mq.matches);
-    const onMq = (e: MediaQueryListEvent) => setMobile(e.matches);
-    mq.addEventListener("change", onMq);
-    return () => mq.removeEventListener("change", onMq);
-  }, []);
 
   useEffect(() => {
     const t0 = Date.now();

@@ -1,7 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SCENERY_FILES } from "@/lib/media";
+
+/** Live viewport detection (≤760px = mobile). Single source of truth so no
+ *  caller can forget to pass the right art set. */
+export function useIsMobileViewport(): boolean {
+  const [mobile, setMobile] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 760px)").matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 760px)");
+    setMobile(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setMobile(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return mobile;
+}
 
 /**
  * Scenery — six hand-built animated SVG vignettes (Himalayan dawn, Thar gold,
@@ -107,7 +123,11 @@ export function Scenery({
 }) {
   const i = ((index % SCENERY_COUNT) + SCENERY_COUNT) % SCENERY_COUNT;
   const [failed, setFailed] = useState(false);
-  const src = mobile ? SCENERY_FILES[i].mobile : SCENERY_FILES[i].desktop;
+  // Explicit prop wins (SSR/tests); otherwise the live viewport decides —
+  // mobile art on mobile, desktop art on desktop, re-evaluated on resize.
+  const autoMobile = useIsMobileViewport();
+  const isMobile = mobile ?? autoMobile;
+  const src = isMobile ? SCENERY_FILES[i].mobile : SCENERY_FILES[i].desktop;
   if (!failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -123,7 +143,7 @@ export function Scenery({
       />
     );
   }
-  return <ScenerySvg index={i} mobile={mobile} className={className} label={label} />;
+  return <ScenerySvg index={i} mobile={isMobile} className={className} label={label} />;
 }
 
 function ScenerySvg({
