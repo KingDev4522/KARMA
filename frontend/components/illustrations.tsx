@@ -77,13 +77,14 @@ export function Companion({ width = "100%" }: { width?: string | number }) {
    back to the SVG linework only if the raster is missing, so old
    profiles and slow networks never render blank.
    ============================================================ */
-
-export function HeroImage({  assetId,
+export function HeroImage({
+  assetId,
   variant,
   width = "100%",
   className,
   alt = "Hero portrait",
   eager = false,
+  fill = false,
 }: {
   assetId?: string | null;
   variant?: HeroVariant;
@@ -91,6 +92,7 @@ export function HeroImage({  assetId,
   className?: string;
   alt?: string;
   eager?: boolean;
+  fill?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const { hero, variant: v } = resolveHero(assetId);
@@ -101,7 +103,7 @@ export function HeroImage({  assetId,
         <span
           role="img"
           aria-label={alt}
-          style={{ display: "grid", placeItems: "center", width: "100%", aspectRatio: "3/4", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
+          style={{ display: "grid", placeItems: "center", width: "100%", height: fill ? "100%" : undefined, aspectRatio: fill ? undefined : "3/4", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
         >
           <Icon id="i-realm" style={{ width: "40%", height: "40%" }} />
         </span>
@@ -114,8 +116,8 @@ export function HeroImage({  assetId,
     <img
       src={hero.file(useVariant)}
       alt={`${hero.name} · ${useVariant} — ${alt}`}
-      width={typeof width === "number" ? width : undefined}
-      style={typeof width === "number" ? undefined : { width: width as string, height: "auto", display: "block" }}
+      width={!fill && typeof width === "number" ? width : undefined}
+      style={fill ? { width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block" } : typeof width === "number" ? undefined : { width: width as string, height: "auto", display: "block" }}
       className={className}
       loading={eager ? "eager" : "lazy"}
       decoding="async"
@@ -129,11 +131,13 @@ export function CompanionImage({
   width = 72,
   alt = "Companion",
   eager = false,
+  fill = false,
 }: {
   assetId?: string | null;
   width?: string | number;
   alt?: string;
   eager?: boolean;
+  fill?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const c = resolveCompanion(assetId);
@@ -143,7 +147,7 @@ export function CompanionImage({
         <span
           role="img"
           aria-label={alt}
-          style={{ display: "grid", placeItems: "center", width: typeof width === "number" ? width : "100%", aspectRatio: "1", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
+          style={{ display: "grid", placeItems: "center", width: "100%", height: fill ? "100%" : undefined, aspectRatio: fill ? undefined : "1", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
         >
           <Icon id="i-spark" style={{ width: "40%", height: "40%" }} />
         </span>
@@ -156,8 +160,8 @@ export function CompanionImage({
     <img
       src={c.src}
       alt={`${c.name} — ${alt}`}
-      width={typeof width === "number" ? width : undefined}
-      style={typeof width === "number" ? { height: "auto", borderRadius: 12 } : { width: width as string, height: "auto", display: "block", borderRadius: 12 }}
+      width={!fill && typeof width === "number" ? width : undefined}
+      style={fill ? { width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" } : typeof width === "number" ? { height: "auto", borderRadius: 12 } : { width: width as string, height: "auto", display: "block", borderRadius: 12 }}
       loading={eager ? "eager" : "lazy"}
       decoding="async"
       onError={() => setFailed(true)}
@@ -184,7 +188,9 @@ export function CoinImg({ size = 16 }: { size?: number }) {
   );
 }
 
-/** App brand mark (assets/logo.png). Falls back to the letter mark. */
+/** App brand mark (assets/logo.png). The art is dark-on-black, so it always
+ *  sits on a white tile — visible on light and dark themes alike. Falls back
+ *  to the letter mark. */
 export function BrandLogo({ size = 30 }: { size?: number }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
@@ -195,17 +201,31 @@ export function BrandLogo({ size = 30 }: { size?: number }) {
     );
   }
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/brand/logo.png"
-      alt="LIFE RPG"
-      width={size}
-      height={size}
-      style={{ width: size, height: size, objectFit: "contain", borderRadius: 8 }}
-      loading="eager"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-grid",
+        placeItems: "center",
+        width: size,
+        height: size,
+        borderRadius: Math.max(6, Math.round(size * 0.28)),
+        background: "#FFFFFF",
+        overflow: "hidden",
+        flex: "none",
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/logo.png"
+        alt="LIFE RPG"
+        width={size}
+        height={size}
+        style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+        loading="eager"
+        decoding="async"
+        onError={() => setFailed(true)}
+      />
+    </span>
   );
 }
 
@@ -223,12 +243,14 @@ export function AvatarImg({
   width = 32,
   alt = "Profile",
   eager = false,
+  fill = false,
 }: {
   avatarAssetId?: string | null;
   heroAssetId?: string | null;
   width?: string | number;
   alt?: string;
   eager?: boolean;
+  fill?: boolean;
 }) {
   // No identity at all (signed out / fresh) → neutral silhouette, NEVER a
   // default character. No hero is hardcoded anywhere in the UI.
@@ -261,16 +283,16 @@ export function AvatarImg({
       <img
         src={a.photoUrl}
         alt={alt}
-        width={typeof width === "number" ? width : undefined}
-        style={typeof width === "number" ? { height: "auto", borderRadius: 12, objectFit: "cover" } : { width: width as string, height: "auto", display: "block", borderRadius: 12, objectFit: "cover" }}
+        width={!fill && typeof width === "number" ? width : undefined}
+        style={fill ? { width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" } : typeof width === "number" ? { height: "auto", borderRadius: 12, objectFit: "cover" } : { width: width as string, height: "auto", display: "block", borderRadius: 12, objectFit: "cover" }}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
         onError={() => setPhotoGone(true)}
       />
     );
   }
-  if (a.kind === "companion") return <CompanionImage assetId={a.companion.id} width={width} alt={alt} eager={eager} />;
-  return <HeroImage assetId={`${a.hero.id}-${a.variant}`} width={width} alt={alt} eager={eager} />;
+  if (a.kind === "companion") return <CompanionImage assetId={a.companion.id} width={width} alt={alt} eager={eager} fill={fill} />;
+  return <HeroImage assetId={`${a.hero.id}-${a.variant}`} width={width} alt={alt} eager={eager} fill={fill} />;
 }
 
 export function FrameWrap({
@@ -330,6 +352,44 @@ export function EnvStack() {
         <use href="#ill-env-night" />
       </svg>
     </div>
+  );
+}
+
+/* ============================================================
+   TERMINOLOGY LOCK (see LRP-AVATAR-002):
+   - Avatar = one of the six characters. NEVER framed, never mixed.
+   - Profile Picture = photo / companion / character image choice.
+     ONLY the profile picture ever wears a frame.
+   - Title Box = name plate. Shows the name, always legible.
+   ============================================================ */
+
+/** Profile picture in a small slot, wearing the equipped frame (if any).
+ *  Square badge: frame art as backdrop, picture inset. No frame → plain. */
+export function FramedAvatar({
+  avatarAssetId,
+  heroAssetId,
+  frameSrc,
+  size = 32,
+  alt = "Profile",
+}: {
+  avatarAssetId?: string | null;
+  heroAssetId?: string | null;
+  frameSrc?: string | null;
+  size?: number;
+  alt?: string;
+}) {
+  const [frameGone, setFrameGone] = useState(false);
+  if (!frameSrc || frameGone) {
+    return <AvatarImg avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} width={size} alt={alt} />;
+  }
+  return (
+    <span className="frame-badge" style={{ width: size, height: size }} role="img" aria-label={alt}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={frameSrc} alt="" aria-hidden="true" className="frame-badge-art" loading="lazy" decoding="async" onError={() => setFrameGone(true)} />
+      <span className="frame-badge-inner">
+        <AvatarImg avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} width="100%" alt={alt} />
+      </span>
+    </span>
   );
 }
 

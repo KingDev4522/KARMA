@@ -9,7 +9,7 @@ export default function Loading() {
     <div className="page is-active" aria-busy="true" aria-label="Loading">
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/logo.png" alt="" width={34} height={34} style={{ borderRadius: 9, objectFit: "contain" }} />
+        <img src="/brand/logo.png" alt="" width={34} height={34} style={{ borderRadius: 9, objectFit: "contain", background: "#FFFFFF", padding: 3 }} />
         <p style={{ fontSize: 13.5, color: "var(--text-2)" }}>Summoning your realm…</p>
       </div>
       <Skeleton label="content" rows={4} />

@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { client } from "@/lib/api";
-import { Icon, IconSprite, BrandLogo, CoinImg, AvatarImg, type IconId } from "@/components/illustrations";
+import { Icon, IconSprite, BrandLogo, CoinImg, FramedAvatar, type IconId } from "@/components/illustrations";
 import { useIdentity } from "@/lib/identity-context";
 import { Splash, splashSeen } from "@/components/splash";
 import type { Notice } from "@/lib/types";
@@ -193,11 +193,12 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
       if (todayData) {
         // Union: team's parallel fetch + safe access, plus avatar fields so
         // the sidebar/profile show the real hero and profile picture.
-        const hero = (todayData as unknown as { hero?: { heroAssetId?: string | null; avatarAssetId?: string | null } }).hero;
+        const hero = (todayData as unknown as { hero?: { heroAssetId?: string | null; avatarAssetId?: string | null; frameAsset?: string | null } }).hero;
         setIdentity({
           heroName: todayData.greeting?.heroName ?? "Aki",
           heroAssetId: hero?.heroAssetId ?? null,
           avatarAssetId: hero?.avatarAssetId ?? null,
+          frameAsset: hero?.frameAsset ?? null,
           level: todayData.greeting?.heroLevel ?? 1,
           rank: todayData.greeting?.rank?.display ?? "Drifter",
           coins: todayData.greeting?.coins ?? 0,
@@ -361,7 +362,6 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
             <BrandLogo size={28} />
             <span className="brand-name">
               KARMA
-              <em className="brand-rpg">RPG</em>
             </span>
           </Link>
           <button
@@ -440,10 +440,11 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
         {/* User profile */}
         <Link href="/personalize" className="sidebar__user" title="Open Personalize">
           <span className="avatar">
-            <AvatarImg
+            <FramedAvatar
               avatarAssetId={identity.avatarAssetId}
               heroAssetId={identity.heroAssetId}
-              width={30}
+              frameSrc={identity.frameAsset}
+              size={30}
               alt={identity.heroName}
             />
           </span>
@@ -614,7 +615,7 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
                   aria-expanded={profileOpen}
                 >
                   <span className="avatar" style={{ width: 32, height: 32, overflow: "hidden" }}>
-                    <AvatarImg avatarAssetId={identity.avatarAssetId} heroAssetId={identity.heroAssetId} width={24} alt={identity.heroName} />
+                    <FramedAvatar avatarAssetId={identity.avatarAssetId} heroAssetId={identity.heroAssetId} frameSrc={identity.frameAsset} size={32} alt={identity.heroName} />
                   </span>
                 </button>
                 <div className={`dropdown${profileOpen ? " is-open" : ""}`} role="menu" aria-label="Profile">

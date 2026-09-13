@@ -37,3 +37,5 @@ assert.equal(focusCancelPenalty(300), 0);
 assert.equal(focusCancelPenalty(2700), 0);
 
 console.log("penalties.test.ts: all assertions passed");
+
+

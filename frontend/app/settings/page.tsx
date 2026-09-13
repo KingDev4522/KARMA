@@ -268,6 +268,9 @@ export default function SettingsPage() {
             Sync now
           </button>
         </div>
+        <p style={{ fontSize: 11.5, color: "var(--text-3)", marginTop: 8 }}>
+          App build {process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local"} — if the site looks outdated, hard-refresh (Ctrl+Shift+R).
+        </p>
       </div>
 
       <div className="settings-panel">

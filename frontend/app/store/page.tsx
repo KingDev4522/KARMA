@@ -545,7 +545,7 @@ export default function StorePage() {
                             "…"
                           ) : (
                             <>
-                              <Icon id="i-coin" />
+                              <CoinImg size={14} />
                               {it.price.toLocaleString("en-US")}
                             </>
                           )}
