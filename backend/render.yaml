@@ -5,17 +5,27 @@
 # outage we hit when new columns/enums were added but the live DB was never
 # migrated.
 #
-# DATABASE_URL must be the DIRECT (non-pooled) Supabase connection for
-# migrations. In the Render dashboard set:
-#   DATABASE_URL  = direct connection string (port 5432, ?sslmode=require)
-#   DIRECT_URL    = same direct string
+# IMPORTANT — Render cannot reach the Supabase DIRECT connection.
+# Supabase's direct host `db.<ref>.supabase.co:5432` is IPv6-only, and Render
+# has no outbound IPv6 (Supabase lists Render as IPv6-incompatible). Using the
+# direct string here causes P1001 "Can't reach database server".
+#
+# Use the Supavisor pooler host instead (Supabase dashboard → Connect):
+#   DATABASE_URL = Supavisor session pooler, port 5432
+#     postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+#   DIRECT_URL   = the same session-pooler string (prisma migrate deploy runs
+#                  through it; migrations work in session mode, NOT in
+#                  transaction mode on port 6543)
 #   SUPABASE_URL  = https://<ref>.supabase.co
 #   SUPABASE_JWT_SECRET = your HS256 secret
 #   CORS_ORIGIN   = comma-separated allowed origins (e.g. your Vercel URL)
 #   NODE_ENV      = production
 #
-# Do not use the pooled URL for DATABASE_URL during migrate/seed — Prisma
-# migrations and psql's ALTER TYPE need a direct connection.
+# If you prefer transaction mode for the app (port 6543), keep DIRECT_URL on
+# session mode: set DATABASE_URL to ...:6543/postgres?pgbouncer=true&connection_limit=1
+# and leave DIRECT_URL on ...:5432 for migrations.
+#
+# The password must be URL-encoded (@ → %40, # → %23, / → %2F, etc.).
 
 services:
   - type: web
@@ -33,8 +43,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 4000
+      # Do not hardcode PORT: Render injects its own PORT at runtime.
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
