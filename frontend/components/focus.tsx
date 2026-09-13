@@ -46,6 +46,9 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const [celebration, setCelebration] = useState<CelebrationData | null>(null);
   const [recovered, setRecovered] = useState<{ id: string; questId?: string; title: string; remaining: number; planned: number } | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Guards the timer-zero auto-finish so the background save fires exactly once
+  // even though `left` stays 0 across re-renders.
+  const finishingRef = useRef(false);
 
   const stopTick = () => {
     if (timer.current) clearInterval(timer.current);
@@ -143,6 +146,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   const openFocus = useCallback(
     async (q: FocusQuest) => {
       setError(null);
+      finishingRef.current = false;
       const secs = Math.max(60, Math.round(q.minutes) * 60);
       setQuest(q);
       setTotal(secs);
@@ -173,8 +177,10 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   // PRD chain: Focus finish on a linked quest completes the quest server-side
   // so XP + Coins + Attributes + Streak land in one tap. Idempotency key is
   // derived from the session so retries/auto-finish can never double-grant.
+  // Takes an explicit title snapshot because callers now close the overlay
+  // instantly (for the close animation) before this background work lands.
   const completeLinkedQuest = useCallback(
-    async (questId: string | undefined, sid: string | null) => {
+    async (questId: string | undefined, sid: string | null, titleSnapshot?: string) => {
       if (!questId) {
         toast("Focus session complete — well held.", "i-focus");
         return;
@@ -182,7 +188,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
       try {
         const r = await client.completeQuest(authHeaders(), questId, `focus-${sid ?? "free"}`);
         void import("@/lib/sound").then((s) => s.playCoin()).catch(() => undefined);
-        toast(`“${quest?.title ?? "Quest"}” complete · +${r.rewardXp} XP · +${r.rewardCoins} coins`, "i-check");
+        toast(`“${titleSnapshot ?? quest?.title ?? "Quest"}” complete · +${r.rewardXp} XP · +${r.rewardCoins} coins`, "i-check");
         announceAchievements(r, toast);
         setCelebration(celebrationFrom(r));
         if (r.leveledUp) setCeremony(r);
@@ -199,21 +205,32 @@ export function FocusProvider({ children }: { children: ReactNode }) {
     [authHeaders, quest?.title],
   );
 
-  // Auto-finish at zero
+  // Auto-finish at zero — INSTANT CLOSE: the overlay hides the same tick the
+  // timer hits 0 so the close animation starts immediately. The backend
+  // finish + quest reward continue in the background; the animated toast /
+  // celebration lands when the save completes.
   useEffect(() => {
     if (quest && left === 0 && sessionId) {
+      if (finishingRef.current) return;
+      finishingRef.current = true;
       const qid = quest.id;
       const sid = sessionId;
+      const titleSnap = quest.title;
+      const totalSnap = total;
+      const headers = authHeaders();
+      // Close now — animation starts this frame, never waits on the network.
+      stopTick();
+      setRunning(false);
+      setQuest(null);
+      setSessionId(null);
       client
-        .finishFocus(authHeaders(), sid, { status: "completed", actualSeconds: total })
+        .finishFocus(headers, sid, { status: "completed", actualSeconds: totalSnap })
         .catch(() => undefined)
         .finally(() => {
-          stopTick();
-          setRunning(false);
           setSeq((s) => s + 1);
-          void completeLinkedQuest(qid, sid);
-          setQuest(null);
-          setSessionId(null);
+          void completeLinkedQuest(qid, sid, titleSnap).finally(() => {
+            finishingRef.current = false;
+          });
           window.dispatchEvent(new CustomEvent("liferpg:refresh"));
         });
     }
@@ -255,52 +272,81 @@ export function FocusProvider({ children }: { children: ReactNode }) {
 
   const finish = useCallback(
     async (done: boolean) => {
+      // INSTANT CLOSE: snapshot everything, hide the overlay this tick so the
+      // close animation never waits on the backend. The finish + reward save
+      // runs in the background; the animated toast/celebration lands after.
       const qid = quest?.id;
+      const titleSnap = quest?.title;
       const sid = sessionId;
-      if (sid) {
+      const elapsedSnap = total - left;
+      const headers = authHeaders();
+      const completeInBg = completeLinkedQuest;
+      stopTick();
+      setRunning(false);
+      setQuest(null);
+      setSessionId(null);
+      setError(null);
+      if (!sid) {
+        if (done) {
+          setSeq((s) => s + 1);
+          void completeInBg(qid, null, titleSnap);
+          window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+        }
+        return;
+      }
+      void (async () => {
         try {
-          await client.finishFocus(authHeaders(), sid, {
+          await client.finishFocus(headers, sid, {
             status: done ? "completed" : "cancelled",
-            actualSeconds: total - left,
+            actualSeconds: elapsedSnap,
           });
         } catch (e) {
           if (done) {
-            setError(e instanceof Error ? e.message : "Couldn't finish session.");
+            toast(e instanceof Error ? e.message : "Couldn't finish session — it stays on the board.", "i-close");
+            window.dispatchEvent(new CustomEvent("liferpg:refresh"));
             return;
           }
         }
-      }
-      stopTick();
-      setRunning(false);
-      if (done) {
-        setSeq((s) => s + 1);
-        await completeLinkedQuest(qid, sid);
-        window.dispatchEvent(new CustomEvent("liferpg:refresh"));
-      }
-      setQuest(null);
-      setSessionId(null);
+        if (done) {
+          setSeq((s) => s + 1);
+          await completeInBg(qid, sid, titleSnap);
+          window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+        } else {
+          window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+        }
+      })();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sessionId, total, left, quest?.id, completeLinkedQuest],
+    [sessionId, total, left, quest?.id, quest?.title, completeLinkedQuest],
   );
 
   const exit = useCallback(async () => {
-    if (sessionId) {
-      try {
-        const res = (await client.finishFocus(authHeaders(), sessionId, { status: "cancelled", actualSeconds: total - left })) as { penaltyXp?: number };
-        if ((res?.penaltyXp ?? 0) > 0) {
-          void import("@/lib/sound").then((s) => s.playAbandon()).catch(() => undefined);
-          toast(`Left early · −${res.penaltyXp} XP — the quest waits for another run`, "i-close");
-        }
-      } catch {
-        /* leaving anyway */
-      }
-    }
+    // INSTANT CLOSE: leave animation starts immediately; the cancel + any
+    // early-leave penalty resolve in the background with their own toast.
+    const sid = sessionId;
+    const elapsedSnap = total - left;
+    const headers = authHeaders();
     stopTick();
     setRunning(false);
     setQuest(null);
     setSessionId(null);
+    setError(null);
     window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+    if (sid) {
+      void (async () => {
+        try {
+          const res = (await client.finishFocus(headers, sid, { status: "cancelled", actualSeconds: elapsedSnap })) as { penaltyXp?: number };
+          if ((res?.penaltyXp ?? 0) > 0) {
+            void import("@/lib/sound").then((s) => s.playAbandon()).catch(() => undefined);
+            toast(`Left early · −${res.penaltyXp} XP — the quest waits for another run`, "i-close");
+          }
+          setSeq((s) => s + 1);
+          window.dispatchEvent(new CustomEvent("liferpg:refresh"));
+        } catch {
+          /* leaving anyway */
+        }
+      })();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, total, left]);
 

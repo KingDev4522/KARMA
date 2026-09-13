@@ -1510,6 +1510,9 @@ p{max-width:65ch}
    ============================================================ */
 .modal-backdrop{position:fixed;inset:0;z-index:90;background:var(--scrim);backdrop-filter:blur(3px);display:grid;place-items:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .25s var(--ease)}
 .modal-backdrop.is-open{opacity:1;pointer-events:auto}
+/* Instant-close exit: plays the moment requestClose fires, never waits on the backend. */
+.modal-backdrop.is-leaving{opacity:0;pointer-events:none}
+.modal-backdrop.is-leaving .modal{transform:translateY(14px)}
 .modal{
   width:100%;max-width:560px;background:var(--surface);border:1px solid var(--border-strong);
   border-radius:14px;box-shadow:var(--shadow-2);padding:32px 34px;

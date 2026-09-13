@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CompletionResponse, Quest, RewardPreview } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { client } from "@/lib/api";
@@ -671,6 +671,14 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
   const [preview, setPreview] = useState<RewardPreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Closing animation: `requestClose` plays the exit transition instantly,
+  // then calls the parent's onClose after ~200ms. This lets create()/X/backdrop
+  // start the animation the same tick — never waiting on the backend.
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  }, []);
 
   // Offline-tolerant draft (client cache only — the server stays authoritative).
   // Reads tolerate drafts saved by older versions (missing fields → defaults).
@@ -723,6 +731,12 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
       setError(null);
       setPreview(null);
       setMapping(null);
+      setClosing(false);
+      setBusy(false);
+      if (closeTimer.current) {
+        clearTimeout(closeTimer.current);
+        closeTimer.current = null;
+      }
     }
   }, [open ]);
 
@@ -747,6 +761,25 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, step, difficulty, activity, kind, repeat]);
 
+  const requestClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => {
+      closeTimer.current = null;
+      onClose();
+    }, 200);
+  }, [closing, onClose]);
+
+  useEffect(() => {
+    if (!open || closing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") requestClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, closing, requestClose]);
+
   if (!open) return null;
 
   /** Rule for the payload, or null for a one-time quest. */
@@ -769,6 +802,7 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
   const rulePreview = buildRule();
 
   const create = async () => {
+    if (busy || closing) return;
     if (!title.trim()) {
       toast("Give your quest a name first", "i-close");
       return;
@@ -794,55 +828,60 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
       setError("That reminder moment doesn't parse — pick it from the calendar.");
       return;
     }
+    // Snapshot everything the backend needs — the sheet closes instantly and
+    // the save continues in the background. Draft in localStorage is left
+    // intact until success so a failure loses nothing (reopen restores it).
+    const rule = buildRule();
+    const payload = {
+      title: title.trim(),
+      description: desc.trim() || undefined,
+      questType: rule ? "routine" : kind,
+      activityKey: ACTIVITY_KEY[activity],
+      difficulty: DIFFS.find((d) => d.label === difficulty)?.num ?? 2,
+      estimatedMinutes: duration,
+      scheduledFor: dateForWhen(when, schedDate),
+      ...(dueAt.trim() !== "" ? { dueAt: new Date(dueAt).toISOString() } : {}),
+      ...(rule ? { recurrenceRule: rule } : {}),
+      // Campaign linkage: quests created from a milestone serve it (PRD v2 §30).
+      // Milestone-only quests surface as campaign quests, never as giant blobs.
+      ...(link?.campaignId ? { campaignId: link.campaignId } : {}),
+      ...(link?.milestoneId ? { milestoneId: link.milestoneId } : {}),
+    };
+    const headers = authHeaders();
+    const createdTitle = payload.title;
     setBusy(true);
     setError(null);
-    try {
-      const rule = buildRule();
-      const created = await client.createQuest(authHeaders(), {
-        title: title.trim(),
-        description: desc.trim() || undefined,
-        questType: rule ? "routine" : kind,
-        activityKey: ACTIVITY_KEY[activity],
-        difficulty: DIFFS.find((d) => d.label === difficulty)?.num ?? 2,
-        estimatedMinutes: duration,
-        scheduledFor: dateForWhen(when, schedDate),
-        ...(dueAt.trim() !== "" ? { dueAt: new Date(dueAt).toISOString() } : {}),
-        ...(rule ? { recurrenceRule: rule } : {}),
-        // Campaign linkage: quests created from a milestone serve it (PRD v2 §30).
-        // Milestone-only quests surface as campaign quests, never as giant blobs.
-        ...(link?.campaignId ? { campaignId: link.campaignId } : {}),
-        ...(link?.milestoneId ? { milestoneId: link.milestoneId } : {}),
-      });
-      if (rule) {
-        const today = new Date().toISOString().slice(0, 10);
-        const end = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-        await client.genInstances(authHeaders(), created.id, today, end).catch(() => undefined);
-      }
+    // INSTANT CLOSE: start the exit animation this tick — never wait on the network.
+    requestClose();
+    void (async () => {
       try {
-        window.localStorage.removeItem("lrp-quest-draft");
-      } catch {
-        /* ignore */
+        const created = await client.createQuest(headers, payload);
+        if (rule) {
+          const today = new Date().toISOString().slice(0, 10);
+          const end = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+          await client.genInstances(headers, created.id, today, end).catch(() => undefined);
+        }
+        try {
+          window.localStorage.removeItem("lrp-quest-draft");
+        } catch {
+          /* ignore */
+        }
+        onCreated();
+        void import("@/lib/sound").then((s) => s.playCreate()).catch(() => undefined);
+        toast(`“${createdTitle.length > 40 ? `${createdTitle.slice(0, 40)}…` : createdTitle}” created. The path awaits.`, "i-spark");
+      } catch (e) {
+        // Sheet is already closed — surface the failure as an animated toast.
+        // The draft is still in localStorage, so reopening restores the form.
+        toast(e instanceof Error ? e.message : "Couldn't create quest. Nothing was written — try again.", "i-close");
       }
-      setTitle("");
-      setDesc("");
-      setSchedDate("");
-      setDueAt("");
-      onCreated();
-      onClose();
-      void import("@/lib/sound").then((s) => s.playCreate()).catch(() => undefined);
-      toast("Quest created. The path awaits.", "i-spark");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't create quest. Nothing was written.");
-    } finally {
-      setBusy(false);
-    }
+    })();
   };
 
   const attrKey = preview?.primaryAttr ?? mapping?.primary ?? ACTIVITY_ATTR[activity];
   const attr = ATTR_META[attrKey] ?? { name: attrKey, icon: "i-spark" as IconId };
 
   return (
-    <div className={`modal-backdrop${open ? " is-open" : ""}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className={`modal-backdrop${open ? " is-open" : ""}${closing ? " is-leaving" : ""}`} onClick={(e) => { if (e.target === e.currentTarget) requestClose(); }}>
       <div className="modal" role="dialog" aria-label="Create quest">
         <div className="modal-head">
           <div>
@@ -857,7 +896,7 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
               </p>
             )}
           </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
+          <button className="icon-btn" onClick={requestClose} aria-label="Close">
             <Icon id="i-close" />
           </button>
         </div>
@@ -1087,8 +1126,8 @@ export function QuestCreator({ open, onClose, onCreated, link }: { open: boolean
               Continue
             </button>
           ) : (
-            <button className="btn btn--primary" onClick={create} disabled={busy || !title.trim()}>
-              {busy ? "Creating…" : "Create Quest"}
+            <button className="btn btn--primary" onClick={create} disabled={busy || closing || !title.trim()}>
+              {busy || closing ? "Creating…" : "Create Quest"}
             </button>
           )}
         </div>
