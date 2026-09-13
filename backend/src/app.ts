@@ -8,7 +8,7 @@ import { apiRouter } from "./routes";
 
 /**
  * Modular monolith server app (LRP-ARCH-001 §3-§4).
- * Browser → Server App (auth → ownership → domain → DB tx) → PostgreSQL.
+ * Browser →   Server App (auth → ownership → domain → DB tx) → PostgreSQL.
  */
 export function createApp() {
   const app = express();
