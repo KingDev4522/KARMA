@@ -45,7 +45,7 @@ export default function WelcomePage() {
           const gPhoto = String(meta.avatar_url ?? meta.picture ?? "").trim();
           const patch: Record<string, string> = {};
           if (!me?.profile?.displayName && gName) patch.displayName = gName.slice(0, 80);
-          if (!me?.profile?.avatarAssetId && /^https?:\/\//.test(gPhoto) && gPhoto.length <= 160) {
+          if (!me?.profile?.avatarAssetId && /^https?:\/\//.test(gPhoto) && gPhoto.length <= 2000) {
             patch.avatarAssetId = gPhoto;
           }
           if (Object.keys(patch).length > 0) {

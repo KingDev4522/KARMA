@@ -232,6 +232,8 @@ export function AvatarImg({
 }) {
   // No identity at all (signed out / fresh) → neutral silhouette, NEVER a
   // default character. No hero is hardcoded anywhere in the UI.
+  // (Hook first: early returns must never skip hooks between renders.)
+  const [photoGone, setPhotoGone] = useState(false);
   if (!avatarAssetId && !heroAssetId) {
     return (
       <span
@@ -253,7 +255,6 @@ export function AvatarImg({
     );
   }
   const a = resolveAvatar(avatarAssetId, heroAssetId);
-  const [photoGone, setPhotoGone] = useState(false);
   if (a.kind === "photo" && a.photoUrl && !photoGone) {
     return (
       // eslint-disable-next-line @next/next/no-img-element

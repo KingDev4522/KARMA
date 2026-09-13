@@ -63,7 +63,7 @@ export default function HeroCardPage() {
       ctx.fillText("HERO", 300, 70);
       ctx.fillStyle = cs.getPropertyValue("--text").trim() || "#181818";
       ctx.font = "800 24px Inter, sans-serif";
-      ctx.fillText(String(data.heroName ?? "Hero"), 300, 105);
+      ctx.fillText(String(data.heroName ?? "Traveler"), 300, 105);
       ctx.fillStyle = cs.getPropertyValue("--text-2").trim() || "#5F5F5F";
       ctx.font = "400 13px Inter, sans-serif";
       ctx.fillText(`Level ${data.level} · ${data.rank?.display ?? ""}`, 300, 130);
@@ -106,7 +106,7 @@ export default function HeroCardPage() {
         <div className="share-card">
           <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".35em", color: "var(--text-3)" }}>CHARACTER</p>
           <div style={{ marginTop: 4, display: "flex", justifyContent: "center" }}>
-            <TitleBox boxSrc={titleBoxAsset} name={String(data.heroName ?? "Hero")} />
+            <TitleBox boxSrc={titleBoxAsset} name={String(data.heroName ?? "Traveler")} />
           </div>
           <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 2 }}>
             Level {data.level} · {data.rank?.display}

@@ -17,7 +17,7 @@ export const UpdateIdentitySchema = z.object({
   heroAssetId: z.string().max(120).optional(),
   companionAssetId: z.string().max(120).optional(),
   companionName: heroNameField,
-  avatarAssetId: z.string().max(160).nullable().optional(),
+  avatarAssetId: z.string().max(100000).nullable().optional(),
   lifeDomains: z.array(z.string().min(1).max(40)).max(12).optional(),
   // UX prefs (LRP-FE-001 §15 reduced-motion, §20 accessibility): persisted server-side.
   reducedMotion: z.boolean().optional(),

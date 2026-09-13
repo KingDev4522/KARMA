@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { AvatarImg, CompanionImage, FrameWrap, HeroImage, TitleBox } from "@/components/illustrations";
-import { COMPANIONS, FREE_COMPANIONS, HEROES, avatarAssetIdFor, heroAssetId, resolveHero } from "@/lib/identity";
+import { COMPANIONS, FREE_COMPANIONS, HEROES, avatarAssetIdFor, heroAssetId, isPhotoAvatar, resolveHero } from "@/lib/identity";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
 /**
@@ -87,7 +87,7 @@ export default function PersonalizePage() {
   const curBase = resolveHero(curHeroId).hero.id;
   const curAvatar: string | null = profile.avatarAssetId ?? null;
   const curCompanion: string | null = profile.companionAssetId ?? null;
-  const name = profile.heroName ?? profile.displayName ?? "hero";
+  const name = profile.heroName ?? profile.displayName ?? "Traveler";
   const frameAsset = (loadout.frameItemId && byId.get(loadout.frameItemId)?.assetPath) || null;
   const titleItem = (loadout.titleItemId && byId.get(loadout.titleItemId)) || null;
   const titleBoxAsset = titleItem?.assetPath?.endsWith(".jpeg") ? titleItem.assetPath : null;
@@ -148,12 +148,19 @@ export default function PersonalizePage() {
         </p>
         <div className="option-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(86px, 1fr))" }}>
           <label
-            className="option"
+            className={`option${isPhotoAvatar(curAvatar) ? " is-on" : ""}`}
             title="Upload your own photo (max 2 MB)"
             style={{ cursor: photoBusy ? "wait" : "pointer", opacity: photoBusy ? 0.6 : 1 }}
           >
-            <span style={{ display: "grid", placeItems: "center", width: 56, height: 56, borderRadius: 12, border: "1px dashed var(--border-strong)", fontSize: 22 }} aria-hidden>
-              {photoBusy ? "…" : "+"}
+            <span style={{ display: "block", width: 56, borderRadius: 12, overflow: "hidden" }}>
+              {isPhotoAvatar(curAvatar) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={curAvatar as string} alt="Your photo" style={{ width: "100%", display: "block" }} />
+              ) : (
+                <span style={{ display: "grid", placeItems: "center", width: 56, height: 56, borderRadius: 12, border: "1px dashed var(--border-strong)", fontSize: 22 }} aria-hidden>
+                  {photoBusy ? "…" : "+"}
+                </span>
+              )}
             </span>
             <strong style={{ marginTop: 6 }}>{photoBusy ? "Uploading…" : "Your photo"}</strong>
             <input
