@@ -81,6 +81,62 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
   const [muted, setMuted] = useState(false);
   const [gate, setGate] = useState(false);
 
+  // 120 FPS cursor spotlight sheen & sliding magnetic hover pill for the navigation bar
+  const topbarRef = useRef<HTMLElement>(null);
+  const [hoverPill, setHoverPill] = useState<{ x: number; y: number; w: number; h: number; opacity: number }>({
+    x: 0,
+    y: 0,
+    w: 0,
+    h: 0,
+    opacity: 0,
+  });
+  const rafId = useRef<number | null>(null);
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    const topbar = topbarRef.current;
+    if (!topbar) return;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    if (rafId.current) cancelAnimationFrame(rafId.current);
+    rafId.current = requestAnimationFrame(() => {
+      if (!topbarRef.current) return;
+      const rect = topbarRef.current.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      topbarRef.current.style.setProperty("--mouse-x", `${x}px`);
+      topbarRef.current.style.setProperty("--mouse-y", `${y}px`);
+      topbarRef.current.style.setProperty("--mouse-active", "1");
+    });
+  };
+
+  const handlePointerLeave = () => {
+    if (topbarRef.current) {
+      topbarRef.current.style.setProperty("--mouse-active", "0");
+    }
+    setHoverPill((prev) => ({ ...prev, opacity: 0 }));
+  };
+
+  const handleItemHover = (e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>) => {
+    const topbar = topbarRef.current;
+    if (!topbar) return;
+    const target = e.currentTarget;
+    const topbarRect = topbar.getBoundingClientRect();
+    const itemRect = target.getBoundingClientRect();
+    setHoverPill({
+      x: itemRect.left - topbarRect.left,
+      y: itemRect.top - topbarRect.top,
+      w: itemRect.width,
+      h: itemRect.height,
+      opacity: 1,
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (rafId.current) cancelAnimationFrame(rafId.current);
+    };
+  }, []);
+
   // Realm gate: once per tab session, after sign-in, the splash warms the
   // realm and waits for the player's tap.
   useEffect(() => {
@@ -315,117 +371,176 @@ export function Shell({ children, rightPanel }: { children: React.ReactNode; rig
 
       {/* ============ MAIN ============ */}
       <div className="app-main">
-        <header className="topbar">
-          <button className="icon-btn menu-btn" onClick={() => setSideOpen(true)} aria-label="Open menu">
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-          </button>
-          <h1 className="topbar__title">{TITLES[path] ?? "Today"}</h1>
-          <span className="topbar__progress" aria-label={"Level " + identity.level}>
-            {identity.level} · {identity.rank}
-          </span>
-          <div className="topbar__search">
-            <Icon id="i-search" style={{ width: 16, height: 16 }} />
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") submitSearch();
+        <div className="topbar-wrapper">
+          <header
+            ref={topbarRef}
+            className="topbar"
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+          >
+            <div
+              className="topbar__hover-pill"
+              style={{
+                transform: `translate3d(${hoverPill.x}px, ${hoverPill.y}px, 0)`,
+                width: `${hoverPill.w}px`,
+                height: `${hoverPill.h}px`,
+                opacity: hoverPill.opacity,
               }}
-              placeholder="Search quests, campaigns, or type a command…"
-              aria-label="Search quests"
+              aria-hidden="true"
             />
-            <kbd>⌘K</kbd>
-          </div>
-          <div className="topbar__actions">
-            <div className="coin-pill" id="coinPill" data-tour="coins" title="Your coins" aria-label={`${identity.coins} coins`}>
-              <CoinImg size={16} />
-              <span className="coin-val">{identity.coins.toLocaleString("en-US")}</span>
-              {coinDelta !== 0 && (
-                <span className={`coin-delta${coinDelta > 0 ? " up" : " down"}`} aria-hidden="true">
-                  {coinDelta > 0 ? "▲" : "▼"}
-                </span>
-              )}
-            </div>
-            <button className="icon-btn" onClick={toggle} title="Toggle theme" aria-label="Toggle theme">
-              <Icon id={theme === "dark" ? "i-sun" : "i-moon"} />
-            </button>
             <button
-              className="icon-btn"
-              onClick={toggleMute}
-              title={muted ? "Unmute ambient music" : "Mute ambient music"}
-              aria-label={muted ? "Unmute ambient music" : "Mute ambient music"}
-              aria-pressed={!muted}
+              className="icon-btn menu-btn"
+              onClick={() => setSideOpen(true)}
+              onMouseEnter={handleItemHover}
+              onFocus={handleItemHover}
+              aria-label="Open menu"
             >
-              <Icon id={muted ? "i-volx" : "i-vol"} />
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
             </button>
-            <div className="notif-wrap" ref={notifRef}>
-              <button className="icon-btn" onClick={() => { setNotifOpen((o) => !o); setProfileOpen(false); }} aria-label={`Notifications, ${notices.filter((n) => n.key !== "all-clear").length} unread`} aria-expanded={notifOpen}>
-                <Icon id="i-bell" />
-                {notices.some((n) => n.key !== "all-clear") && <em className="ping" />}
-              </button>
-              <div className={`dropdown${notifOpen ? " is-open" : ""}`} role="menu" aria-label="Notifications">
-                <div className="dd-head">Notifications</div>
-                {notices.map((n) => (
-                  <div className="dd-item" key={n.key}>
-                    <Icon id={n.kind === "streak" ? "i-flame" : n.kind === "celebration" ? "i-trophy" : n.kind === "quest" ? "i-quests" : n.kind === "rest" ? "i-moon" : "i-spark"} />
-                    <span>
-                      <strong>{n.title}</strong>
-                      <br />
-                      <span style={{ fontWeight: 400, opacity: 0.75 }}>{n.body}</span>
-                    </span>
-                  </div>
-                ))}
-                <Link href="/settings" className="dd-item" onClick={() => setNotifOpen(false)}>
-                  <Icon id="i-settings" /> Notification settings
-                </Link>
-              </div>
+            <div
+              className="topbar__title-chip"
+              onMouseEnter={handleItemHover}
+              onFocus={handleItemHover}
+            >
+              <h1 className="topbar__title">{TITLES[path] ?? "Today"}</h1>
+              <span className="topbar__progress" aria-label={"Level " + identity.level}>
+                Lv {identity.level}
+              </span>
             </div>
-            <div className="profile-wrap" ref={profileRef}>
-              <button
-                className="icon-btn"
-                style={{ padding: 0 }}
-                data-tour="profile"
-                onClick={() => { setProfileOpen((o) => !o); setNotifOpen(false); }}
-                aria-label="Profile menu"
-                aria-expanded={profileOpen}
+            <div
+              className="topbar__search"
+              onMouseEnter={handleItemHover}
+              onFocus={handleItemHover}
+            >
+              <Icon id="i-search" style={{ width: 16, height: 16 }} />
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitSearch();
+                }}
+                placeholder="Search quests, campaigns, or type a command…"
+                aria-label="Search quests"
+              />
+              <kbd>⌘K</kbd>
+            </div>
+            <div className="topbar__actions">
+              <div
+                className="coin-pill"
+                id="coinPill"
+                data-tour="coins"
+                title="Your coins"
+                aria-label={`${identity.coins} coins`}
+                onMouseEnter={handleItemHover}
+                onFocus={handleItemHover}
               >
-                <span className="avatar" style={{ width: 32, height: 32, overflow: "hidden" }}>
-                  <AvatarImg avatarAssetId={identity.avatarAssetId} heroAssetId={identity.heroAssetId} width={24} alt={identity.heroName} />
-                </span>
+                <CoinImg size={16} />
+                <span className="coin-val">{identity.coins.toLocaleString("en-US")}</span>
+                {coinDelta !== 0 && (
+                  <span className={`coin-delta${coinDelta > 0 ? " up" : " down"}`} aria-hidden="true">
+                    {coinDelta > 0 ? "▲" : "▼"}
+                  </span>
+                )}
+              </div>
+              <button
+                className="icon-btn theme-btn"
+                onClick={toggle}
+                onMouseEnter={handleItemHover}
+                onFocus={handleItemHover}
+                title="Toggle theme"
+                aria-label="Toggle theme"
+              >
+                <Icon id={theme === "dark" ? "i-sun" : "i-moon"} />
               </button>
-              <div className={`dropdown${profileOpen ? " is-open" : ""}`} role="menu" aria-label="Profile">
-                <div className="dd-head">
-                  {identity.heroName} · {identity.rank}
-                </div>
-                <Link href="/realm" className="dd-item" onClick={() => setProfileOpen(false)}>
-                  <Icon id="i-realm" /> View Realm
-                </Link>
-                <Link href="/personalize" className="dd-item" onClick={() => setProfileOpen(false)}>
-                  <Icon id="i-spark" /> Edit profile
-                </Link>
-                <Link href="/settings" className="dd-item" onClick={() => setProfileOpen(false)}>
-                  <Icon id="i-settings" /> Settings
-                </Link>
+              <button
+                className="icon-btn mute-btn"
+                onClick={toggleMute}
+                onMouseEnter={handleItemHover}
+                onFocus={handleItemHover}
+                title={muted ? "Unmute ambient music" : "Mute ambient music"}
+                aria-label={muted ? "Unmute ambient music" : "Mute ambient music"}
+                aria-pressed={!muted}
+              >
+                <Icon id={muted ? "i-volx" : "i-vol"} />
+              </button>
+              <div className="notif-wrap" ref={notifRef}>
                 <button
-                  className="dd-item"
-                  onClick={() => {
-                    setProfileOpen(false);
-                    signOut();
-                  }}
+                  className="icon-btn notif-btn"
+                  onClick={() => { setNotifOpen((o) => !o); setProfileOpen(false); }}
+                  onMouseEnter={handleItemHover}
+                  onFocus={handleItemHover}
+                  aria-label={`Notifications, ${notices.filter((n) => n.key !== "all-clear").length} unread`}
+                  aria-expanded={notifOpen}
                 >
-                  <Icon id="i-arrow-r" />{" "}
-                  <span className="dd-label">
-                    <span className="dd-title">Sign out</span>
-                    {email ? <span className="dd-sub">{email}</span> : null}
+                  <Icon id="i-bell" />
+                  {notices.some((n) => n.key !== "all-clear") && <em className="ping" />}
+                </button>
+                <div className={`dropdown${notifOpen ? " is-open" : ""}`} role="menu" aria-label="Notifications">
+                  <div className="dd-head">Notifications</div>
+                  {notices.map((n) => (
+                    <div className="dd-item" key={n.key}>
+                      <Icon id={n.kind === "streak" ? "i-flame" : n.kind === "celebration" ? "i-trophy" : n.kind === "quest" ? "i-quests" : n.kind === "rest" ? "i-moon" : "i-spark"} />
+                      <span>
+                        <strong>{n.title}</strong>
+                        <br />
+                        <span style={{ fontWeight: 400, opacity: 0.75 }}>{n.body}</span>
+                      </span>
+                    </div>
+                  ))}
+                  <Link href="/settings" className="dd-item" onClick={() => setNotifOpen(false)}>
+                    <Icon id="i-settings" /> Notification settings
+                  </Link>
+                </div>
+              </div>
+              <div className="profile-wrap" ref={profileRef}>
+                <button
+                  className="icon-btn profile-btn"
+                  style={{ padding: 0 }}
+                  data-tour="profile"
+                  onClick={() => { setProfileOpen((o) => !o); setNotifOpen(false); }}
+                  onMouseEnter={handleItemHover}
+                  onFocus={handleItemHover}
+                  aria-label="Profile menu"
+                  aria-expanded={profileOpen}
+                >
+                  <span className="avatar" style={{ width: 32, height: 32, overflow: "hidden" }}>
+                    <AvatarImg avatarAssetId={identity.avatarAssetId} heroAssetId={identity.heroAssetId} width={24} alt={identity.heroName} />
                   </span>
                 </button>
+                <div className={`dropdown${profileOpen ? " is-open" : ""}`} role="menu" aria-label="Profile">
+                  <div className="dd-head">
+                    {identity.heroName} · {identity.rank}
+                  </div>
+                  <Link href="/realm" className="dd-item" onClick={() => setProfileOpen(false)}>
+                    <Icon id="i-realm" /> View Realm
+                  </Link>
+                  <Link href="/personalize" className="dd-item" onClick={() => setProfileOpen(false)}>
+                    <Icon id="i-spark" /> Edit profile
+                  </Link>
+                  <Link href="/settings" className="dd-item" onClick={() => setProfileOpen(false)}>
+                    <Icon id="i-settings" /> Settings
+                  </Link>
+                  <button
+                    className="dd-item"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      signOut();
+                    }}
+                  >
+                    <Icon id="i-arrow-r" />{" "}
+                    <span className="dd-label">
+                      <span className="dd-title">Sign out</span>
+                      {email ? <span className="dd-sub">{email}</span> : null}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        </header>
+          </header>
+        </div>
 
         <main className="app-content" id="main">
           {children}
