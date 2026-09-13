@@ -77,13 +77,14 @@ export function Companion({ width = "100%" }: { width?: string | number }) {
    back to the SVG linework only if the raster is missing, so old
    profiles and slow networks never render blank.
    ============================================================ */
-
-export function HeroImage({  assetId,
+export function HeroImage({
+  assetId,
   variant,
   width = "100%",
   className,
   alt = "Hero portrait",
   eager = false,
+  fill = false,
 }: {
   assetId?: string | null;
   variant?: HeroVariant;
@@ -91,6 +92,7 @@ export function HeroImage({  assetId,
   className?: string;
   alt?: string;
   eager?: boolean;
+  fill?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const { hero, variant: v } = resolveHero(assetId);
@@ -101,7 +103,7 @@ export function HeroImage({  assetId,
         <span
           role="img"
           aria-label={alt}
-          style={{ display: "grid", placeItems: "center", width: "100%", aspectRatio: "3/4", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
+          style={{ display: "grid", placeItems: "center", width: "100%", height: fill ? "100%" : undefined, aspectRatio: fill ? undefined : "3/4", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
         >
           <Icon id="i-realm" style={{ width: "40%", height: "40%" }} />
         </span>
@@ -114,8 +116,8 @@ export function HeroImage({  assetId,
     <img
       src={hero.file(useVariant)}
       alt={`${hero.name} · ${useVariant} — ${alt}`}
-      width={typeof width === "number" ? width : undefined}
-      style={typeof width === "number" ? undefined : { width: width as string, height: "auto", display: "block" }}
+      width={!fill && typeof width === "number" ? width : undefined}
+      style={fill ? { width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center", display: "block" } : typeof width === "number" ? undefined : { width: width as string, height: "auto", display: "block" }}
       className={className}
       loading={eager ? "eager" : "lazy"}
       decoding="async"
@@ -129,11 +131,13 @@ export function CompanionImage({
   width = 72,
   alt = "Companion",
   eager = false,
+  fill = false,
 }: {
   assetId?: string | null;
   width?: string | number;
   alt?: string;
   eager?: boolean;
+  fill?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const c = resolveCompanion(assetId);
@@ -143,7 +147,7 @@ export function CompanionImage({
         <span
           role="img"
           aria-label={alt}
-          style={{ display: "grid", placeItems: "center", width: typeof width === "number" ? width : "100%", aspectRatio: "1", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
+          style={{ display: "grid", placeItems: "center", width: "100%", height: fill ? "100%" : undefined, aspectRatio: fill ? undefined : "1", borderRadius: 12, background: "var(--surface-2)", color: "var(--text-3)" }}
         >
           <Icon id="i-spark" style={{ width: "40%", height: "40%" }} />
         </span>
@@ -156,8 +160,8 @@ export function CompanionImage({
     <img
       src={c.src}
       alt={`${c.name} — ${alt}`}
-      width={typeof width === "number" ? width : undefined}
-      style={typeof width === "number" ? { height: "auto", borderRadius: 12 } : { width: width as string, height: "auto", display: "block", borderRadius: 12 }}
+      width={!fill && typeof width === "number" ? width : undefined}
+      style={fill ? { width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" } : typeof width === "number" ? { height: "auto", borderRadius: 12 } : { width: width as string, height: "auto", display: "block", borderRadius: 12 }}
       loading={eager ? "eager" : "lazy"}
       decoding="async"
       onError={() => setFailed(true)}
@@ -239,12 +243,14 @@ export function AvatarImg({
   width = 32,
   alt = "Profile",
   eager = false,
+  fill = false,
 }: {
   avatarAssetId?: string | null;
   heroAssetId?: string | null;
   width?: string | number;
   alt?: string;
   eager?: boolean;
+  fill?: boolean;
 }) {
   // No identity at all (signed out / fresh) → neutral silhouette, NEVER a
   // default character. No hero is hardcoded anywhere in the UI.
@@ -277,16 +283,16 @@ export function AvatarImg({
       <img
         src={a.photoUrl}
         alt={alt}
-        width={typeof width === "number" ? width : undefined}
-        style={typeof width === "number" ? { height: "auto", borderRadius: 12, objectFit: "cover" } : { width: width as string, height: "auto", display: "block", borderRadius: 12, objectFit: "cover" }}
+        width={!fill && typeof width === "number" ? width : undefined}
+        style={fill ? { width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", display: "block" } : typeof width === "number" ? { height: "auto", borderRadius: 12, objectFit: "cover" } : { width: width as string, height: "auto", display: "block", borderRadius: 12, objectFit: "cover" }}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
         onError={() => setPhotoGone(true)}
       />
     );
   }
-  if (a.kind === "companion") return <CompanionImage assetId={a.companion.id} width={width} alt={alt} eager={eager} />;
-  return <HeroImage assetId={`${a.hero.id}-${a.variant}`} width={width} alt={alt} eager={eager} />;
+  if (a.kind === "companion") return <CompanionImage assetId={a.companion.id} width={width} alt={alt} eager={eager} fill={fill} />;
+  return <HeroImage assetId={`${a.hero.id}-${a.variant}`} width={width} alt={alt} eager={eager} fill={fill} />;
 }
 
 export function FrameWrap({

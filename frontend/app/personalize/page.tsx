@@ -13,6 +13,60 @@ import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/Sta
 type WardrobeTab = "heroes" | "companions" | "frames" | "titles" | "avatar" | "identity";
 
 /**
+ * StudioFramedPicture — the profile picture stage, self-contained.
+ * Layer 1 (bottom): the picture itself, always rendered, never empty
+ *   (photo → companion → character → neutral tile, in that order).
+ * Layer 2 (top): the equipped frame art over it, pointer-transparent.
+ * Inline styles only, so no global selector can collapse it.
+ */
+function StudioFramedPicture({
+  frameSrc,
+  avatarAssetId,
+  heroAssetId,
+  name,
+}: {
+  frameSrc: string | null;
+  avatarAssetId: string | null;
+  heroAssetId: string | null;
+  name: string;
+}) {
+  const [frameGone, setFrameGone] = useState(false);
+  const showFrame = !!frameSrc && !frameGone;
+  return (
+    <span
+      style={{
+        position: "relative",
+        display: "block",
+        width: 132,
+        aspectRatio: "3/4",
+        borderRadius: 20,
+        overflow: "hidden",
+        background: "var(--surface-2)",
+        border: "1px solid var(--border-strong)",
+      }}
+      role="img"
+      aria-label={`${name}'s framed profile picture`}
+    >
+      <span style={{ position: "absolute", inset: 0, display: "block" }}>
+        <AvatarImg avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} width="100%" eager fill alt={name} />
+      </span>
+      {showFrame && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={frameSrc as string}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
+          onError={() => setFrameGone(true)}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
+        />
+      )}
+    </span>
+  );
+}
+
+/**
  * Personalize — the luxury dressing room and character sanctum.
  * Clean, unboxed editorial layout with live hero pedestal and responsive wardrobe racks.
  */
@@ -99,8 +153,7 @@ export default function PersonalizePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ownedTradSkins = new Set(skins.map((s: any) => s?.metadata?.heroAssetId).filter((v: unknown): v is string => typeof v === "string" && v.endsWith("-traditional")));
 
-  const uploadPhoto = async (file: File | undefined) => {
-    if (!file || !userId) return;
+  const uploadPhoto = async (file: File | undefined) => {    if (!file || !userId) return;
     setPhotoBusy(true);
     try {
       const { uploadAvatarPhoto } = await import("@/lib/avatar-upload");
@@ -138,14 +191,17 @@ export default function PersonalizePage() {
       <div className="personalize-studio">
         {/* Hero Dais Live Stage (Seamless, no ugly card box) */}
         <section className="studio-hero-stage" aria-label="Current Hero Sanctum">
-          {/* Framed Avatar Pedestal with seamless photo upload trigger */}
+          {/* Framed Avatar Pedestal with seamless photo upload trigger.
+              Explicit layers (never global-selector dependent): picture fills
+              the stage, frame art overlays it, trigger floats corner. */}
           <div className="studio-avatar-pedestal" style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
             <div className="studio-avatar-wrap">
-              <FrameWrap frameSrc={frameAsset} label="Framed profile picture">
-                <span style={{ display: "block", width: 120, borderRadius: 20, overflow: "hidden" }}>
-                  <AvatarImg avatarAssetId={curAvatar} heroAssetId={curHeroId} width="100%" eager alt={name} />
-                </span>
-              </FrameWrap>
+              <StudioFramedPicture
+                frameSrc={frameAsset}
+                avatarAssetId={curAvatar}
+                heroAssetId={curHeroId}
+                name={name}
+              />
               {/* Photo Upload Floating Trigger Button */}
               <label className="studio-photo-trigger" title="Upload custom profile photo">
                 <input
@@ -161,7 +217,7 @@ export default function PersonalizePage() {
                 />
                 {photoBusy ? "…" : <Icon id="i-spark" style={{ width: 15, height: 15 }} />}
               </label>
-              <span style={{ display: "block", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--text-3)", marginTop: 6, letterSpacing: ".08em" }}>
+              <span style={{ display: "block", textAlign: "center", fontSize: 11, fontWeight: 700, color: "var(--text-3)", marginTop: 8, letterSpacing: ".08em" }}>
                 PROFILE PICTURE
               </span>
             </div>
