@@ -13,6 +13,7 @@ export interface Identity {
   heroName: string;
   heroAssetId?: string | null;
   avatarAssetId?: string | null;
+  frameAsset?: string | null;
   level: number;
   rank: string;
   coins: number;

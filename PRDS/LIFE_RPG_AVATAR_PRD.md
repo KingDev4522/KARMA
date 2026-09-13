@@ -1,8 +1,15 @@
 # KARMA — AVATAR & OVERVIEW PRD: Two-Up Identity, Full Growth, Frame Overlay
 
 **Document ID:** LRP-AVATAR-001
-**Version:** 1.0 · **Status:** Implemented, verified, on `origin/main`
+**Version:** 1.1 · **Status:** Implemented, verified, on `origin/main`
 **Date:** 13 September 2026
+
+> **CORRECTION (v1.1) — terminology lock, my earlier wording mixed these up:**
+> - **Avatar = one of the six characters. NEVER framed, never mixed.**
+> - **Profile Picture = photo / companion / character image choice.**
+>   ONLY the profile picture ever wears a frame.
+> - **Title Box = name plate.** Always shows the name, legibly.
+> Any older line in this doc implying otherwise is superseded by the above.
 
 > Design read: same realm, true faces. Photo-first in small slots, character
 > large beside it; frames overlay portraits; all 8 attributes always visible.

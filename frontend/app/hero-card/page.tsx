@@ -4,7 +4,7 @@ import Link from "next/link";
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { AvatarImg, CompanionImage, FrameWrap, HeroImage, CoinImg, Icon, TitleBox } from "@/components/illustrations";
+import { CompanionImage, FramedAvatar, HeroImage, CoinImg, Icon, TitleBox } from "@/components/illustrations";
 import { attrProgress } from "@/lib/identity";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
@@ -116,19 +116,13 @@ export default function HeroCardPage() {
           </p>
           <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".25em", color: "var(--text-3)", margin: "14px 0 6px" }}>CHARACTER</p>
           <div style={{ display: "flex", justifyContent: "center", margin: "0 0 6px" }}>
-            <div style={{ width: 180 }}>
-              <FrameWrap frameSrc={frameAsset} label="Framed character">
-                <span style={{ display: "block", borderRadius: 16, overflow: "hidden" }}>
-                  <HeroImage assetId={heroAssetId} eager alt={String(data.heroName ?? "Character")} />
-                </span>
-              </FrameWrap>
+            <div style={{ width: 180, borderRadius: 16, overflow: "hidden", border: "1px solid var(--border)" }}>
+              <HeroImage assetId={heroAssetId} eager alt={String(data.heroName ?? "Character")} />
             </div>
           </div>
           <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".25em", color: "var(--text-3)", margin: "10px 0 6px" }}>PROFILE PICTURE</p>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-            <span style={{ display: "block", width: 72, borderRadius: 14, overflow: "hidden", border: "1px solid var(--border-strong)" }}>
-              <AvatarImg avatarAssetId={data.avatarAssetId} heroAssetId={heroAssetId} width="100%" alt="Profile picture" />
-            </span>
+            <FramedAvatar avatarAssetId={data.avatarAssetId} heroAssetId={heroAssetId} frameSrc={frameAsset} size={72} alt="Profile picture" />
           </div>
           <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".25em", color: "var(--text-3)", margin: "0 0 6px" }}>COMPANION</p>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, flexDirection: "column", alignItems: "center", gap: 4 }}>

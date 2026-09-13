@@ -333,6 +333,44 @@ export function EnvStack() {
   );
 }
 
+/* ============================================================
+   TERMINOLOGY LOCK (see LRP-AVATAR-002):
+   - Avatar = one of the six characters. NEVER framed, never mixed.
+   - Profile Picture = photo / companion / character image choice.
+     ONLY the profile picture ever wears a frame.
+   - Title Box = name plate. Shows the name, always legible.
+   ============================================================ */
+
+/** Profile picture in a small slot, wearing the equipped frame (if any).
+ *  Square badge: frame art as backdrop, picture inset. No frame → plain. */
+export function FramedAvatar({
+  avatarAssetId,
+  heroAssetId,
+  frameSrc,
+  size = 32,
+  alt = "Profile",
+}: {
+  avatarAssetId?: string | null;
+  heroAssetId?: string | null;
+  frameSrc?: string | null;
+  size?: number;
+  alt?: string;
+}) {
+  const [frameGone, setFrameGone] = useState(false);
+  if (!frameSrc || frameGone) {
+    return <AvatarImg avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} width={size} alt={alt} />;
+  }
+  return (
+    <span className="frame-badge" style={{ width: size, height: size }} role="img" aria-label={alt}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={frameSrc} alt="" aria-hidden="true" className="frame-badge-art" loading="lazy" decoding="async" onError={() => setFrameGone(true)} />
+      <span className="frame-badge-inner">
+        <AvatarImg avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} width="100%" alt={alt} />
+      </span>
+    </span>
+  );
+}
+
 export function IconSprite() {
   return (
     <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">

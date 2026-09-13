@@ -3,7 +3,7 @@
 import { client } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
-import { CompanionImage, EnvStack, FrameWrap, HeroImage, Icon, TitleBox } from "@/components/illustrations";
+import { AvatarImg, CompanionImage, EnvStack, FramedAvatar, HeroImage, Icon, TitleBox } from "@/components/illustrations";
 import Link from "next/link";
 import { attrProgress } from "@/lib/identity";
 import { ATTR_META } from "@/components/quests";
@@ -84,23 +84,28 @@ export default function RealmPage() {
           <EnvStack />
           <div className="nameplate nameplate--flow">
             <span className="np-frame" style={{ overflow: "hidden" }}>
-              <HeroImage assetId={heroAssetId} width={20} alt={heroName} />
+              <AvatarImg avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} width={30} alt={heroName} />
             </span>
             <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".18em", color: "var(--text-3)", margin: "0 0 2px" }}>TITLE BOX</p>
               <TitleBox boxSrc={titleBoxAsset} name={heroName} sub={title} />
             </div>
           </div>
+          <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".18em", color: "var(--text-3)", margin: "2px 0 -6px", position: "relative", zIndex: 2 }}>CHARACTER</p>
           <div className="hero-fig hero-fig--flow">
-            <FrameWrap frameSrc={frameAsset} label={`${heroName}'s frame`}>
-              <HeroImage assetId={heroAssetId} eager alt={heroName} />
-            </FrameWrap>
+            <HeroImage assetId={heroAssetId} eager alt={heroName} />
           </div>
           {companionAssetId && (
             <div className="realm-companion">
+              <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".18em", color: "var(--text-3)", margin: 0 }}>COMPANION</p>
               <CompanionImage assetId={companionAssetId} width={52} alt={companionName ?? "Companion"} />
               <span>{companionName ? <strong>{companionName}</strong> : "Companion"}</span>
             </div>
           )}
+          <div className="realm-picture">
+            <p style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".18em", color: "var(--text-3)", margin: "0 0 6px" }}>PROFILE PICTURE</p>
+            <FramedAvatar avatarAssetId={avatarAssetId} heroAssetId={heroAssetId} frameSrc={frameAsset} size={96} alt={heroName} />
+          </div>
         </div>
 
         <div className="realm-detail">
