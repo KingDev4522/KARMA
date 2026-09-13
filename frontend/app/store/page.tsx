@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import type { StoreItem } from "@/lib/types";
-import { Companion, EnvStack, Hero, Icon, CoinImg, HeroImage, FrameWrap, TitleBox } from "@/components/illustrations";
+import { Companion, EnvStack, Hero, Icon, CoinImg, TitleBox } from "@/components/illustrations";
 import { burstAt, shakeCoins } from "@/components/quests";
 import { EmptyState, ErrorState, SignInPrompt, Skeleton } from "@/components/States";
 
@@ -246,16 +246,7 @@ function StoreShowcaseScreen({
         {/* Left: Visual Stage */}
         <div className="showcase-stage">
           {isRaster(item) ? (
-            item.itemType === "frame" ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-                <FrameWrap frameSrc={rasterSrc(item)} label={item.name}>
-                  <div style={{ width: 200, height: 200, borderRadius: 24, overflow: "hidden" }}>
-                    <HeroImage assetId="hero_ember" width="100%" alt="Hero framed preview" />
-                  </div>
-                </FrameWrap>
-                <span className="meta" style={{ color: "rgba(255,255,255,0.6)" }}>Live Portrait Preview</span>
-              </div>
-            ) : item.itemType === "title" ? (
+            item.itemType === "title" ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%", maxWidth: 360 }}>
                 <TitleBox boxSrc={rasterSrc(item)} name="Traveler" />
                 <span className="meta" style={{ color: "rgba(255,255,255,0.6)" }}>Live Title Plate Preview</span>
