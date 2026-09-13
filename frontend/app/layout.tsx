@@ -11,19 +11,74 @@ import { KeepAlivePing } from "@/components/KeepAlivePing";
 import { BootBgm } from "@/components/BootBgm";
 
 export const metadata: Metadata = {
-  title: "KARMA — Quiet progress, kept score",
-  description: "A minimal productivity practice with a discreet RPG progression system. Quests, focus, campaigns, and identity.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  applicationName: "KARMA",
+  title: {
+    default: "KARMA — Quiet progress, kept score",
+    template: "%s — KARMA",
+  },
+  description:
+    "KARMA is a Life RPG — turn real-life goals into quests, earn XP and coins, build streaks and attributes, and grow a visible hero identity.",
+  keywords: ["life rpg", "productivity", "quests", "habits", "focus timer", "streaks", "gamification", "KARMA"],
+  authors: [{ name: "KARMA" }],
+  creator: "KARMA",
+  publisher: "KARMA",
+  category: "productivity",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "KARMA",
+    locale: "en_US",
+    title: "KARMA — Quiet progress, kept score",
+    description:
+      "Turn real-life goals into quests. Earn XP and coins, build streaks, and grow your hero.",
+    images: [{ url: "/brand/logo.png", width: 512, height: 512, alt: "KARMA logo" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "KARMA — Quiet progress, kept score",
+    description:
+      "Turn real-life goals into quests. Earn XP and coins, build streaks, and grow your hero.",
+    images: ["/brand/logo.png"],
+  },
   icons: {
     icon: "/brand/logo.png",
     apple: "/brand/logo.png",
   },
+  manifest: "/manifest.webmanifest",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
     { media: "(prefers-color-scheme: dark)", color: "#0C0C0C" },
   ],
+};
+
+const SITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "KARMA",
+  alternateName: "KARMA — Life RPG",
+  description:
+    "KARMA is a Life RPG — turn real-life goals into quests, earn XP and coins, build streaks and attributes, and grow a visible hero identity.",
+  applicationCategory: "ProductivityApplication",
+  operatingSystem: "Web",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSON_LD) }} />
       </head>
       <body>
         <a

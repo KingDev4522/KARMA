@@ -2,8 +2,15 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — KARMA",
+  title: "Privacy Policy",
   description: "How KARMA handles your account, gameplay data, and privacy rights.",
+  alternates: { canonical: "/privacy" },
+  openGraph: {
+    title: "Privacy Policy — KARMA",
+    description: "How KARMA handles your account, gameplay data, and privacy rights.",
+    images: [{ url: "/brand/logo.png", width: 512, height: 512, alt: "KARMA logo" }],
+  },
+  robots: { index: true, follow: true },
 };
 
 /** Public privacy policy (linked from sign-in; required for Google production publish). */
