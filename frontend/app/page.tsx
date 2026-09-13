@@ -9,7 +9,7 @@ import { clientTimeZone, useApi } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { useFocus } from "@/components/focus";
 import type { Campaign, CompletionResponse, Quest } from "@/lib/types";
-import { CompanionImage, FrameWrap, HeroImage, Icon, TitleBox } from "@/components/illustrations";
+import { CompanionImage, HeroImage, Icon } from "@/components/illustrations";
 import { ATTR_META, LevelUpModal, QuestPrimary, QuestRow, announceAchievements, burstAt } from "@/components/quests";
 import { Celebration, celebrationFrom, type CelebrationData } from "@/components/celebration";
 import { CampaignPreview } from "@/components/journey";
@@ -85,8 +85,6 @@ export default function TodayPage() {
     ((data as any)?.companion?.companionName as string | null | undefined) ??
     null;
   const heroName: string = heroObj?.heroName ?? (g as any)?.heroName ?? (data as any)?.hero?.heroName ?? (data as any)?.heroName ?? "Traveler";
-  const frameAsset: string | null = heroObj?.frameAsset ?? null;
-  const titleBoxAsset: string | null = heroObj?.titleBoxAsset ?? null;
   const seen = new Set<string>();
   const flat: Quest[] = [];
   const buckets = data.buckets as typeof data.buckets & { unscheduled?: Quest[] };
@@ -160,12 +158,8 @@ export default function TodayPage() {
             </div>
           </div>
           <figure className="hero-portrait">
-            <FrameWrap frameSrc={frameAsset} label={`${heroName}'s frame`}>
-              <HeroImage assetId={heroAssetId} eager alt={heroName} />
-            </FrameWrap>
-            <figcaption className="hp-cap">
-              <TitleBox boxSrc={titleBoxAsset} name={heroName} />
-            </figcaption>
+            <HeroImage assetId={heroAssetId} eager alt={heroName} />
+            <figcaption className="hp-cap">{heroName}</figcaption>
           </figure>
         </div>
         <span className="seal seal--line" title="Today" aria-hidden="true" style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, fontSize: 11, lineHeight: 1 }}>
