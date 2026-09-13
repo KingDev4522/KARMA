@@ -82,7 +82,7 @@ export async function getFullProfile(userId: string) {
 
 export async function updateIdentity(
   userId: string,
-  data: { displayName?: string; heroName?: string; companionName?: string; bio?: string; heroAssetId?: string; companionAssetId?: string; avatarAssetId?: string | null; lifeDomains?: string[]; reducedMotion?: boolean; theme?: string | null; notifyQuest?: boolean; notifyStreak?: boolean; notifyCelebrate?: boolean },
+  data: { displayName?: string | null; heroName?: string | null; companionName?: string | null; bio?: string | null; heroAssetId?: string; companionAssetId?: string; avatarAssetId?: string | null; lifeDomains?: string[]; reducedMotion?: boolean; theme?: string | null; notifyQuest?: boolean; notifyStreak?: boolean; notifyCelebrate?: boolean },
 ) {
   await ensureProfile(userId);
   // Ownership gates: the first character + companion are free forever

@@ -5,15 +5,16 @@ const heroNameField = z
   .string()
   .min(1)
   .max(80)
+  .nullable()
   .optional()
-  .refine((v) => v === undefined || nameError(v) === null, (v) => ({
-    message: nameError(v as string) ?? "Name not allowed.",
+  .refine((v) => v == null || nameError(v) === null, (v) => ({
+    message: (v != null && nameError(v as string)) || "Name not allowed.",
   }));
 
 export const UpdateIdentitySchema = z.object({
   displayName: heroNameField,
   heroName: heroNameField,
-  bio: z.string().max(500).optional(),
+  bio: z.string().max(500).nullable().optional(),
   heroAssetId: z.string().max(120).optional(),
   companionAssetId: z.string().max(120).optional(),
   companionName: heroNameField,

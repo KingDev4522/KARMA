@@ -126,7 +126,18 @@ export default function OnboardingPage() {
       }
       router.push("/");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't finish onboarding. Nothing was written.");
+      // Surface server validation details (field errors) instead of a bare message.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const body = (e as any)?.body as { message?: string; details?: unknown } | undefined;
+      let detail = "";
+      try {
+        const f = (body?.details as { fieldErrors?: Record<string, string[]> } | undefined)?.fieldErrors;
+        if (f) detail = Object.entries(f).map(([k, v]) => `${k}: ${v.join(", ")}`).join("; ");
+      } catch {
+        /* ignore */
+      }
+      const msg = e instanceof Error ? e.message : "Couldn't finish onboarding. Nothing was written.";
+      setError(detail ? `${msg} — ${detail}` : msg);
     }
   };
 
